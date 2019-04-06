@@ -1,0 +1,141 @@
+# Valkyrie CLI - 最小化版本
+
+function ValkyrieCompiler() {
+    let compiler = {}
+    
+    compiler.compile = function(sourceCode, filename) {
+        let lexer = Lexer()
+        let tokens = lexer.tokenize(sourceCode)
+        
+        let parser = Parser()
+        let ast = parser.parse(tokens)
+        
+        let generator = CodeGenerator()
+        let jsCode = generator.generate(ast)
+        
+        return jsCode
+    }
+    
+    return compiler
+}
+
+function main() {
+    let args = process.argv
+    
+    if args.length < 3 {
+        console.log("Usage: node cli.js <command> [options]")
+        console.log("Commands:")
+        console.log("  compile <file>  - Compile a Valkyrie file")
+        console.log("  init            - Initialize a new project")
+        console.log("  watch           - Watch for file changes")
+        return
+    }
+    
+    let command = args[2]
+    
+    if command == "compile" {
+        if args.length < 4 {
+            console.log("Error: Please specify a file to compile")
+            return
+        }
+        
+        let filename = args[3]
+        compileFile(filename)
+    } else if command == "init" {
+        initProject()
+    } else if command == "watch" {
+        watchFiles()
+    } else {
+        console.log("Unknown command: " + command)
+    }
+}
+
+function compileFile(filename) {
+    let fs = require("fs")
+    let path = require("path")
+    
+    if !fs.existsSync(filename) {
+        console.log("Error: File not found: " + filename)
+        return
+    }
+    
+    let sourceCode = fs.readFileSync(filename, "utf8")
+    let compiler = ValkyrieCompiler()
+    
+    let jsCode = compiler.compile(sourceCode, filename)
+    
+    let outputPath = filename.replace(".valkyrie", ".js")
+    fs.writeFileSync(outputPath, jsCode)
+    
+    console.log("Compiled " + filename + " to " + outputPath)
+}
+
+function initProject() {
+    let fs = require("fs")
+    
+    let packageJson = "{\n"
+    packageJson = packageJson + "  \"name\": \"valkyrie-project\",\n"
+    packageJson = packageJson + "  \"version\": \"1.0.0\",\n"
+    packageJson = packageJson + "  \"description\": \"A Valkyrie project\",\n"
+    packageJson = packageJson + "  \"main\": \"index.js\",\n"
+    packageJson = packageJson + "  \"scripts\": {\n"
+    packageJson = packageJson + "    \"build\": \"node cli.js compile src/main.valkyrie\"\n"
+    packageJson = packageJson + "  }\n"
+    packageJson = packageJson + "}"
+    
+    fs.writeFileSync("package.json", packageJson)
+    
+    if !fs.existsSync("src") {
+        fs.mkdirSync("src")
+    }
+    
+    let mainFile = "# Main Valkyrie file\n\n"
+    mainFile = mainFile + "function main() {\n"
+    mainFile = mainFile + "    console.log(\"Hello, Valkyrie!\")\n"
+    mainFile = mainFile + "}\n\n"
+    mainFile = mainFile + "main()"
+    
+    fs.writeFileSync("src/main.valkyrie", mainFile)
+    
+    console.log("Initialized new Valkyrie project")
+    console.log("Created package.json and src/main.valkyrie")
+}
+
+function watchFiles() {
+    let fs = require("fs")
+    let path = require("path")
+    
+    console.log("Watching for file changes...")
+    
+    function watchDirectory(dir) {
+        if !fs.existsSync(dir) {
+            return
+        }
+        
+        let files = fs.readdirSync(dir)
+        
+        let i = 0
+        while i < files.length {
+            let file = files[i]
+            let fullPath = path.join(dir, file)
+            let stat = fs.statSync(fullPath)
+            
+            if stat.isDirectory() {
+                watchDirectory(fullPath)
+            } else if file.endsWith(".valkyrie") {
+                fs.watchFile(fullPath, function() {
+                    console.log("File changed: " + fullPath)
+                    compileFile(fullPath)
+                })
+            }
+            
+            i = i + 1
+        }
+    }
+    
+    watchDirectory("src")
+    watchDirectory(".")
+}
+
+# 启动 CLI
+main()

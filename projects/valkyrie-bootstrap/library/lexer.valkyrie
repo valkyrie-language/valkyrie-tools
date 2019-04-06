@@ -1,0 +1,295 @@
+# Valkyrie Language Lexer - 最小化版本
+
+let TokenType = {
+    IDENTIFIER: "IDENTIFIER",
+    INTEGER: "INTEGER",
+    STRING: "STRING",
+    
+    # 关键字
+    LET: "let",
+    FUNCTION: "function", 
+    IF: "if",
+    ELSE: "else",
+    WHILE: "while",
+    FOR: "for",
+    RETURN: "return",
+    TRUE: "true",
+    FALSE: "false",
+    
+    # 操作符
+    ASSIGN: "=",
+    PLUS: "+",
+    MINUS: "-",
+    MULTIPLY: "*",
+    DIVIDE: "/",
+    
+    # 比较
+    EQUAL: "==",
+    NOT_EQUAL: "!=",
+    LESS_THAN: "<",
+    GREATER_THAN: ">",
+    
+    # 分隔符
+    SEMICOLON: ";",
+    COMMA: ",",
+    DOT: ".",
+    
+    # 括号
+    LPAREN: "(",
+    RPAREN: ")",
+    LBRACE: "{",
+    RBRACE: "}",
+    
+    EOF: "EOF"
+}
+
+function Token(type, value, line, column) {
+    let token = {}
+    token.type = type
+    token.value = value
+    token.line = line
+    token.column = column
+    return token
+}
+
+function Lexer(source) {
+    let lexer = {}
+    lexer.source = source
+    lexer.current = 0
+    lexer.line = 1
+    lexer.column = 1
+    
+    lexer.isAtEnd = function() {
+        return lexer.current >= lexer.source.length
+    }
+    
+    lexer.advance = function() {
+        if lexer.isAtEnd() {
+            return ""
+        }
+        let char = lexer.source[lexer.current]
+        lexer.current = lexer.current + 1
+        if char == "\n" {
+            lexer.line = lexer.line + 1
+            lexer.column = 1
+        } else {
+            lexer.column = lexer.column + 1
+        }
+        return char
+    }
+    
+    lexer.peek = function() {
+        if lexer.isAtEnd() {
+            return ""
+        }
+        return lexer.source[lexer.current]
+    }
+    
+    lexer.isDigit = function(char) {
+        return char >= "0" && char <= "9"
+    }
+    
+    lexer.isAlpha = function(char) {
+        return (char >= "a" && char <= "z") || (char >= "A" && char <= "Z") || char == "_"
+    }
+    
+    lexer.isAlphaNumeric = function(char) {
+        return lexer.isAlpha(char) || lexer.isDigit(char)
+    }
+    
+    lexer.isWhitespace = function(char) {
+        return char == " " || char == "\t" || char == "\r"
+    }
+    
+    lexer.skipWhitespace = function() {
+        while lexer.peek() && lexer.isWhitespace(lexer.peek()) {
+            lexer.advance()
+        }
+    }
+    
+    lexer.skipComment = function() {
+        if lexer.peek() == "#" {
+            while lexer.peek() && lexer.peek() != "\n" {
+                lexer.advance()
+            }
+        }
+    }
+    
+    lexer.scanString = function() {
+        let value = ""
+        lexer.advance() # 跳过开始的引号
+        
+        while lexer.peek() && lexer.peek() != "\"" {
+            value = value + lexer.advance()
+        }
+        
+        if lexer.isAtEnd() {
+            return Token("ERROR", "Unterminated string", lexer.line, lexer.column)
+        }
+        
+        lexer.advance() # 跳过结束的引号
+        return Token(TokenType.STRING, value, lexer.line, lexer.column)
+    }
+    
+    lexer.scanNumber = function() {
+        let value = ""
+        
+        while lexer.peek() && lexer.isDigit(lexer.peek()) {
+            value = value + lexer.advance()
+        }
+        
+        return Token(TokenType.INTEGER, value, lexer.line, lexer.column)
+    }
+    
+    lexer.scanIdentifier = function() {
+        let value = ""
+        
+        while lexer.peek() && lexer.isAlphaNumeric(lexer.peek()) {
+            value = value + lexer.advance()
+        }
+        
+        # 检查是否是关键字
+        if value == "let" {
+            return Token(TokenType.LET, value, lexer.line, lexer.column)
+        }
+        if value == "function" {
+            return Token(TokenType.FUNCTION, value, lexer.line, lexer.column)
+        }
+        if value == "if" {
+            return Token(TokenType.IF, value, lexer.line, lexer.column)
+        }
+        if value == "else" {
+            return Token(TokenType.ELSE, value, lexer.line, lexer.column)
+        }
+        if value == "while" {
+            return Token(TokenType.WHILE, value, lexer.line, lexer.column)
+        }
+        if value == "for" {
+            return Token(TokenType.FOR, value, lexer.line, lexer.column)
+        }
+        if value == "return" {
+            return Token(TokenType.RETURN, value, lexer.line, lexer.column)
+        }
+        if value == "true" {
+            return Token(TokenType.TRUE, value, lexer.line, lexer.column)
+        }
+        if value == "false" {
+            return Token(TokenType.FALSE, value, lexer.line, lexer.column)
+        }
+        
+        return Token(TokenType.IDENTIFIER, value, lexer.line, lexer.column)
+    }
+    
+    lexer.nextToken = function() {
+        lexer.skipWhitespace()
+        
+        if lexer.isAtEnd() {
+            return Token(TokenType.EOF, "", lexer.line, lexer.column)
+        }
+        
+        let char = lexer.peek()
+        
+        # 跳过注释
+        if char == "#" {
+            lexer.skipComment()
+            return lexer.nextToken()
+        }
+        
+        # 跳过换行
+        if char == "\n" {
+            lexer.advance()
+            return lexer.nextToken()
+        }
+        
+        # 字符串
+        if char == "\"" {
+            return lexer.scanString()
+        }
+        
+        # 数字
+        if lexer.isDigit(char) {
+            return lexer.scanNumber()
+        }
+        
+        # 标识符
+        if lexer.isAlpha(char) {
+            return lexer.scanIdentifier()
+        }
+        
+        # 单字符 token
+        lexer.advance()
+        if char == "=" {
+            if lexer.peek() == "=" {
+                lexer.advance()
+                return Token(TokenType.EQUAL, "==", lexer.line, lexer.column)
+            }
+            return Token(TokenType.ASSIGN, "=", lexer.line, lexer.column)
+        }
+        if char == "!" {
+            if lexer.peek() == "=" {
+                lexer.advance()
+                return Token(TokenType.NOT_EQUAL, "!=", lexer.line, lexer.column)
+            }
+        }
+        if char == "<" {
+            return Token(TokenType.LESS_THAN, "<", lexer.line, lexer.column)
+        }
+        if char == ">" {
+            return Token(TokenType.GREATER_THAN, ">", lexer.line, lexer.column)
+        }
+        if char == "+" {
+            return Token(TokenType.PLUS, "+", lexer.line, lexer.column)
+        }
+        if char == "-" {
+            return Token(TokenType.MINUS, "-", lexer.line, lexer.column)
+        }
+        if char == "*" {
+            return Token(TokenType.MULTIPLY, "*", lexer.line, lexer.column)
+        }
+        if char == "/" {
+            return Token(TokenType.DIVIDE, "/", lexer.line, lexer.column)
+        }
+        if char == ";" {
+            return Token(TokenType.SEMICOLON, ";", lexer.line, lexer.column)
+        }
+        if char == "," {
+            return Token(TokenType.COMMA, ",", lexer.line, lexer.column)
+        }
+        if char == "." {
+            return Token(TokenType.DOT, ".", lexer.line, lexer.column)
+        }
+        if char == "(" {
+            return Token(TokenType.LPAREN, "(", lexer.line, lexer.column)
+        }
+        if char == ")" {
+            return Token(TokenType.RPAREN, ")", lexer.line, lexer.column)
+        }
+        if char == "{" {
+            return Token(TokenType.LBRACE, "{", lexer.line, lexer.column)
+        }
+        if char == "}" {
+            return Token(TokenType.RBRACE, "}", lexer.line, lexer.column)
+        }
+        
+        return Token("ERROR", "Unknown character: " + char, lexer.line, lexer.column)
+    }
+    
+    lexer.tokenize = function() {
+        let tokens = []
+        
+        while !lexer.isAtEnd() {
+            let token = lexer.nextToken()
+            if token.type != "ERROR" {
+                tokens[tokens.length] = token
+            }
+            if token.type == TokenType.EOF {
+                return tokens
+            }
+        }
+        
+        tokens[tokens.length] = Token(TokenType.EOF, "", lexer.line, lexer.column)
+        return tokens
+    }
+    
+    return lexer
+}

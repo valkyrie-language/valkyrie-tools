@@ -1,7 +1,22 @@
 # IDE
+.vscode
 .idea
 *.iml
+time-travel.*
 
 # Rust
 target/
 Cargo.lock
+Untitled.ipynb
+.ipynb_checkpoints/
+
+
+# Node
+node_modules/
+cache/
+package-lock.json
+*.wasm
+
+# Antlr
+.antlr/
+*.jar

@@ -1,0 +1,259 @@
+# Valkyrie Code Generator - 最小化版本
+
+function CodeGenerator() {
+    let generator = {}
+    
+    generator.generate = function(ast) {
+        if !ast {
+            return ""
+        }
+        
+        let code = ""
+        
+        if ast.length {
+            # 处理语句数组
+            let i = 0
+            while i < ast.length {
+                let stmt = ast[i]
+                code = code + generator.generateStatement(stmt)
+                i = i + 1
+            }
+        } else {
+            # 处理单个语句
+            code = generator.generateStatement(ast)
+        }
+        
+        return code
+    }
+    
+    generator.generateStatement = function(stmt) {
+        if !stmt || !stmt.type {
+            return ""
+        }
+        
+        if stmt.type == "FunctionDeclaration" {
+            return generator.generateFunction(stmt)
+        } else if stmt.type == "VariableDeclaration" {
+            return generator.generateVariable(stmt)
+        } else if stmt.type == "IfStatement" {
+            return generator.generateIf(stmt)
+        } else if stmt.type == "WhileStatement" {
+            return generator.generateWhile(stmt)
+        } else if stmt.type == "ForStatement" {
+            return generator.generateFor(stmt)
+        } else if stmt.type == "ReturnStatement" {
+            return generator.generateReturn(stmt)
+        } else if stmt.type == "BlockStatement" {
+            return generator.generateBlock(stmt)
+        } else if stmt.type == "ExpressionStatement" {
+            return generator.generateExpression(stmt.expression) + ";\n"
+        }
+        
+        return ""
+    }
+    
+    generator.generateFunction = function(func) {
+        let code = "function " + func.name + "("
+        
+        if func.params && func.params.length > 0 {
+            let i = 0
+            while i < func.params.length {
+                if i > 0 {
+                    code = code + ", "
+                }
+                code = code + func.params[i].value
+                i = i + 1
+            }
+        }
+        
+        code = code + ") {\n"
+        
+        if func.body && func.body.length > 0 {
+            let i = 0
+            while i < func.body.length {
+                code = code + "    " + generator.generateStatement(func.body[i])
+                i = i + 1
+            }
+        }
+        
+        code = code + "}\n\n"
+        return code
+    }
+    
+    generator.generateVariable = function(variable) {
+        let code = "let " + variable.name
+        
+        if variable.init && variable.init.type {
+            code = code + " = " + generator.generateExpression(variable.init)
+        }
+        
+        code = code + ";\n"
+        return code
+    }
+    
+    generator.generateIf = function(ifStmt) {
+        let code = "if (" + generator.generateExpression(ifStmt.condition) + ") {\n"
+        
+        if ifStmt.thenBranch && ifStmt.thenBranch.statements {
+            let i = 0
+            while i < ifStmt.thenBranch.statements.length {
+                code = code + "    " + generator.generateStatement(ifStmt.thenBranch.statements[i])
+                i = i + 1
+            }
+        }
+        
+        code = code + "}"
+        
+        if ifStmt.elseBranch && ifStmt.elseBranch.type {
+            if ifStmt.elseBranch.type == "IfStatement" {
+                code = code + " else " + generator.generateIf(ifStmt.elseBranch)
+            } else if ifStmt.elseBranch.statements {
+                code = code + " else {\n"
+                let i = 0
+                while i < ifStmt.elseBranch.statements.length {
+                    code = code + "    " + generator.generateStatement(ifStmt.elseBranch.statements[i])
+                    i = i + 1
+                }
+                code = code + "}"
+            }
+        }
+        
+        code = code + "\n"
+        return code
+    }
+    
+    generator.generateWhile = function(whileStmt) {
+        let code = "while (" + generator.generateExpression(whileStmt.condition) + ") {\n"
+        
+        if whileStmt.body && whileStmt.body.statements {
+            let i = 0
+            while i < whileStmt.body.statements.length {
+                code = code + "    " + generator.generateStatement(whileStmt.body.statements[i])
+                i = i + 1
+            }
+        }
+        
+        code = code + "}\n"
+        return code
+    }
+    
+    generator.generateFor = function(forStmt) {
+        let code = "for (let " + forStmt.variable + " of " + generator.generateExpression(forStmt.iterable) + ") {\n"
+        
+        if forStmt.body && forStmt.body.statements {
+            let i = 0
+            while i < forStmt.body.statements.length {
+                code = code + "    " + generator.generateStatement(forStmt.body.statements[i])
+                i = i + 1
+            }
+        }
+        
+        code = code + "}\n"
+        return code
+    }
+    
+    generator.generateReturn = function(returnStmt) {
+        let code = "return"
+        
+        if returnStmt.value && returnStmt.value.type {
+            code = code + " " + generator.generateExpression(returnStmt.value)
+        }
+        
+        code = code + ";\n"
+        return code
+    }
+    
+    generator.generateBlock = function(block) {
+        let code = "{\n"
+        
+        if block.statements && block.statements.length > 0 {
+            let i = 0
+            while i < block.statements.length {
+                code = code + "    " + generator.generateStatement(block.statements[i])
+                i = i + 1
+            }
+        }
+        
+        code = code + "}\n"
+        return code
+    }
+    
+    generator.generateExpression = function(expr) {
+        if !expr || !expr.type {
+            return ""
+        }
+        
+        if expr.type == "Literal" {
+            return generator.generateLiteral(expr)
+        } else if expr.type == "Identifier" {
+            return expr.name
+        } else if expr.type == "BinaryExpression" {
+            return generator.generateBinary(expr)
+        } else if expr.type == "UnaryExpression" {
+            return generator.generateUnary(expr)
+        } else if expr.type == "CallExpression" {
+            return generator.generateCall(expr)
+        } else if expr.type == "MemberExpression" {
+            return generator.generateMember(expr)
+        } else if expr.type == "AssignmentExpression" {
+            return generator.generateAssignment(expr)
+        }
+        
+        return ""
+    }
+    
+    generator.generateLiteral = function(literal) {
+        if literal.value == true {
+            return "true"
+        } else if literal.value == false {
+            return "false"
+        } else if typeof literal.value == "string" {
+            return "\"" + literal.value + "\""
+        } else {
+            return literal.value + ""
+        }
+    }
+    
+    generator.generateBinary = function(binary) {
+        let left = generator.generateExpression(binary.left)
+        let right = generator.generateExpression(binary.right)
+        return "(" + left + " " + binary.operator + " " + right + ")"
+    }
+    
+    generator.generateUnary = function(unary) {
+        let right = generator.generateExpression(unary.right)
+        return "(" + unary.operator + right + ")"
+    }
+    
+    generator.generateCall = function(call) {
+        let callee = generator.generateExpression(call.callee)
+        let code = callee + "("
+        
+        if call.arguments && call.arguments.length > 0 {
+            let i = 0
+            while i < call.arguments.length {
+                if i > 0 {
+                    code = code + ", "
+                }
+                code = code + generator.generateExpression(call.arguments[i])
+                i = i + 1
+            }
+        }
+        
+        code = code + ")"
+        return code
+    }
+    
+    generator.generateMember = function(member) {
+        let object = generator.generateExpression(member.object)
+        return object + "." + member.property
+    }
+    
+    generator.generateAssignment = function(assignment) {
+        let left = generator.generateExpression(assignment.left)
+        let right = generator.generateExpression(assignment.right)
+        return left + " = " + right
+    }
+    
+    return generator
+}
