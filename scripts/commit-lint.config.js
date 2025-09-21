@@ -34,10 +34,10 @@ module.exports = {
                         title: 'Styles',
                         emoji: '🎨'
                     },
-                    '🔁 refactor': {
+                    '💥 refactor': {
                         description: '重构代码',
                         title: 'Code Refactoring',
-                        emoji: '🔁'
+                        emoji: '💥'
                     },
                     '🧪 test': {
                         description: '测试相关',
@@ -74,7 +74,6 @@ module.exports = {
                         title: 'Build',
                         emoji: '📦'
                     },
-
                     '⏪ revert': {
                         description: '回滚操作',
                         title: 'Revert',
