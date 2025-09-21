@@ -39,6 +39,8 @@ let TokenType = {
     RPAREN = "RPAREN",        # )
     LBRACE = "LBRACE",        # {
     RBRACE = "RBRACE",        # }
+    LBRACKET = "LBRACKET",    # [
+    RBRACKET = "RBRACKET",    # ]
     COMMA = "COMMA",          # ,
     SEMICOLON = "SEMICOLON",  # ;
     COLON = "COLON",          # :
@@ -369,6 +371,16 @@ micro tokenize(lexer) {
                 tokenize(lexer)
             } else if char == "}" {
                 let token = createToken(TokenType.RBRACE, "}", line, column)
+                lexer.tokens = lexer.tokens + [token]
+                advance(lexer)
+                tokenize(lexer)
+            } else if char == "[" {
+                let token = createToken(TokenType.LBRACKET, "[", line, column)
+                lexer.tokens = lexer.tokens + [token]
+                advance(lexer)
+                tokenize(lexer)
+            } else if char == "]" {
+                let token = createToken(TokenType.RBRACKET, "]", line, column)
                 lexer.tokens = lexer.tokens + [token]
                 advance(lexer)
                 tokenize(lexer)
