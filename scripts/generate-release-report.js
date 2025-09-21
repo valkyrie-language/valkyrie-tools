@@ -138,11 +138,8 @@ class ReleaseReportGenerator {
         
         if (!emojiMatch) {
             // 没有 emoji 的提交，直接过滤掉
-            console.log(`调试 - 无emoji匹配: "${message}"`);
             return null;
         }
-        
-        console.log(`调试 - emoji匹配成功: emoji="${emojiMatch[1]}", message="${emojiMatch[2] || ''}"`);
         
         // 有 emoji 的提交
         const emoji = emojiMatch[1];
@@ -199,8 +196,14 @@ class ReleaseReportGenerator {
                 const typeInfo = Object.values(EMOJI_TYPES).find(t => t.name === type);
                 
                 if (type === 'other') {
-                    // other 类型默认优先级为 5，应该包含
-                    return true;
+                    // other 类型需要检查其实际emoji的优先级
+                    const commits = groupedCommits[type];
+                    if (commits.length > 0) {
+                        const actualEmoji = commits[0].emoji;
+                        const actualTypeInfo = EMOJI_TYPES[actualEmoji];
+                        return actualTypeInfo && actualTypeInfo.priority >= 0;
+                    }
+                    return false;
                 }
                 
                 if (!typeInfo) {
@@ -255,17 +258,7 @@ class ReleaseReportGenerator {
      */
     generateCompleteChangelog() {
         const commitLines = this.getAllCommits();
-        console.log(`获取到 ${commitLines.length} 条原始提交记录`);
-        
-        const parsedCommits = commitLines.map(line => {
-            const parsed = this.parseCommit(line);
-            if (parsed) {
-                console.log(`解析成功: ${parsed.emoji} ${parsed.message} (${parsed.type})`);
-            } else {
-                console.log(`过滤掉: ${line}`);
-            }
-            return parsed;
-        }).filter(Boolean);
+        const parsedCommits = commitLines.map(line => this.parseCommit(line)).filter(Boolean);
 
         if (parsedCommits.length === 0) {
             return '## Unreleased\n\n没有找到符合规范的提交记录。\n';
