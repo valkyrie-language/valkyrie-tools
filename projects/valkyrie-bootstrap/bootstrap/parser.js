@@ -365,7 +365,7 @@ export class Parser {
     parseComparison() {
         let expr = this.parseAddition();
         
-        while (this.match(TokenType.LESS, TokenType.GREATER)) {
+        while (this.match(TokenType.LESS, TokenType.GREATER, TokenType.LESS_EQUAL, TokenType.GREATER_EQUAL)) {
             const operator = this.current();
             this.advance();
             const right = this.parseAddition();
@@ -405,7 +405,7 @@ export class Parser {
     
     // 解析一元表达式
     parseUnary() {
-        if (this.match(TokenType.MINUS)) {
+        if (this.match(TokenType.MINUS, TokenType.NOT)) {
             const operator = this.current();
             this.advance();
             const operand = this.parseUnary();

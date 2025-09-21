@@ -115,9 +115,11 @@ micro advance(lexer) {
 # 跳过空白字符
 micro skipWhitespace(lexer) {
     let char = current(lexer)
-    if char == " " || char == "\t" || char == "\r" || char == "\n" {
+    if (char == " ") || (char == "\t") || (char == "\r") || (char == "\n") {
         advance(lexer)
         skipWhitespace(lexer)
+    } else {
+        # 不是空白字符，直接返回
     }
 }
 

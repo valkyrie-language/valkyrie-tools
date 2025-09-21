@@ -80,7 +80,7 @@ micro parseProgram(parser) {
     let statements = []
     
     # 解析所有语句直到 EOF
-    while !check(parser, "EOF") {
+    while !(check(parser, "EOF")) {
         let stmt = parseStatement(parser)
         if stmt.type != "" {
             statements = statements + [stmt]
@@ -168,7 +168,7 @@ micro parseBlockStatement(parser) {
     let lbraceToken = expect(parser, "LBRACE")
     let statements = []
     
-    while !check(parser, "RBRACE") && !check(parser, "EOF") {
+    while !(check(parser, "RBRACE")) && !(check(parser, "EOF")) {
         let stmt = parseStatement(parser)
         if stmt.type != "" {
             statements = statements + [stmt]
@@ -347,7 +347,7 @@ micro parsePrimary(parser) {
             createObjectLiteral([], token.line, token.column)
         } else {
             # 解析对象属性
-            while !check(parser, "RBRACE") && !check(parser, "EOF") {
+            while !(check(parser, "RBRACE")) && !(check(parser, "EOF")) {
                 # 解析属性键
                 let keyToken = expect(parser, "IDENTIFIER")
                 

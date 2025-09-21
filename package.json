@@ -11,7 +11,9 @@
         "u": "cargo upgrade --incompatible",
         "commit": "git-cz",
         "commitmsg": "commitlint -E GIT_PARAMS",
-        "setup-commit": "npm install && npm install -g commitizen @commitlint/cli"
+        "setup-commit": "npm install && npm install -g commitizen @commitlint/cli",
+        "release:report": "node scripts/generate-release-report.js",
+        "release:latest": "node scripts/generate-release-report.js $(date +v%Y.%m.%d)"
     },
     "dependencies": {},
     "devDependencies": {
