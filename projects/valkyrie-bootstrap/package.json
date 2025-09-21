@@ -1,27 +1,22 @@
 {
     "name": "@valkyrie-language/valkyrie-bootstrap",
-    "version": "0.0.0",
-    "description": "Valkyrie language bootstrap compiler",
-    "main": "dist/index.js",
+    "version": "0.1.0",
+    "description": "Valkyrie Language Bootstrap Compiler",
+    "main": "bootstrap.js",
     "type": "module",
     "bin": {
-        "valkyrie": "./dist/index.js"
+        "valkyrie": "./bootstrap.js"
     },
     "scripts": {
-        "dev": "vitepress dev",
-        "build": "vitepress build",
-        "preview": "vitepress preview",
-        "test": "node test/test.js",
-        "compile": "node valkyrie.js compile",
-        "watch": "node valkyrie.js watch",
-        "example": "node valkyrie.js compile -s examples -o dist/examples -v"
+        "bootstrap": "node bootstrap.js --bootstrap",
+        "test": "node test/test.js"
     },
     "keywords": [
         "valkyrie",
         "compiler",
         "bootstrap",
         "programming-language",
-        "transpiler",
+        "compiler-bootstrap",
         "javascript"
     ],
     "author": "Valkyrie Language Team",
