@@ -1,140 +1,244 @@
 {
-  "commitlint": {
-    "extends": ["@commitlint/config-conventional"],
-    "rules": {
-      "type-enum": [2, "always", [
-        "feat", "fix", "docs", "style", "refactor", "test", "config", "perf",
-        "release", "tag", "ci", "build", "revert", "idea", "delete", "complete", "branch", "experiment"
-      ]],
-      "type-empty": [2, "never"],
-      "subject-empty": [2, "never"],
-      "header-max-length": [2, "always", 72]
-    },
-    "prompt": {
-      "questions": {
-        "type": {
-          "description": "选择你要提交的更改类型:",
-          "enum": {
-            "✨ feat": {
-              "description": "新功能",
-              "title": "Features",
-              "emoji": "✨"
-            },
-            "🔧 fix": {
-              "description": "修复bug",
-              "title": "Bug Fixes",
-              "emoji": "🔧"
-            },
-            "📝 docs": {
-              "description": "文档更新",
-              "title": "Documentation",
-              "emoji": "📝"
-            },
-            "🎨 style": {
-              "description": "代码格式调整",
-              "title": "Styles",
-              "emoji": "🎨"
-            },
-            "☢️ refactor": {
-              "description": "重构代码",
-              "title": "Code Refactoring",
-              "emoji": "☢️"
-            },
-            "🧪 test": {
-              "description": "测试相关",
-              "title": "Tests",
-              "emoji": "🧪"
-            },
-            "🔨 config": {
-              "description": "配置文件修改",
-              "title": "Configuration",
-              "emoji": "🔨"
-            },
-            "⚡️ perf": {
-              "description": "性能优化",
-              "title": "Performance Improvements",
-              "emoji": "⚡️"
-            },
-            "🚀 release": {
-              "description": "发布版本",
-              "title": "Release",
-              "emoji": "🚀"
-            },
-            "🔖 tag": {
-              "description": "标签相关",
-              "title": "Tag",
-              "emoji": "🔖"
-            },
-            "🚦 ci": {
-              "description": "CI/CD相关",
-              "title": "CI/CD",
-              "emoji": "🚦"
-            },
-            "📦 build": {
-              "description": "构建相关",
-              "title": "Build",
-              "emoji": "📦"
-            },
-            "⏪ revert": {
-              "description": "回滚操作",
-              "title": "Revert",
-              "emoji": "⏪"
-            },
-            "💡 idea": {
-              "description": "新想法",
-              "title": "Idea",
-              "emoji": "💡"
-            },
-            "🧨 delete": {
-              "description": "删除文件",
-              "title": "Delete",
-              "emoji": "🧨"
-            },
-            "✅ complete": {
-              "description": "完成任务",
-              "title": "Complete",
-              "emoji": "✅"
-            },
-            "🔀 branch": {
-              "description": "分支操作",
-              "title": "Branch",
-              "emoji": "🔀"
-            },
-            "🔮 experiment": {
-              "description": "实验性功能",
-              "title": "Experiment",
-              "emoji": "🔮"
+    "commitlint": {
+        "extends": [
+            "@commitlint/config-conventional"
+        ],
+        "rules": {
+            "type-enum": [
+                2,
+                "always",
+                [
+                    "feat",
+                    "fix",
+                    "docs",
+                    "style",
+                    "refactor",
+                    "test",
+                    "config",
+                    "perf",
+                    "release",
+                    "tag",
+                    "ci",
+                    "build",
+                    "revert",
+                    "idea",
+                    "delete",
+                    "complete",
+                    "branch",
+                    "experiment"
+                ]
+            ],
+            "type-empty": [
+                2,
+                "never"
+            ],
+            "subject-empty": [
+                2,
+                "never"
+            ],
+            "header-max-length": [
+                2,
+                "always",
+                72
+            ]
+        },
+        "prompt": {
+            "questions": {
+                "type": {
+                    "description": "选择你要提交的更改类型:",
+                    "enum": {
+                        "✨ feat": {
+                            "description": "新功能",
+                            "title": "Features",
+                            "emoji": "✨"
+                        },
+                        "🔧 fix": {
+                            "description": "修复bug",
+                            "title": "Bug Fixes",
+                            "emoji": "🔧"
+                        },
+                        "📝 docs": {
+                            "description": "文档更新",
+                            "title": "Documentation",
+                            "emoji": "📝"
+                        },
+                        "🎨 style": {
+                            "description": "代码格式调整",
+                            "title": "Styles",
+                            "emoji": "🎨"
+                        },
+                        "☢️ refactor": {
+                            "description": "重构代码",
+                            "title": "Code Refactoring",
+                            "emoji": "☢️"
+                        },
+                        "🧪 test": {
+                            "description": "测试相关",
+                            "title": "Tests",
+                            "emoji": "🧪"
+                        },
+                        "🔨 config": {
+                            "description": "配置文件修改",
+                            "title": "Configuration",
+                            "emoji": "🔨"
+                        },
+                        "⚡️ perf": {
+                            "description": "性能优化",
+                            "title": "Performance Improvements",
+                            "emoji": "⚡️"
+                        },
+                        "🚀 release": {
+                            "description": "发布版本",
+                            "title": "Release",
+                            "emoji": "🚀"
+                        },
+                        "🔖 tag": {
+                            "description": "标签相关",
+                            "title": "Tag",
+                            "emoji": "🔖"
+                        },
+                        "🚦 ci": {
+                            "description": "CI/CD相关",
+                            "title": "CI/CD",
+                            "emoji": "🚦"
+                        },
+                        "📦 build": {
+                            "description": "构建相关",
+                            "title": "Build",
+                            "emoji": "📦"
+                        },
+                        "⏪ revert": {
+                            "description": "回滚操作",
+                            "title": "Revert",
+                            "emoji": "⏪"
+                        },
+                        "💡 idea": {
+                            "description": "新想法",
+                            "title": "Idea",
+                            "emoji": "💡"
+                        },
+                        "🧨 delete": {
+                            "description": "删除文件",
+                            "title": "Delete",
+                            "emoji": "🧨"
+                        },
+                        "✅ complete": {
+                            "description": "完成任务",
+                            "title": "Complete",
+                            "emoji": "✅"
+                        },
+                        "🔀 branch": {
+                            "description": "分支操作",
+                            "title": "Branch",
+                            "emoji": "🔀"
+                        },
+                        "🔮 experiment": {
+                            "description": "实验性功能",
+                            "title": "Experiment",
+                            "emoji": "🔮"
+                        }
+                    }
+                }
             }
-          }
         }
-      }
-    }
-  },
-  "releaseReport": {
-    "emojiTypes": {
-      "✨": {"name": "feature", "priority": 1, "label": "Stable Features"},
-      "🔮": {"name": "experiment", "priority": 2, "label": "Experimental Features"},
-      "☢️": {"name": "breaking", "priority": 3, "label": "Breaking Changes"},
-      "🔧": {"name": "fix", "priority": 4, "label": "Bug Fixes"},
-      "⚡️": {"name": "perf", "priority": 5, "label": "Performance Improvements"},
-      "📝": {"name": "docs", "priority": 6, "label": "Documentation Updates"},
-      "🧪": {"name": "test", "priority": 7, "label": "Tests"},
-      "🔨": {"name": "refactor", "priority": 2, "label": "Refactoring"},
-      "🚦": {"name": "ci", "priority": 8, "label": "CI/CD"},
-      "📦": {"name": "deps", "priority": 3, "label": "Dependencies"},
-      "🎨": {"name": "style", "priority": 9, "label": "Style Improvements"},
-      "⏪": {"name": "revert", "priority": 3, "label": "回滚"},
-      "💡": {"name": "idea", "priority": 9, "label": "想法"},
-      "🧨": {"name": "delete", "priority": 9, "label": "删除"},
-      "✅": {"name": "done", "priority": 9, "label": "完成"},
-      "🔀": {"name": "merge", "priority": -1, "label": "合并"},
-      "🚀": {"name": "release", "priority": -1, "label": "发布"},
-      "🔖": {"name": "tag", "priority": -1, "label": "标签"}
     },
-    "output": {
-      "directory": "releases",
-      "dateFormat": "zh-CN",
-      "maxCommitsInPreview": 20
+    "releaseReport": {
+        "emojiTypes": {
+            "✨": {
+                "name": "feature",
+                "priority": 1,
+                "label": "Stable Features"
+            },
+            "🔮": {
+                "name": "experiment",
+                "priority": 2,
+                "label": "Experimental Features"
+            },
+            "☢️": {
+                "name": "breaking",
+                "priority": 3,
+                "label": "Breaking Changes"
+            },
+            "🔧": {
+                "name": "fix",
+                "priority": 4,
+                "label": "Bug Fixes"
+            },
+            "⚡️": {
+                "name": "perf",
+                "priority": 5,
+                "label": "Performance Improvements"
+            },
+            "📝": {
+                "name": "docs",
+                "priority": 6,
+                "label": "Documentation Updates"
+            },
+            "🧪": {
+                "name": "test",
+                "priority": 7,
+                "label": "Tests"
+            },
+            "🔨": {
+                "name": "refactor",
+                "priority": 2,
+                "label": "Refactoring"
+            },
+            "🚦": {
+                "name": "ci",
+                "priority": 8,
+                "label": "CI/CD"
+            },
+            "📦": {
+                "name": "deps",
+                "priority": 3,
+                "label": "Dependencies"
+            },
+            "🎨": {
+                "name": "style",
+                "priority": 9,
+                "label": "Style Improvements"
+            },
+            "⏪": {
+                "name": "revert",
+                "priority": 3,
+                "label": "回滚"
+            },
+            "💡": {
+                "name": "idea",
+                "priority": 9,
+                "label": "想法"
+            },
+            "🧨": {
+                "name": "delete",
+                "priority": 9,
+                "label": "删除"
+            },
+            "✅": {
+                "name": "done",
+                "priority": 9,
+                "label": "完成"
+            },
+            "🔀": {
+                "name": "merge",
+                "priority": -1,
+                "label": "合并"
+            },
+            "🚀": {
+                "name": "release",
+                "priority": -1,
+                "label": "发布"
+            },
+            "🔖": {
+                "name": "tag",
+                "priority": -1,
+                "label": "标签"
+            }
+        },
+        "output": {
+            "directory": "releases",
+            "dateFormat": "zh-CN",
+            "maxCommitsInPreview": 20
+        }
     }
-  }
 }

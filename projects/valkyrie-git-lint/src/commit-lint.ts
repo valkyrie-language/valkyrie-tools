@@ -1,6 +1,6 @@
 import { execSync } from 'child_process';
-import { GitLintConfig, ConfigLoader, EmojiTypeConfig } from './config-loader';
-import { ParsedCommit } from './release-report';
+import { GitLintConfig, ConfigLoader, EmojiTypeConfig } from './config-loader.js';
+import { ParsedCommit } from './release-report.js';
 
 export interface LintResult {
     valid: boolean;

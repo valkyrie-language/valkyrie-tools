@@ -12,9 +12,9 @@
         "commit": "git-cz",
         "commitmsg": "commitlint -E GIT_PARAMS",
         "setup-commit": "npm install && npm install -g commitizen @commitlint/cli",
-        "release:report": "node scripts/generate-release-report.js",
-        "change-log": "node scripts/generate-release-report.js --changelog",
-        "release:latest": "node scripts/generate-release-report.js $(date +v%Y.%m.%d)"
+        "release:report": "node projects/valkyrie-git-lint/dist/git-lint.js report",
+        "change-log": "node projects/valkyrie-git-lint/dist/git-lint.js changelog",
+        "release:latest": "node projects/valkyrie-git-lint/dist/git-lint.js release $(date +v%Y.%m.%d)"
     },
     "dependencies": {},
     "devDependencies": {

@@ -46,7 +46,9 @@ export class ValkyrieGitLintCli {
      * 生成完整的 changelog
      */
     generateChangelog(): string {
-        return this.releaseReportGenerator.generateChangelog();
+        const changelog = this.releaseReportGenerator.generateChangelog();
+        // 默认保存 changelog 文件
+        return this.releaseReportGenerator.saveReport(changelog);
     }
 
     /**

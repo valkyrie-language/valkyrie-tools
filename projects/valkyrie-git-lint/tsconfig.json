@@ -18,7 +18,9 @@
     "experimentalDecorators": true,
     "emitDecoratorMetadata": true,
     "lib": ["ES2020", "DOM"],
-    "types": ["node"]
+    "types": ["node"],
+    "allowImportingTsExtensions": false,
+    "noEmit": false
   },
   "include": [
     "src/**/*"
