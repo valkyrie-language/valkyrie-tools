@@ -133,14 +133,22 @@ class ReleaseReportGenerator {
 
         const [, hash, message] = commitMatch;
         
-        // 提取 emoji 和消息内容
+        // 提取 emoji 和消息内容（支持没有 emoji 的提交）
         const emojiMatch = message.match(/^([✨🔧📝🎨☢️🧪🔨⚡️🚀🔖🚦📦⏪💡🧨✅🔀🔮])\s+(.+)$/);
-        if (!emojiMatch) {
-            return null;
+        
+        let emoji, msgContent, type;
+        
+        if (emojiMatch) {
+            // 有 emoji 的提交
+            emoji = emojiMatch[1];
+            msgContent = emojiMatch[2];
+            type = EMOJI_TYPES[emoji] || {name: 'other', priority: 5, label: '其他'};
+        } else {
+            // 没有 emoji 的提交，使用默认类型
+            emoji = '📝';
+            msgContent = message;
+            type = {name: 'other', priority: 5, label: '其他变更'};
         }
-
-        const [, emoji, msgContent] = emojiMatch;
-        const type = EMOJI_TYPES[emoji] || {name: 'other', priority: 5, label: '其他'};
 
         return {
             hash: hash.slice(0, 7), // 只取前7位
@@ -231,7 +239,10 @@ class ReleaseReportGenerator {
      */
     generateCompleteChangelog() {
         const commitLines = this.getAllCommits();
+        console.log(`获取到 ${commitLines.length} 条提交记录`);
+        
         const parsedCommits = commitLines.map(line => this.parseCommit(line)).filter(Boolean);
+        console.log(`解析成功 ${parsedCommits.length} 条提交记录`);
 
         if (parsedCommits.length === 0) {
             return '## Unreleased\n\n没有找到符合规范的提交记录。\n';

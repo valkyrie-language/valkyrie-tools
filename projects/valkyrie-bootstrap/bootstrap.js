@@ -300,13 +300,11 @@ const expectedUrl = `file:///${normalizedArgv1}`;
 console.log("DEBUG: normalized argv[1] =", normalizedArgv1);
 console.log("DEBUG: expected URL =", expectedUrl);
 
-if (import.meta.url === expectedUrl) {
-    console.log("DEBUG: Condition matched, calling main()");
-    main().catch(err => {
-        console.error("DEBUG: Error in main():", err);
-        error(`Bootstrap failed: ${err.message}`);
-        process.exit(1);
-    });
-} else {
-    console.log("DEBUG: Condition not matched, not calling main()");
-}
+// 强制运行main函数以便调试
+console.log("DEBUG: Force running main() for debugging");
+main().catch(err => {
+    console.error("DEBUG: Error in main():", err);
+    console.error("DEBUG: Full error stack:", err.stack);
+    error(`Bootstrap failed: ${err.message}`);
+    process.exit(1);
+});
