@@ -14,7 +14,7 @@ export interface EmojiTypeConfig {
     label?: string;
     title: string;
     description: string;
-    order: number;
+    priority: number;
 }
 
 export interface CommitlintConfig {
@@ -193,18 +193,18 @@ export class ConfigLoader {
                 emptyCommits: false,
             },
             emojiConfig: {
-                ':sparkles:': { name: 'feat', title: '✨ Features', description: '新功能', order: 1 },
-                ':bug:': { name: 'fix', title: '🐛 Bug Fixes', description: 'Bug 修复', order: 2 },
-                ':memo:': { name: 'docs', title: '📝 Documentation', description: '文档变更', order: 3 },
-                ':lipstick:': { name: 'style', title: '💄 Styles', description: '代码格式 (不影响代码运行的变动)', order: 4 },
-                ':recycle:': { name: 'refactor', title: '♻️ Code Refactoring', description: '代码重构 (不包括 bug 修复、功能新增)', order: 5 },
-                ':zap:': { name: 'perf', title: '⚡ Performance Improvements', description: '性能优化', order: 6 },
-                ':white_check_mark:': { name: 'test', title: '✅ Tests', description: '测试', order: 7 },
-                ':wrench:': { name: 'build', title: '🔧 Build System', description: '构建过程或辅助工具的变动', order: 8 },
-                ':construction_worker:': { name: 'ci', title: '👷 Continuous Integration', description: 'CI 配置、脚本的变更', order: 9 },
-                ':rocket:': { name: 'chore', title: '🚀 Chores', description: '其他不修改 src 或 test 目录的提交', order: 10 },
-                ':rewind:': { name: 'revert', title: '⏪ Reverts', description: '回滚 commit', order: 11 },
-                ':package:': { name: 'dep', title: '📦 Dependency Updates', description: '依赖更新', order: 12 },
+                ':sparkles:': { name: 'feat', title: '✨ Features', description: '新功能', priority: 1 },
+                ':bug:': { name: 'fix', title: '🐛 Bug Fixes', description: 'Bug 修复', priority: 2 },
+                ':memo:': { name: 'docs', title: '📝 Documentation', description: '文档变更', priority: 3 },
+                ':lipstick:': { name: 'style', title: '💄 Styles', description: '代码格式 (不影响代码运行的变动)', priority: 4 },
+                ':recycle:': { name: 'refactor', title: '♻️ Code Refactoring', description: '代码重构 (不包括 bug 修复、功能新增)', priority: 5 },
+                ':zap:': { name: 'perf', title: '⚡ Performance Improvements', description: '性能优化', priority: 6 },
+                ':white_check_mark:': { name: 'test', title: '✅ Tests', description: '测试', priority: 7 },
+                ':wrench:': { name: 'build', title: '🔧 Build System', description: '构建过程或辅助工具的变动', priority: 8 },
+                ':construction_worker:': { name: 'ci', title: '👷 Continuous Integration', description: 'CI 配置、脚本的变更', priority: 9 },
+                ':rocket:': { name: 'chore', title: '🚀 Chores', description: '其他不修改 src 或 test 目录的提交', priority: 10 },
+                ':rewind:': { name: 'revert', title: '⏪ Reverts', description: '回滚 commit', priority: 11 },
+                ':package:': { name: 'dep', title: '📦 Dependency Updates', description: '依赖更新', priority: 12 },
             },
         };
 

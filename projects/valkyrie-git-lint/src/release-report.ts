@@ -66,10 +66,10 @@ export class ReleaseReportGenerator {
      * 获取输出配置
      */
     getOutputConfig(): OutputConfig {
-        return this.config.releaseReport.output || {
+        return this.config.releaseReport?.output || {
             directory: 'releases',
             dateFormat: 'zh-CN',
-            maxCommitsInPreview: 20,
+            maxCommitsInPreview: 1000, // 增加限制以获取更多提交
             filename: 'CHANGELOG.md'
         };
     }
@@ -82,7 +82,7 @@ export class ReleaseReportGenerator {
             // 先获取基本的提交信息
             const logCommand = fromTag
                 ? `git log ${fromTag}..${toTag} --oneline`
-                : `git log --oneline -${this.getOutputConfig().maxCommitsInPreview}`;
+                : `git log ${toTag} --oneline`; // 当fromTag为null时，获取从开始到toTag的所有提交
             
             const logOutput = execSync(logCommand, { encoding: 'utf8' });
             const commits = logOutput.trim().split('\n').filter(line => line.length > 0);
@@ -154,7 +154,7 @@ export class ReleaseReportGenerator {
 
         // 处理测试用例中的简单格式
         if (!line.includes('|') && !line.match(/^[a-f0-9]{7,}/)) {
-            const emojiMatch = line.match(/^([\u{1F600}-\u{1F64F}]|[\u{1F300}-\u{1F5FF}]|[\u{1F680}-\u{1F6FF}]|[\u{1F1E0}-\u{1F1FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}])\s*(.+)/u);
+            const emojiMatch = line.match(/^(\p{Emoji}|\p{Emoji_Presentation})\s*(.+)/u);
             if (emojiMatch) {
                 const emoji = emojiMatch[1];
                 const subject = emojiMatch[2].trim();
@@ -193,8 +193,8 @@ export class ReleaseReportGenerator {
         const hash = hashMatch[1];
         const message = hashMatch[2];
 
-        // 检查是否包含 emoji
-        const emojiMatch = message.match(/^([\u{1F600}-\u{1F64F}]|[\u{1F300}-\u{1F5FF}]|[\u{1F680}-\u{1F6FF}]|[\u{1F1E0}-\u{1F1FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}])\s*(.+)/u);
+        // 检查是否包含 emoji - 使用更简单的匹配方式
+        const emojiMatch = message.match(/^(\p{Emoji}|\p{Emoji_Presentation})\s*(.+)/u);
         
         if (emojiMatch) {
             const emoji = emojiMatch[1];
@@ -279,7 +279,7 @@ export class ReleaseReportGenerator {
         return types.sort((a, b) => {
             const emojiTypeA = Object.values(this.emojiTypes).find(et => et.name === a);
             const emojiTypeB = Object.values(this.emojiTypes).find(et => et.name === b);
-            return (emojiTypeA?.order || 999) - (emojiTypeB?.order || 999);
+            return (emojiTypeA?.priority || 999) - (emojiTypeB?.priority || 999);
         });
     }
 
@@ -318,7 +318,16 @@ export class ReleaseReportGenerator {
      */
     generateReleaseReport(version: string, fromTag: string | null = null, toTag: string = 'HEAD'): string {
         const commitLines = this.getCommitsBetweenTags(fromTag, toTag);
+        process.stderr.write(`Found ${commitLines.length} commits between ${fromTag || 'beginning'} and ${toTag}\n`);
+        if (commitLines.length > 0) {
+            process.stderr.write('First few commits:\n');
+            commitLines.slice(0, 3).forEach(line => process.stderr.write(`  ${line}\n`));
+        }
         const commits = commitLines.map(line => this.parseCommit(line)).filter((commit): commit is ParsedCommit => commit !== null);
+        process.stderr.write(`Parsed ${commits.length} valid commits\n`);
+        commits.slice(0, 3).forEach(commit => {
+            process.stderr.write(`  Parsed: emoji=${commit.emoji}, type=${commit.type}, subject=${commit.subject}\n`);
+        });
         const groupedCommits = this.groupCommitsByType(commits);
         return this.generateMarkdown(version, groupedCommits);
     }
@@ -328,12 +337,12 @@ export class ReleaseReportGenerator {
      */
     generateChangelog(): string {
         try {
-            process.stderr.write('Starting changelog generation...\n');
+            console.log('Starting changelog generation...');
             // 获取所有 tags
             const tagsOutput = execSync('git tag --sort=-version:refname', { encoding: 'utf8' });
-            process.stderr.write('Tags output: ' + tagsOutput + '\n');
+            console.log('Tags output: ' + tagsOutput);
             const tags = tagsOutput.trim().split('\n').filter(tag => tag.length > 0);
-            process.stderr.write('Parsed tags: ' + JSON.stringify(tags) + '\n');
+            console.log('Parsed tags: ' + JSON.stringify(tags));
             
             let changelog = '# Changelog\n\n';
             changelog += '本文档记录了项目的所有重要变更。\n\n';
@@ -343,7 +352,7 @@ export class ReleaseReportGenerator {
                 const currentTag = tags[i];
                 const previousTag = tags[i + 1] || null;
                 
-                process.stderr.write(`Processing tag ${currentTag}, previous tag: ${previousTag}\n`);
+                console.log(`Processing tag ${currentTag}, previous tag: ${previousTag}`);
                 
                 const tagDate = this.getTagDate(currentTag);
                 const formattedDate = tagDate ? new Date(tagDate).toLocaleDateString('zh-CN') : '';
@@ -351,8 +360,16 @@ export class ReleaseReportGenerator {
                 changelog += `## [${currentTag}]${formattedDate ? ` - ${formattedDate}` : ''}\n\n`;
                 
                 const commitLines = this.getCommitsBetweenTags(previousTag, currentTag);
-                process.stderr.write(`Found ${commitLines.length} commits between ${previousTag} and ${currentTag}\n`);
+                console.log(`Found ${commitLines.length} commits between ${previousTag} and ${currentTag}`);
+                if (commitLines.length > 0) {
+                    console.log('First few commits:');
+                    commitLines.slice(0, 3).forEach(line => console.log('  ' + line));
+                }
                 const commits = commitLines.map(line => this.parseCommit(line)).filter((commit): commit is ParsedCommit => commit !== null);
+                console.log(`Parsed ${commits.length} valid commits`);
+                commits.slice(0, 3).forEach(commit => {
+                    console.log(`  Parsed: emoji=${commit.emoji}, type=${commit.type}, subject=${commit.subject}`);
+                });
                 const groupedCommits = this.groupCommitsByType(commits);
                 
                 const sortedTypes = this.sortCommitTypes(Object.keys(groupedCommits));
@@ -377,10 +394,10 @@ export class ReleaseReportGenerator {
                 }
             }
             
-            process.stderr.write('Final changelog length: ' + changelog.length + '\n');
+            console.log('Final changelog length: ' + changelog.length);
             return changelog;
         } catch (error) {
-            process.stderr.write('生成完整 changelog 失败: ' + error + '\n');
+            console.log('生成完整 changelog 失败: ' + error);
             return '# Changelog\n\n生成失败，请检查 git 仓库状态。\n';
         }
     }
