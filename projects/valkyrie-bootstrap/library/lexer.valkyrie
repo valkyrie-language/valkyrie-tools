@@ -63,19 +63,20 @@ let Lexer = {
 
 # 初始化 Lexer
 micro initLexer(source) {
-    let lexer = {}
-    lexer.source = source
-    lexer.position = 0
-    lexer.line = 1
-    lexer.column = 1
-    lexer.tokens = []
-    lexer.keywords = {
-        "let" = TokenType.LET,
-        "micro" = TokenType.MICRO,
-        "if" = TokenType.IF,
-        "else" = TokenType.ELSE,
-        "true" = TokenType.BOOLEAN,
-        "false" = TokenType.BOOLEAN
+    let lexer = {
+        source = source,
+        position = 0,
+        line = 1,
+        column = 1,
+        tokens = [],
+        keywords = {
+            "let" = TokenType.LET,
+            "micro" = TokenType.MICRO,
+            "if" = TokenType.IF,
+            "else" = TokenType.ELSE,
+            "true" = TokenType.BOOLEAN,
+            "false" = TokenType.BOOLEAN
+        }
     }
     lexer
 }
