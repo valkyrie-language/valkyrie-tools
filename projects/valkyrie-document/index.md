@@ -53,19 +53,19 @@ Valkyrie 是一门现代的函数式编程语言，专为构建可靠、高性�
 ### 快速示例
 
 ```valkyrie
-// 定义代数效应
-effect Http {
+# 定义代数效应
+trait Http {
     get(url: String): String
     post(url: String, body: String): String
 }
 
-// 使用效应的函数
+# 使用效应的函数
 micro fetch_user_data(id: Int) -> User {
     let response = perform Http.get(`/api/users/${id}`)
     parse_json(response)
 }
 
-// 效应处理器
+# 效应处理器
 micro main() {
     handle fetch_user_data(42) with Http {
         get(url) -> resume(http_client.get(url)),
@@ -73,7 +73,7 @@ micro main() {
     }
 }
 
-// 模式匹配和类型安全
+# 模式匹配和类型安全
 match user {
     Some(u) if u.age >= 18: println("成年用户: ${u.name}"),
     Some(u): println("未成年用户: ${u.name}"),
