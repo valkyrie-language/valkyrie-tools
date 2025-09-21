@@ -1,5 +1,6 @@
 {
     "name": "@valkyrie-language/valkyrie-bootstrap",
+    "author": "Valkyrie Language Team",
     "version": "0.0.0",
     "description": "Valkyrie Language Bootstrap Compiler",
     "main": "bootstrap.js",
@@ -8,10 +9,7 @@
         "bootstrap": "./bootstrap.js",
         "valkyrie": "./dist/stage-2/bootstrap.js"
     },
-    "scripts": {
-        "bootstrap": "node bootstrap.js --bootstrap",
-        "test": "node test/test.js"
-    },
+    "scripts": {},
     "keywords": [
         "valkyrie",
         "compiler",
@@ -20,7 +18,6 @@
         "compiler-bootstrap",
         "javascript"
     ],
-    "author": "Valkyrie Language Team",
     "license": "ISC",
     "engines": {
         "node": ">=14.0.0"
