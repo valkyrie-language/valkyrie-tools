@@ -87,13 +87,7 @@ export class Parser {
             return this.parseBlockStatement();
         }
         
-        // 检查是否是赋值语句 - 支持简单标识符和成员表达式
-        if (this.isAssignmentStatement()) {
-            const expr = this.parseExpression();
-            return new AST.ExpressionStatement(expr, expr.line, expr.column);
-        }
-        
-        // 表达式语句
+        // 表达式语句（包括赋值语句）
         const expr = this.parseExpression();
         return new AST.ExpressionStatement(expr, expr.line, expr.column);
     }
@@ -137,8 +131,10 @@ export class Parser {
                 }
             }
             
-            // 只有当找到成员访问且以赋值符号结尾时才认为是赋值语句
-            return foundMemberAccess && this.peek(pos) && this.peek(pos).type === TokenType.ASSIGN;
+            // 如果找到成员访问且以赋值符号结尾，则是赋值语句
+            if (foundMemberAccess && this.peek(pos) && this.peek(pos).type === TokenType.ASSIGN) {
+                return true;
+            }
         }
         
         return false;
@@ -313,8 +309,12 @@ export class Parser {
             this.advance();
             if (this.match(TokenType.IF)) {
                 elseBranch = this.parseIfStatement();
-            } else {
+            } else if (this.match(TokenType.LBRACE)) {
                 elseBranch = this.parseBlockStatement();
+            } else {
+                // else 分支可以是单个表达式
+                const expr = this.parseExpression();
+                elseBranch = new AST.ExpressionStatement(expr, expr.line, expr.column);
             }
         }
         
@@ -331,9 +331,12 @@ export class Parser {
         let expr = this.parseLogicalOr();
         
         if (this.match(TokenType.ASSIGN)) {
-            const operator = this.advance();
+            console.log(`[DEBUG] Found ASSIGN token at position ${this.position}, current token:`, this.current());
+            console.log(`[DEBUG] Left expression:`, expr);
+            this.advance(); // 消耗 ASSIGN token
             const right = this.parseAssignment();
-            return new AST.AssignmentExpression(expr, right, operator.line, operator.column);
+            console.log(`[DEBUG] Right expression:`, right);
+            return new AST.AssignmentExpression(expr, right, expr.line, expr.column);
         }
         
         return expr;
@@ -444,11 +447,14 @@ export class Parser {
                 expr = new AST.MemberExpression(expr, new AST.Identifier(property.value, property.line, property.column), false, dot.line, dot.column);
             } else if (this.match(TokenType.LBRACKET)) {
                 // 数组访问 obj[index]
+                console.log(`[DEBUG] Parsing array access, current position: ${this.position}, tokens around:`, 
+                    this.tokens.slice(Math.max(0, this.position - 2), this.position + 3).map(t => `${t.type}:${t.value}`));
                 const lbracket = this.current();
                 this.advance();
                 const index = this.parseExpression();
                 this.consume(TokenType.RBRACKET, "Expected ']' after array index");
                 expr = new AST.MemberExpression(expr, index, true, lbracket.line, lbracket.column);
+                console.log(`[DEBUG] Created MemberExpression:`, expr);
             }
         }
         
