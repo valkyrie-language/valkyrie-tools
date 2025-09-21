@@ -1,0 +1,124 @@
+{
+  "commitlint": {
+    "extends": ["@commitlint/config-conventional"],
+    "rules": {
+      "type-enum": [2, "always", ["feat", "fix", "docs", "style", "refactor", "test", "chore", "perf", "ci", "build", "revert"]],
+      "type-empty": [2, "never"],
+      "subject-empty": [2, "never"],
+      "header-max-length": [2, "always", 72]
+    },
+    "prompt": {
+      "questions": {
+        "type": {
+          "description": "选择你要提交的更改类型:",
+          "enum": {
+            "✨ feat": {
+              "description": "新功能",
+              "title": "Features",
+              "emoji": "✨"
+            },
+            "🔧 fix": {
+              "description": "修复 bug",
+              "title": "Bug Fixes",
+              "emoji": "🔧"
+            },
+            "📝 docs": {
+              "description": "文档更新",
+              "title": "Documentation",
+              "emoji": "📝"
+            },
+            "💄 style": {
+              "description": "代码格式化",
+              "title": "Styles",
+              "emoji": "💄"
+            },
+            "♻️ refactor": {
+              "description": "代码重构",
+              "title": "Code Refactoring",
+              "emoji": "♻️"
+            },
+            "✅ test": {
+              "description": "测试相关",
+              "title": "Tests",
+              "emoji": "✅"
+            }
+          }
+        }
+      }
+    }
+  },
+  "releaseReport": {
+    "emojiTypes": {
+      "✨": {
+        "name": "feature",
+        "priority": 1,
+        "label": "Stable Features"
+      },
+      "🚀": {
+        "name": "enhancement",
+        "priority": 2,
+        "label": "Performance Improvements"
+      },
+      "🎨": {
+        "name": "improvement",
+        "priority": 3,
+        "label": "Code Improvements"
+      },
+      "🔧": {
+        "name": "fix",
+        "priority": 4,
+        "label": "Bug Fixes"
+      },
+      "🐛": {
+        "name": "bugfix",
+        "priority": 5,
+        "label": "Critical Bug Fixes"
+      },
+      "📝": {
+        "name": "docs",
+        "priority": 6,
+        "label": "Documentation Updates"
+      },
+      "🔒": {
+        "name": "security",
+        "priority": 7,
+        "label": "Security Updates"
+      },
+      "⚡": {
+        "name": "perf",
+        "priority": 8,
+        "label": "Performance Optimizations"
+      },
+      "♻️": {
+        "name": "refactor",
+        "priority": 9,
+        "label": "Code Refactoring"
+      },
+      "✅": {
+        "name": "test",
+        "priority": 10,
+        "label": "Test Updates"
+      },
+      "🔨": {
+        "name": "build",
+        "priority": 11,
+        "label": "Build System Updates"
+      },
+      "🎯": {
+        "name": "ci",
+        "priority": 12,
+        "label": "CI/CD Updates"
+      },
+      "🧹": {
+        "name": "chore",
+        "priority": -1,
+        "label": "Maintenance"
+      }
+    },
+    "output": {
+      "directory": "releases",
+      "dateFormat": "zh-CN",
+      "maxCommitsInPreview": 20
+    }
+  }
+}

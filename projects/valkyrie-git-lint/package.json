@@ -1,0 +1,55 @@
+{
+  "name": "valkyrie-git-lint",
+  "version": "0.0.0",
+  "description": "A configurable git commit linting and release report generation tool with emoji support",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "bin": {
+    "valkyrie-git-lint": "./dist/git-lint.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "test": "npm run build && node dist/test.js",
+    "lint": "npm run build && node dist/git-lint.js lint",
+    "report": "npm run build && node dist/git-lint.js report",
+    "changelog": "npm run build && node dist/git-lint.js changelog",
+    "change-log": "npm run build && node dist/git-lint.js changelog",
+    "init": "npm run build && node dist/git-lint.js init",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "git",
+    "commit",
+    "lint",
+    "emoji",
+    "changelog",
+    "release",
+    "conventional-commits",
+    "typescript"
+  ],
+  "author": "Valkyrie Team",
+  "license": "MIT",
+  "engines": {
+    "node": ">=16.0.0"
+  },
+  "files": [
+    "dist/",
+    "git-lint.default.json",
+    "README.md",
+    "LICENSE"
+  ],
+  "devDependencies": {
+    "@types/node": "^20.19.17",
+    "typescript": "^5.9.2"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/valkyrie-team/valkyrie-git-lint.git"
+  },
+  "bugs": {
+    "url": "https://github.com/valkyrie-team/valkyrie-git-lint/issues"
+  },
+  "homepage": "https://github.com/valkyrie-team/valkyrie-git-lint#readme"
+}
