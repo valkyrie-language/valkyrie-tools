@@ -335,6 +335,43 @@ micro parsePrimary(parser) {
     } else if token.type == "IDENTIFIER" {
         advance(parser)
         createIdentifier(token.value, token.line, token.column)
+    } else if token.type == "LBRACE" {
+        advance(parser)  # 消费左大括号
+        
+        let properties = []
+        
+        # 检查是否是空对象
+        if check(parser, "RBRACE") {
+            # 空对象，直接消费右大括号k
+            expect(parser, "RBRACE")
+            createObjectLiteral([], token.line, token.column)
+        } else {
+            # 解析对象属性
+            while !check(parser, "RBRACE") && !check(parser, "EOF") {
+                # 解析属性键
+                let keyToken = expect(parser, "IDENTIFIER")
+                
+                # 期望等号
+                expect(parser, "ASSIGN")
+                
+                # 解析属性值
+                let value = parseExpression(parser)
+                
+                # 创建属性节点（暂时简化处理）
+                properties = properties + [value]
+                
+                # 检查是否有逗号
+                if check(parser, "COMMA") {
+                    advance(parser)
+                } else {
+                    # 没有逗号就退出循环
+                    let dummy = 0  # 占位语句
+                }
+            }
+            
+            expect(parser, "RBRACE")
+            createObjectLiteral(properties, token.line, token.column)
+        }
     } else if token.type == "LPAREN" {
         advance(parser)  # 消费左括号
         let expr = parseExpression(parser)

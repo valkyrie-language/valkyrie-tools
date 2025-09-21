@@ -138,6 +138,14 @@ let BooleanLiteral = {
     column = 0
 }
 
+# 对象字面量节点
+let ObjectLiteral = {
+    type = "ObjectLiteral",
+    properties = [],
+    line = 0,
+    column = 0
+}
+
 # 创建程序节点
 micro createProgram(statements, line, column) {
     let node = {}
@@ -207,8 +215,10 @@ micro createExpressionStatement(expression, line, column) {
 }
 
 # 创建赋值表达式节点
+# 创建赋值表达式节点
 micro createAssignmentExpression(left, right, line, column) {
     let node = {}
+    node.type = "AssignmentExpression"
     node.left = left
     node.right = right
     node.line = line
@@ -278,6 +288,15 @@ micro createStringLiteral(value, line, column) {
 micro createBooleanLiteral(value, line, column) {
     let node = {}
     node.value = value
+    node.line = line
+    node.column = column
+    node
+}
+
+# 创建对象字面量节点
+micro createObjectLiteral(properties, line, column) {
+    let node = {}
+    node.properties = properties
     node.line = line
     node.column = column
     node

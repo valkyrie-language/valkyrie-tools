@@ -1,5 +1,5 @@
 {
-    "name": "native-nyar",
+    "name": "valkyrie",
     "private": true,
     "scripts": {
         "build:pre": "cargo run --release --color=always --package nyar-prebuild --bin nyar-prebuild && cargo fmt --all",
