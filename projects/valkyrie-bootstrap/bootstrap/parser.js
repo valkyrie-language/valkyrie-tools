@@ -108,9 +108,13 @@ export class Parser {
         // 成员表达式赋值: identifier.property = value 或 identifier[index] = value
         if (this.check(TokenType.IDENTIFIER)) {
             let pos = 1;
+            let foundMemberAccess = false;
+            
             // 跳过可能的成员访问链
             while (this.peek(pos) && 
                    (this.peek(pos).type === TokenType.DOT || this.peek(pos).type === TokenType.LBRACKET)) {
+                foundMemberAccess = true;
+                
                 if (this.peek(pos).type === TokenType.DOT) {
                     pos++; // 跳过 DOT
                     if (this.peek(pos) && this.peek(pos).type === TokenType.IDENTIFIER) {
@@ -132,8 +136,9 @@ export class Parser {
                     }
                 }
             }
-            // 检查是否以赋值符号结尾
-            return this.peek(pos) && this.peek(pos).type === TokenType.ASSIGN;
+            
+            // 只有当找到成员访问且以赋值符号结尾时才认为是赋值语句
+            return foundMemberAccess && this.peek(pos) && this.peek(pos).type === TokenType.ASSIGN;
         }
         
         return false;

@@ -33,7 +33,7 @@ jobs:
         # 检查commit消息是否以emoji开头
         git log --format="%s" ${{ github.event.before }}..${{ github.sha }} | while read -r message; do
           if ! echo "$message" | grep -qE "^[✨🐛📝🎨♻️🧪🔧⚡️🚀🔖🚦📦🔄⏪💡🗑️📦✅🔀] "; then
-            echo "错误: commit消息必须以emoji+空格开头"
+            echo "错误: commit 消息必须以 emoji"
             echo "错误的commit消息: $message"
             echo "支持的emoji: ✨🐛📝🎨♻️🧪🔧⚡️🚀🔖🚦📦🔄⏪💡🗑️📦✅🔀"
             exit 1
