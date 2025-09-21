@@ -16,12 +16,11 @@ let Compiler = {
 
 # 初始化编译器
 micro initCompiler(source) {
-    let compiler = {
-        source = source,
-        tokens = [],
-        ast = {},
-        output = ""
-    }
+    let compiler = {}
+    compiler.source = source
+    compiler.tokens = []
+    compiler.ast = {}
+    compiler.output = ""
     compiler
 }
 
@@ -61,11 +60,10 @@ let CompilerError = {
 
 # 创建编译错误
 micro createError(message, line, column) {
-    let error = {
-        message = message,
-        line = line,
-        column = column
-    }
+    let error = {}
+    error.message = message
+    error.line = line
+    error.column = column
     error
 }
 
@@ -84,11 +82,10 @@ let CompilerOptions = {
 
 # 创建编译器选项
 micro createCompilerOptions(outputFormat, optimize, debug) {
-    let options = {
-        outputFormat = outputFormat,
-        optimize = optimize,
-        debug = debug
-    }
+    let options = {}
+    options.outputFormat = outputFormat
+    options.optimize = optimize
+    options.debug = debug
     options
 }
 
@@ -141,12 +138,11 @@ let CompilerStats = {
 
 # 创建编译统计信息
 micro createCompilerStats() {
-    let stats = {
-        tokensCount = 0,
-        astNodesCount = 0,
-        outputSize = 0,
-        compileTime = 0
-    }
+    let stats = {}
+    stats.tokensCount = 0
+    stats.astNodesCount = 0
+    stats.outputSize = 0
+    stats.compileTime = 0
     stats
 }
 

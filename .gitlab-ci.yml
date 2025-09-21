@@ -1,0 +1,26 @@
+stages:
+  - validate
+
+commit-lint:
+  stage: validate
+  image: node:16
+  script:
+    - npm install -g @commitlint/cli @commitlint/config-conventional
+    - npx commitlint --from=$CI_COMMIT_BEFORE_SHA --to=$CI_COMMIT_SHA --verbose
+    # 检查commit消息是否以emoji开头
+    - |
+      git log --format="%s" $CI_COMMIT_BEFORE_SHA..$CI_COMMIT_SHA | while read -r message; do
+        if ! echo "$message" | grep -qE "^[✨🐛📝🎨♻️🧪🔧⚡️🚀🔖🚦📦🔄⏪💡🗑️📦✅🔀] "; then
+          echo "错误: commit消息必须以emoji+空格开头"
+          echo "错误的commit消息: $message"
+          echo "支持的emoji: ✨🐛📝🎨♻️🧪🔧⚡️🚀🔖🚦📦🔄⏪💡🗑️📦✅🔀"
+          exit 1
+        fi
+      done
+  only:
+    - main
+    - develop
+    - master
+    - merge_requests
+  except:
+    - tags

@@ -12,10 +12,9 @@ let CodeGenerator = {
 
 # 初始化代码生成器
 micro initCodeGenerator() {
-    let generator = {
-        output = "",
-        indentLevel = 0
-    }
+    let generator = {}
+    generator.output = ""
+    generator.indentLevel = 0
     generator
 }
 

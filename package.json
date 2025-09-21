@@ -8,8 +8,23 @@
         "fmt": "cargo fmt --all",
         "push": "yarn test && git push",
         "reset": "git reset Head~ --soft",
-        "u": "cargo upgrade --incompatible"
+        "u": "cargo upgrade --incompatible",
+        "commit": "git-cz",
+        "commitmsg": "commitlint -E GIT_PARAMS",
+        "setup-commit": "npm install && npm install -g commitizen @commitlint/cli"
     },
     "dependencies": {},
+    "devDependencies": {
+        "commitizen": "^4.2.4",
+        "commitlint": "^17.0.0",
+        "@commitlint/cli": "^17.0.0",
+        "@commitlint/config-conventional": "^17.0.0",
+        "cz-emoji": "^1.3.1"
+    },
+    "config": {
+        "commitizen": {
+            "path": "cz-emoji"
+        }
+    },
     "packageManager": "pnpm@10.17.0"
 }

@@ -1,0 +1,41 @@
+name: Commit Message Lint
+
+on:
+  push:
+    branches: [ main, develop, master ]
+  pull_request:
+    branches: [ main, develop, master ]
+
+jobs:
+  commit-lint:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+      with:
+        fetch-depth: 0
+    
+    - name: Setup Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: '16'
+        
+    - name: Install dependencies
+      run: |
+        npm install -g @commitlint/cli @commitlint/config-conventional
+        
+    - name: Lint commit messages
+      run: |
+        npx commitlint --from=${{ github.event.before }} --to=${{ github.sha }} --verbose
+      continue-on-error: false
+      
+    - name: Check emoji format
+      run: |
+        # 检查commit消息是否以emoji开头
+        git log --format="%s" ${{ github.event.before }}..${{ github.sha }} | while read -r message; do
+          if ! echo "$message" | grep -qE "^[✨🐛📝🎨♻️🧪🔧⚡️🚀🔖🚦📦🔄⏪💡🗑️📦✅🔀] "; then
+            echo "错误: commit消息必须以emoji+空格开头"
+            echo "错误的commit消息: $message"
+            echo "支持的emoji: ✨🐛📝🎨♻️🧪🔧⚡️🚀🔖🚦📦🔄⏪💡🗑️📦✅🔀"
+            exit 1
+          fi
+        done
