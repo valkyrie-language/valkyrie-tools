@@ -1,311 +1,406 @@
-// Valkyrie 语言词法分析器
-export class Token {
-    constructor(type, value, line, column) {
-        this.type = type;
-        this.value = value;
-        this.line = line;
-        this.column = column;
-    }
-}
+import fs from "fs";
+import path from "path";
 
-export const TokenType = {
-    // 关键字
-    LET: 'LET',
-    MUT: 'MUT',
-    MICRO: 'MICRO',
-    IF: 'IF',
-    ELSE: 'ELSE',
-    WHILE: 'WHILE',
-    
-    // 标识符和字面量
-    IDENTIFIER: 'IDENTIFIER',
-    NUMBER: 'NUMBER',
-    STRING: 'STRING',
-    BOOLEAN: 'BOOLEAN',
-    
-    // 操作符
-    ASSIGN: 'ASSIGN',        // =
-    PLUS: 'PLUS',            // +
-    MINUS: 'MINUS',          // -
-    MULTIPLY: 'MULTIPLY',    // *
-    DIVIDE: 'DIVIDE',        // /
-    EQUAL: 'EQUAL',          // ==
-    NOT_EQUAL: 'NOT_EQUAL',  // !=
-    LESS: 'LESS',            // <
-    GREATER: 'GREATER',      // >
-    LESS_EQUAL: 'LESS_EQUAL',       // <=
-    GREATER_EQUAL: 'GREATER_EQUAL', // >=
-    NOT: 'NOT',              // !
-    OR: 'OR',                // ||
-    AND: 'AND',              // &&
-    DOT: 'DOT',              // .
-    
-    // 符号
-    LPAREN: 'LPAREN',        // (
-    RPAREN: 'RPAREN',        // )
-    LBRACE: 'LBRACE',        // {
-    RBRACE: 'RBRACE',        // }
-    LBRACKET: 'LBRACKET',    // [
-    RBRACKET: 'RBRACKET',    // ]
-    COMMA: 'COMMA',          // ,
-    SEMICOLON: 'SEMICOLON',  // ;
-    COLON: 'COLON',          // :
-    ARROW: 'ARROW',          // ->
-    
-    // 特殊
-    EOF: 'EOF',
-    COMMENT: 'COMMENT'
+// Valkyrie Runtime Support
+const ValkyrieRuntime = {
+  print: console.log,
+  assert: (condition, message) => {
+    if (!condition) throw new Error(message || "Assertion failed");
+  }
 };
 
-export class Lexer {
-    constructor(source) {
-        this.source = source;
-        this.position = 0;
-        this.line = 1;
-        this.column = 1;
-        this.tokens = [];
-        
-        this.keywords = {
-            'let': TokenType.LET,
-            'mut': TokenType.MUT,
-            'micro': TokenType.MICRO,
-            'if': TokenType.IF,
-            'else': TokenType.ELSE,
-            'while': TokenType.WHILE,
-            'true': TokenType.BOOLEAN,
-            'false': TokenType.BOOLEAN
-        };
-    }
-    
-    current() {
-        if (this.position >= this.source.length) {
-            return null;
-        }
-        return this.source[this.position];
-    }
-    
-    peek(offset = 1) {
-        const pos = this.position + offset;
-        if (pos >= this.source.length) {
-            return null;
-        }
-        return this.source[pos];
-    }
-    
-    advance() {
-        if (this.position < this.source.length) {
-            if (this.source[this.position] === '\n') {
-                this.line++;
-                this.column = 1;
-            } else {
-                this.column++;
-            }
-            this.position++;
-        }
-    }
-    
-    skipWhitespace() {
-        while (this.current() && /\s/.test(this.current())) {
-            this.advance();
-        }
-    }
-    
-    readString() {
-        const startLine = this.line;
-        const startColumn = this.column;
-        this.advance(); // 跳过开始的引号
-        
-        let value = '';
-        while (this.current() && this.current() !== '"') {
-            if (this.current() === '\\') {
-                this.advance();
-                const escaped = this.current();
-                switch (escaped) {
-                    case 'n': value += '\n'; break;
-                    case 't': value += '\t'; break;
-                    case 'r': value += '\r'; break;
-                    case '\\': value += '\\'; break;
-                    case '"': value += '"'; break;
-                    default: value += escaped; break;
-                }
-            } else {
-                value += this.current();
-            }
-            this.advance();
-        }
-        
-        if (this.current() === '"') {
-            this.advance(); // 跳过结束的引号
-        }
-        
-        return new Token(TokenType.STRING, value, startLine, startColumn);
-    }
-    
-    readNumber() {
-        const startLine = this.line;
-        const startColumn = this.column;
-        let value = '';
-        
-        while (this.current() && /\d/.test(this.current())) {
-            value += this.current();
-            this.advance();
-        }
-        
-        if (this.current() === '.' && this.peek() && /\d/.test(this.peek())) {
-            value += this.current();
-            this.advance();
-            while (this.current() && /\d/.test(this.current())) {
-                value += this.current();
-                this.advance();
-            }
-        }
-        
-        return new Token(TokenType.NUMBER, parseFloat(value), startLine, startColumn);
-    }
-    
-    readIdentifier() {
-        const startLine = this.line;
-        const startColumn = this.column;
-        let value = '';
-        
-        while (this.current() && /[a-zA-Z0-9_]/.test(this.current())) {
-            value += this.current();
-            this.advance();
-        }
-        
-        const tokenType = this.keywords[value] || TokenType.IDENTIFIER;
-        const tokenValue = tokenType === TokenType.BOOLEAN ? (value === 'true') : value;
-        
-        return new Token(tokenType, tokenValue, startLine, startColumn);
-    }
-    
-    readComment() {
-        const startLine = this.line;
-        const startColumn = this.column;
-        this.advance(); // 跳过 #
-        
-        let value = '';
-        while (this.current() && this.current() !== '\n') {
-            value += this.current();
-            this.advance();
-        }
-        
-        return new Token(TokenType.COMMENT, value, startLine, startColumn);
-    }
-    
-    tokenize() {
-        while (this.position < this.source.length) {
-            this.skipWhitespace();
-            
-            const char = this.current();
-            if (!char) break;
-            
-            const line = this.line;
-            const column = this.column;
-            
-            // 注释
-            if (char === '#') {
-                const comment = this.readComment();
-                this.tokens.push(comment);
-                continue;
-            }
-            
-            // 字符串
-            if (char === '"') {
-                this.tokens.push(this.readString());
-                continue;
-            }
-            
-            // 数字
-            if (/\d/.test(char)) {
-                this.tokens.push(this.readNumber());
-                continue;
-            }
-            
-            // 标识符和关键字
-            if (/[a-zA-Z_]/.test(char)) {
-                this.tokens.push(this.readIdentifier());
-                continue;
-            }
-            
-            // 双字符操作符
-            if (char === '=' && this.peek() === '=') {
-                this.tokens.push(new Token(TokenType.EQUAL, '==', line, column));
-                this.advance();
-                this.advance();
-                continue;
-            }
-            
-            if (char === '!' && this.peek() === '=') {
-                this.tokens.push(new Token(TokenType.NOT_EQUAL, '!=', line, column));
-                this.advance();
-                this.advance();
-                continue;
-            }
-            
-            if (char === '>' && this.peek() === '=') {
-                this.tokens.push(new Token(TokenType.GREATER_EQUAL, '>=', line, column));
-                this.advance();
-                this.advance();
-                continue;
-            }
-            
-            if (char === '<' && this.peek() === '=') {
-                this.tokens.push(new Token(TokenType.LESS_EQUAL, '<=', line, column));
-                this.advance();
-                this.advance();
-                continue;
-            }
-            
-            if (char === '-' && this.peek() === '>') {
-                this.tokens.push(new Token(TokenType.ARROW, '->', line, column));
-                this.advance();
-                this.advance();
-                continue;
-            }
-            
-            if (char === '|' && this.peek() === '|') {
-                this.tokens.push(new Token(TokenType.OR, '||', line, column));
-                this.advance();
-                this.advance();
-                continue;
-            }
-            
-            if (char === '&' && this.peek() === '&') {
-                this.tokens.push(new Token(TokenType.AND, '&&', line, column));
-                this.advance();
-                this.advance();
-                continue;
-            }
-            
-            // 单字符操作符和分隔符
-            switch (char) {
-                case '=': this.tokens.push(new Token(TokenType.ASSIGN, '=', line, column)); break;
-                case '+': this.tokens.push(new Token(TokenType.PLUS, '+', line, column)); break;
-                case '-': this.tokens.push(new Token(TokenType.MINUS, '-', line, column)); break;
-                case '*': this.tokens.push(new Token(TokenType.MULTIPLY, '*', line, column)); break;
-                case '/': this.tokens.push(new Token(TokenType.DIVIDE, '/', line, column)); break;
-                case '<': this.tokens.push(new Token(TokenType.LESS, '<', line, column)); break;
-                case '>': this.tokens.push(new Token(TokenType.GREATER, '>', line, column)); break;
-                case '!': this.tokens.push(new Token(TokenType.NOT, '!', line, column)); break;
-                case '.': this.tokens.push(new Token(TokenType.DOT, '.', line, column)); break;
-                case '(': this.tokens.push(new Token(TokenType.LPAREN, '(', line, column)); break;
-                case ')': this.tokens.push(new Token(TokenType.RPAREN, ')', line, column)); break;
-                case '{': this.tokens.push(new Token(TokenType.LBRACE, '{', line, column)); break;
-                case '}': this.tokens.push(new Token(TokenType.RBRACE, '}', line, column)); break;
-                case '[': this.tokens.push(new Token(TokenType.LBRACKET, '[', line, column)); break;
-                case ']': this.tokens.push(new Token(TokenType.RBRACKET, ']', line, column)); break;
-                case ',': this.tokens.push(new Token(TokenType.COMMA, ',', line, column)); break;
-                case ';': this.tokens.push(new Token(TokenType.SEMICOLON, ';', line, column)); break;
-                case ':': this.tokens.push(new Token(TokenType.COLON, ':', line, column)); break;
-                default:
-                    throw new Error(`Unexpected character '${char}' at line ${line}, column ${column}`);
-            }
-            
-            this.advance();
-        }
-        
-        this.tokens.push(new Token(TokenType.EOF, null, this.line, this.column));
-        return this.tokens;
-    }
+const Token = {type: "", value: "", line: 0, column: 0};
+const TokenType = {LET: "LET", MICRO: "MICRO", IF: "IF", ELSE: "ELSE", IDENTIFIER: "IDENTIFIER", NUMBER: "NUMBER", STRING: "STRING", BOOLEAN: "BOOLEAN", ASSIGN: "ASSIGN", PLUS: "PLUS", MINUS: "MINUS", MULTIPLY: "MULTIPLY", DIVIDE: "DIVIDE", EQUAL: "EQUAL", NOT_EQUAL: "NOT_EQUAL", LESS: "LESS", GREATER: "GREATER", LPAREN: "LPAREN", RPAREN: "RPAREN", LBRACE: "LBRACE", RBRACE: "RBRACE", LBRACKET: "LBRACKET", RBRACKET: "RBRACKET", COMMA: "COMMA", SEMICOLON: "SEMICOLON", COLON: "COLON", ARROW: "ARROW", EOF: "EOF", COMMENT: "COMMENT"};
+const Lexer = {source: "", position: 0, line: 1, column: 1, tokens: [], keywords: {}};
+function initLexer(source) {
+  const lexer = {};
+  lexer.source = source;
+  lexer.position = 0;
+  lexer.line = 1;
+  lexer.column = 1;
+  lexer.tokens = [];
+  lexer.keywords = {"let": TokenType.LET, "micro": TokenType.MICRO, "if": TokenType.IF, "else": TokenType.ELSE, "true": TokenType.BOOLEAN, "false": TokenType.BOOLEAN};
+  return lexer;
 }
+
+function current(lexer) {
+  if ((lexer.position >= lexer.source.length)) {
+    "";
+  } else {
+    lexer.source[lexer.position];
+  }
+}
+
+function peek(lexer, offset) {
+  const pos = (lexer.position + offset);
+  if ((pos >= lexer.source.length)) {
+    "";
+  } else {
+    lexer.source[pos];
+  }
+}
+
+function advance(lexer) {
+  if ((lexer.position < lexer.source.length)) {
+    if ((lexer.source[lexer.position] === "\n")) {
+      lexer.line = (lexer.line + 1);
+      lexer.column = 1;
+    } else {
+      lexer.column = (lexer.column + 1);
+    }
+    lexer.position = (lexer.position + 1);
+  }
+}
+
+function skipWhitespace(lexer) {
+  const char = current(lexer);
+  if (((((char === " ") || (char === "\t")) || (char === "\r")) || (char === "\n"))) {
+    advance(lexer);
+    skipWhitespace(lexer);
+  } else {
+  }
+}
+
+function readString(lexer) {
+  const startLine = lexer.line;
+  const startColumn = lexer.column;
+  advance(lexer);
+  const value = "";
+  const char = current(lexer);
+  if (((char !== "") && (char !== "\""))) {
+    if ((char === "\\")) {
+      advance(lexer);
+      const escaped = current(lexer);
+      if ((escaped === "n")) {
+        value = (value + "\n");
+      } else {
+        if ((escaped === "t")) {
+          value = (value + "\t");
+        } else {
+          if ((escaped === "r")) {
+            value = (value + "\r");
+          } else {
+            if ((escaped === "\\")) {
+              value = (value + "\\");
+            } else {
+              if ((escaped === "\"")) {
+                value = (value + "\"");
+              } else {
+                value = (value + escaped);
+              }
+            }
+          }
+        }
+      }
+    } else {
+      value = (value + char);
+    }
+    advance(lexer);
+    const nextValue = readString(lexer);
+    value = (value + nextValue.value);
+  }
+  advance(lexer);
+  const token = {};
+  token.type = TokenType.STRING;
+  token.value = value;
+  token.line = startLine;
+  token.column = startColumn;
+  return token;
+}
+
+function readNumber(lexer) {
+  const startLine = lexer.line;
+  const startColumn = lexer.column;
+  const value = "";
+  const char = current(lexer);
+  if (((char >= "0") && (char <= "9"))) {
+    value = (value + char);
+    advance(lexer);
+    const nextValue = readNumber(lexer);
+    value = (value + nextValue.value);
+  }
+  if ((current(lexer) === ".")) {
+    value = (value + ".");
+    advance(lexer);
+    const char2 = current(lexer);
+    if (((char2 >= "0") && (char2 <= "9"))) {
+      value = (value + char2);
+      advance(lexer);
+      const nextValue2 = readNumber(lexer);
+      value = (value + nextValue2.value);
+    }
+  }
+  const token = {};
+  token.type = TokenType.NUMBER;
+  token.value = value;
+  token.line = startLine;
+  token.column = startColumn;
+  return token;
+}
+
+function readIdentifier(lexer) {
+  const startLine = lexer.line;
+  const startColumn = lexer.column;
+  const value = "";
+  const char = current(lexer);
+  if ((((((char >= "a") && (char <= "z")) || ((char >= "A") && (char <= "Z"))) || (char === "_")) || ((char >= "0") && (char <= "9")))) {
+    value = (value + char);
+    advance(lexer);
+    const nextValue = readIdentifier(lexer);
+    value = (value + nextValue.value);
+  }
+  const tokenType = lexer.keywords[value];
+  if ((tokenType === "")) {
+    tokenType = TokenType.IDENTIFIER;
+  }
+  const tokenValue = value;
+  if ((tokenType === TokenType.BOOLEAN)) {
+    if ((value === "true")) {
+      tokenValue = true;
+    } else {
+      tokenValue = false;
+    }
+  }
+  const token = {};
+  token.type = tokenType;
+  token.value = tokenValue;
+  token.line = startLine;
+  token.column = startColumn;
+  return token;
+}
+
+function readComment(lexer) {
+  const startLine = lexer.line;
+  const startColumn = lexer.column;
+  advance(lexer);
+  const value = "";
+  const char = current(lexer);
+  if (((char !== "") && (char !== "\n"))) {
+    value = (value + char);
+    advance(lexer);
+    const nextValue = readComment(lexer);
+    value = (value + nextValue.value);
+  }
+  const token = {};
+  token.type = TokenType.COMMENT;
+  token.value = value;
+  token.line = startLine;
+  token.column = startColumn;
+  return token;
+}
+
+function createToken(type, value, line, column) {
+  const token = {};
+  token.type = type;
+  token.value = value;
+  token.line = line;
+  token.column = column;
+  return token;
+}
+
+function tokenize(lexer) {
+  if ((lexer.position < lexer.source.length)) {
+    skipWhitespace(lexer);
+    const char = current(lexer);
+    if ((char !== "")) {
+      const line = lexer.line;
+      const column = lexer.column;
+      if ((char === "#")) {
+        const comment = readComment(lexer);
+        lexer.tokens = (lexer.tokens + [comment]);
+        tokenize(lexer);
+      } else {
+        if ((char === "\"")) {
+          const str = readString(lexer);
+          lexer.tokens = (lexer.tokens + [str]);
+          tokenize(lexer);
+        } else {
+          if (((char >= "0") && (char <= "9"))) {
+            const num = readNumber(lexer);
+            lexer.tokens = (lexer.tokens + [num]);
+            tokenize(lexer);
+          } else {
+            if (((((char >= "a") && (char <= "z")) || ((char >= "A") && (char <= "Z"))) || (char === "_"))) {
+              const id = readIdentifier(lexer);
+              lexer.tokens = (lexer.tokens + [id]);
+              tokenize(lexer);
+            } else {
+              if (((char === "=") && (peek(lexer, 1) === "="))) {
+                const token = createToken(TokenType.EQUAL, "==", line, column);
+                lexer.tokens = (lexer.tokens + [token]);
+                advance(lexer);
+                advance(lexer);
+                tokenize(lexer);
+              } else {
+                if (((char === "!") && (peek(lexer, 1) === "="))) {
+                  const token = createToken(TokenType.NOT_EQUAL, "!=", line, column);
+                  lexer.tokens = (lexer.tokens + [token]);
+                  advance(lexer);
+                  advance(lexer);
+                  tokenize(lexer);
+                } else {
+                  if (((char === "-") && (peek(lexer, 1) === ">"))) {
+                    const token = createToken(TokenType.ARROW, "->", line, column);
+                    lexer.tokens = (lexer.tokens + [token]);
+                    advance(lexer);
+                    advance(lexer);
+                    tokenize(lexer);
+                  } else {
+                    if ((char === "=")) {
+                      const token = createToken(TokenType.ASSIGN, "=", line, column);
+                      lexer.tokens = (lexer.tokens + [token]);
+                      advance(lexer);
+                      tokenize(lexer);
+                    } else {
+                      if ((char === "+")) {
+                        const token = createToken(TokenType.PLUS, "+", line, column);
+                        lexer.tokens = (lexer.tokens + [token]);
+                        advance(lexer);
+                        tokenize(lexer);
+                      } else {
+                        if ((char === "-")) {
+                          const token = createToken(TokenType.MINUS, "-", line, column);
+                          lexer.tokens = (lexer.tokens + [token]);
+                          advance(lexer);
+                          tokenize(lexer);
+                        } else {
+                          if ((char === "*")) {
+                            const token = createToken(TokenType.MULTIPLY, "*", line, column);
+                            lexer.tokens = (lexer.tokens + [token]);
+                            advance(lexer);
+                            tokenize(lexer);
+                          } else {
+                            if ((char === "/")) {
+                              const token = createToken(TokenType.DIVIDE, "/", line, column);
+                              lexer.tokens = (lexer.tokens + [token]);
+                              advance(lexer);
+                              tokenize(lexer);
+                            } else {
+                              if ((char === "<")) {
+                                const token = createToken(TokenType.LESS, "<", line, column);
+                                lexer.tokens = (lexer.tokens + [token]);
+                                advance(lexer);
+                                tokenize(lexer);
+                              } else {
+                                if ((char === ">")) {
+                                  const token = createToken(TokenType.GREATER, ">", line, column);
+                                  lexer.tokens = (lexer.tokens + [token]);
+                                  advance(lexer);
+                                  tokenize(lexer);
+                                } else {
+                                  if ((char === "(")) {
+                                    const token = createToken(TokenType.LPAREN, "(", line, column);
+                                    lexer.tokens = (lexer.tokens + [token]);
+                                    advance(lexer);
+                                    tokenize(lexer);
+                                  } else {
+                                    if ((char === ")")) {
+                                      const token = createToken(TokenType.RPAREN, ")", line, column);
+                                      lexer.tokens = (lexer.tokens + [token]);
+                                      advance(lexer);
+                                      tokenize(lexer);
+                                    } else {
+                                      if ((char === "{")) {
+                                        const token = createToken(TokenType.LBRACE, "{", line, column);
+                                        lexer.tokens = (lexer.tokens + [token]);
+                                        advance(lexer);
+                                        tokenize(lexer);
+                                      } else {
+                                        if ((char === "}")) {
+                                          const token = createToken(TokenType.RBRACE, "}", line, column);
+                                          lexer.tokens = (lexer.tokens + [token]);
+                                          advance(lexer);
+                                          tokenize(lexer);
+                                        } else {
+                                          if ((char === "[")) {
+                                            const token = createToken(TokenType.LBRACKET, "[", line, column);
+                                            lexer.tokens = (lexer.tokens + [token]);
+                                            advance(lexer);
+                                            tokenize(lexer);
+                                          } else {
+                                            if ((char === "]")) {
+                                              const token = createToken(TokenType.RBRACKET, "]", line, column);
+                                              lexer.tokens = (lexer.tokens + [token]);
+                                              advance(lexer);
+                                              tokenize(lexer);
+                                            } else {
+                                              if ((char === ",")) {
+                                                const token = createToken(TokenType.COMMA, ",", line, column);
+                                                lexer.tokens = (lexer.tokens + [token]);
+                                                advance(lexer);
+                                                tokenize(lexer);
+                                              } else {
+                                                if ((char === ";")) {
+                                                  const token = createToken(TokenType.SEMICOLON, ";", line, column);
+                                                  lexer.tokens = (lexer.tokens + [token]);
+                                                  advance(lexer);
+                                                  tokenize(lexer);
+                                                } else {
+                                                  if ((char === ":")) {
+                                                    const token = createToken(TokenType.COLON, ":", line, column);
+                                                    lexer.tokens = (lexer.tokens + [token]);
+                                                    advance(lexer);
+                                                    tokenize(lexer);
+                                                  } else {
+                                                    advance(lexer);
+                                                    tokenize(lexer);
+                                                  }
+                                                }
+                                              }
+                                            }
+                                          }
+                                        }
+                                      }
+                                    }
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+  const eofToken = createToken(TokenType.EOF, "", lexer.line, lexer.column);
+  lexer.tokens = (lexer.tokens + [eofToken]);
+  return lexer.tokens;
+}
+
+
+// ValkyrieCompiler 类
+class ValkyrieCompiler {
+  compile(source, options = {}) {
+    const compiler = initCompiler(source);
+    const result = compile(compiler);
+    return { success: true, code: result, ast: compiler.ast, tokens: compiler.tokens };
+  }
+  
+  compileFile(filePath, options = {}) {
+    const source = fs.readFileSync(filePath, "utf8");
+    return this.compile(source, options);
+  }
+  
+  compileDirectory(dirPath, options = {}) {
+    const results = [];
+    const files = fs.readdirSync(dirPath);
+    for (const file of files) {
+      if (file.endsWith(".valkyrie")) {
+        const filePath = path.join(dirPath, file);
+        results.push(this.compileFile(filePath, options));
+      }
+    }
+    return results;
+  }
+}
+
+// 导出编译器实例
+const compiler = new ValkyrieCompiler();
+export { ValkyrieCompiler, compiler, initLexer, tokenize };

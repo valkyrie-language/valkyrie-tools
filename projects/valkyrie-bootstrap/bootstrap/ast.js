@@ -1,232 +1,198 @@
-// Valkyrie 语言抽象语法树节点定义
+import fs from "fs";
+import path from "path";
 
-export class ASTNode {
-    constructor(type, line, column) {
-        this.type = type;
-        this.line = line;
-        this.column = column;
-    }
+// Valkyrie Runtime Support
+const ValkyrieRuntime = {
+  print: console.log,
+  assert: (condition, message) => {
+    if (!condition) throw new Error(message || "Assertion failed");
+  }
+};
+
+const ASTNode = {type: "", line: 0, column: 0};
+const Program = {type: "Program", statements: [], line: 0, column: 0};
+const VariableDeclaration = {type: "VariableDeclaration", name: "", initializer: {}, line: 0, column: 0};
+const FunctionDeclaration = {type: "FunctionDeclaration", name: "", parameters: [], body: {}, line: 0, column: 0};
+const Parameter = {type: "Parameter", name: "", line: 0, column: 0};
+const BlockStatement = {type: "BlockStatement", statements: [], line: 0, column: 0};
+const IfStatement = {type: "IfStatement", condition: {}, thenBranch: {}, elseBranch: {}, line: 0, column: 0};
+const ExpressionStatement = {type: "ExpressionStatement", expression: {}, line: 0, column: 0};
+const AssignmentExpression = {type: "AssignmentExpression", left: {}, right: {}, line: 0, column: 0};
+const BinaryExpression = {type: "BinaryExpression", left: {}, operator: "", right: {}, line: 0, column: 0};
+const UnaryExpression = {type: "UnaryExpression", operator: "", operand: {}, line: 0, column: 0};
+const CallExpression = {type: "CallExpression", callee: {}, arguments: [], line: 0, column: 0};
+const Identifier = {type: "Identifier", name: "", line: 0, column: 0};
+const NumberLiteral = {type: "NumberLiteral", value: 0, line: 0, column: 0};
+const StringLiteral = {type: "StringLiteral", value: "", line: 0, column: 0};
+const BooleanLiteral = {type: "BooleanLiteral", value: false, line: 0, column: 0};
+const ObjectLiteral = {type: "ObjectLiteral", properties: [], line: 0, column: 0};
+function createProgram(statements, line, column) {
+  const node = {};
+  node.type = "Program";
+  node.statements = statements;
+  node.line = line;
+  node.column = column;
+  return node;
 }
 
-// 程序根节点
-export class Program extends ASTNode {
-    constructor(statements, line, column) {
-        super('Program', line, column);
-        this.statements = statements;
-    }
+function createVariableDeclaration(name, initializer, line, column) {
+  const node = {};
+  node.name = name;
+  node.initializer = initializer;
+  node.line = line;
+  node.column = column;
+  return node;
 }
 
-// 变量声明
-export class VariableDeclaration extends ASTNode {
-    constructor(name, value, mutable = false, typeAnnotation = null, line, column) {
-        super('VariableDeclaration', line, column);
-        this.name = name;
-        this.value = value;
-        this.mutable = mutable;
-        this.typeAnnotation = typeAnnotation;
-    }
+function createFunctionDeclaration(name, parameters, body, line, column) {
+  const node = {};
+  node.name = name;
+  node.parameters = parameters;
+  node.body = body;
+  node.line = line;
+  node.column = column;
+  return node;
 }
 
-// 函数声明
-export class FunctionDeclaration extends ASTNode {
-    constructor(name, parameters, body, returnType = null, line, column) {
-        super('FunctionDeclaration', line, column);
-        this.name = name;
-        this.parameters = parameters;
-        this.body = body;
-        this.returnType = returnType;
-    }
+function createParameter(name, line, column) {
+  const node = {};
+  node.name = name;
+  node.line = line;
+  node.column = column;
+  return node;
 }
 
-// 匿名函数
-export class AnonymousFunction extends ASTNode {
-    constructor(parameters, body, returnType = null, line, column) {
-        super('AnonymousFunction', line, column);
-        this.parameters = parameters;
-        this.body = body;
-        this.returnType = returnType;
-    }
+function createBlockStatement(statements, line, column) {
+  const node = {};
+  node.statements = statements;
+  node.line = line;
+  node.column = column;
+  return node;
 }
 
-// 函数参数
-export class Parameter extends ASTNode {
-    constructor(name, type = null, defaultValue = null, line, column) {
-        super('Parameter', line, column);
-        this.name = name;
-        this.type = type;
-        this.defaultValue = defaultValue;
-    }
+function createIfStatement(condition, thenBranch, elseBranch, line, column) {
+  const node = {};
+  node.condition = condition;
+  node.thenBranch = thenBranch;
+  node.elseBranch = elseBranch;
+  node.line = line;
+  node.column = column;
+  return node;
 }
 
-// 块语句
-export class BlockStatement extends ASTNode {
-    constructor(statements, line, column) {
-        super('BlockStatement', line, column);
-        this.statements = statements;
-    }
+function createExpressionStatement(expression, line, column) {
+  const node = {};
+  node.expression = expression;
+  node.line = line;
+  node.column = column;
+  return node;
 }
 
-// 表达式语句
-export class ExpressionStatement extends ASTNode {
-    constructor(expression, line, column) {
-        super('ExpressionStatement', line, column);
-        this.expression = expression;
-    }
+function createAssignmentExpression(left, right, line, column) {
+  const node = {};
+  node.type = "AssignmentExpression";
+  node.left = left;
+  node.right = right;
+  node.line = line;
+  node.column = column;
+  return node;
 }
 
-// 返回语句
-export class ReturnStatement extends ASTNode {
-    constructor(value = null, line, column) {
-        super('ReturnStatement', line, column);
-        this.value = value;
-    }
+function createBinaryExpression(left, operator, right, line, column) {
+  const node = {};
+  node.left = left;
+  node.operator = operator;
+  node.right = right;
+  node.line = line;
+  node.column = column;
+  return node;
 }
 
-// If 语句
-export class IfStatement extends ASTNode {
-    constructor(condition, thenBranch, elseBranch = null, line, column) {
-        super('IfStatement', line, column);
-        this.condition = condition;
-        this.thenBranch = thenBranch;
-        this.elseBranch = elseBranch;
-    }
+function createUnaryExpression(operator, operand, line, column) {
+  const node = {};
+  node.operator = operator;
+  node.operand = operand;
+  node.line = line;
+  node.column = column;
+  return node;
 }
 
-// While 语句
-export class WhileStatement extends ASTNode {
-    constructor(condition, body, line, column) {
-        super('WhileStatement', line, column);
-        this.condition = condition;
-        this.body = body;
-    }
+function createCallExpression(callee, args, line, column) {
+  const node = {};
+  node.callee = callee;
+  node.arguments = args;
+  node.line = line;
+  node.column = column;
+  return node;
 }
 
-// if表达式
-export class IfExpression extends ASTNode {
-    constructor(condition, thenExpr, elseExpr, line, column) {
-        super('IfExpression', line, column);
-        this.condition = condition;
-        this.thenExpr = thenExpr;
-        this.elseExpr = elseExpr;
-    }
+function createIdentifier(name, line, column) {
+  const node = {};
+  node.name = name;
+  node.line = line;
+  node.column = column;
+  return node;
 }
 
-// 二元表达式
-export class BinaryExpression extends ASTNode {
-    constructor(left, operator, right, line, column) {
-        super('BinaryExpression', line, column);
-        this.left = left;
-        this.operator = operator;
-        this.right = right;
-    }
+function createNumberLiteral(value, line, column) {
+  const node = {};
+  node.value = value;
+  node.line = line;
+  node.column = column;
+  return node;
 }
 
-// 一元表达式
-export class UnaryExpression extends ASTNode {
-    constructor(operator, operand, line, column) {
-        super('UnaryExpression', line, column);
-        this.operator = operator;
-        this.operand = operand;
-    }
+function createStringLiteral(value, line, column) {
+  const node = {};
+  node.value = value;
+  node.line = line;
+  node.column = column;
+  return node;
 }
 
-// 函数调用
-export class CallExpression extends ASTNode {
-    constructor(callee, args, line, column) {
-        super('CallExpression', line, column);
-        this.callee = callee;
-        this.arguments = args;
-    }
+function createBooleanLiteral(value, line, column) {
+  const node = {};
+  node.value = value;
+  node.line = line;
+  node.column = column;
+  return node;
 }
 
-// 标识符
-export class Identifier extends ASTNode {
-    constructor(name, line, column) {
-        super('Identifier', line, column);
-        this.name = name;
-    }
+function createObjectLiteral(properties, line, column) {
+  const node = {};
+  node.properties = properties;
+  node.line = line;
+  node.column = column;
+  return node;
 }
 
-// 字面量
-export class Literal extends ASTNode {
-    constructor(value, line, column) {
-        super('Literal', line, column);
-        this.value = value;
+
+// ValkyrieCompiler 类
+class ValkyrieCompiler {
+  compile(source, options = {}) {
+    const compiler = initCompiler(source);
+    const result = compile(compiler);
+    return { success: true, code: result, ast: compiler.ast, tokens: compiler.tokens };
+  }
+  
+  compileFile(filePath, options = {}) {
+    const source = fs.readFileSync(filePath, "utf8");
+    return this.compile(source, options);
+  }
+  
+  compileDirectory(dirPath, options = {}) {
+    const results = [];
+    const files = fs.readdirSync(dirPath);
+    for (const file of files) {
+      if (file.endsWith(".valkyrie")) {
+        const filePath = path.join(dirPath, file);
+        results.push(this.compileFile(filePath, options));
+      }
     }
+    return results;
+  }
 }
 
-// 数字字面量
-export class NumberLiteral extends Literal {
-    constructor(value, line, column) {
-        super(value, line, column);
-        this.type = 'NumberLiteral';
-    }
-}
-
-// 字符串字面量
-export class StringLiteral extends Literal {
-    constructor(value, line, column) {
-        super(value, line, column);
-        this.type = 'StringLiteral';
-    }
-}
-
-// 布尔字面量
-export class BooleanLiteral extends Literal {
-    constructor(value, line, column) {
-        super(value, line, column);
-        this.type = 'BooleanLiteral';
-    }
-}
-
-// 类型注解
-export class TypeAnnotation extends ASTNode {
-    constructor(type, line, column) {
-        super('TypeAnnotation', line, column);
-        this.typeValue = type;
-    }
-}
-
-// 赋值表达式
-export class AssignmentExpression extends ASTNode {
-    constructor(left, right, line, column) {
-        super('AssignmentExpression', line, column);
-        this.left = left;
-        this.right = right;
-    }
-}
-
-// 数组字面量
-export class ArrayLiteral extends ASTNode {
-    constructor(elements, line, column) {
-        super('ArrayLiteral', line, column);
-        this.elements = elements;
-    }
-}
-
-// 成员访问表达式
-export class MemberExpression extends ASTNode {
-    constructor(object, property, computed = false, line, column) {
-        super('MemberExpression', line, column);
-        this.object = object;
-        this.property = property;
-        this.computed = computed; // true for obj[prop], false for obj.prop
-    }
-}
-
-// 对象字面量
-export class ObjectLiteral extends ASTNode {
-    constructor(properties, line, column) {
-        super('ObjectLiteral', line, column);
-        this.properties = properties;
-    }
-}
-
-// 对象属性
-export class Property extends ASTNode {
-    constructor(key, value, line, column) {
-        super('Property', line, column);
-        this.key = key;
-        this.value = value;
-    }
-}
+// 导出编译器实例
+const compiler = new ValkyrieCompiler();
+export { ValkyrieCompiler, compiler, createProgram, createVariableDeclaration, createFunctionDeclaration, createIfStatement, createBlockStatement, createExpressionStatement, createAssignmentExpression, createBinaryExpression, createUnaryExpression, createCallExpression, createIdentifier, createNumberLiteral, createStringLiteral, createBooleanLiteral };

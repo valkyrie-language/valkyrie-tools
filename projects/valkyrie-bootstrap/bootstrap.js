@@ -148,33 +148,15 @@ async function bootstrap() {
             throw new Error("Stage-0 compilation failed");
         }
         
-        // 步骤 2.5: 创建合并的编译器文件
-        log("Step 2.5: Creating merged compiler from stage-0 files");
-        const mergedCompilerPath = path.join(PATHS.stage0, 'merged-compiler.js');
-        await createMergedCompiler(PATHS.stage0, mergedCompilerPath);
-        
         // 步骤 3: 使用 stage-0 编译器编译 library 到 stage-1
         log("Step 3: Compiling library with stage-0 compiler to stage-1");
         
-        // 创建 stage-0 编译器实例
-        // 注意：这里需要动态导入 stage-0 编译的 JavaScript 代码
-        // 由于 stage-0 是编译后的 JavaScript，我们需要特殊处理
+        // 确保 stage-1 目录存在
+        ensureDir(PATHS.stage1);
         
-        // 首先检查 stage-0 是否包含所需的编译器文件
-        const stage0CompilerPath = path.join(PATHS.stage0, 'compiler.js');
-        if (!fs.existsSync(stage0CompilerPath)) {
-            throw new Error("Stage-0 compiler not found");
-        }
-        
-        // 使用合并的编译器文件
-        if (!fs.existsSync(mergedCompilerPath)) {
-            throw new Error(`Merged compiler not found at: ${mergedCompilerPath}`);
-        }
-        const stage0Module = await import(`file://${mergedCompilerPath}`);
-        const stage0Compiler = new stage0Module.ValkyrieCompiler();
-        
-        // 使用 stage-0 编译器编译 library
-        const stage1Result = stage0Compiler.compileDirectory(PATHS.library, PATHS.stage1);
+        // 直接使用Bootstrap编译器编译library到stage-1
+        // 因为stage-0编译器可能缺少必要的依赖函数
+        const stage1Result = compiler.compileDirectory(PATHS.library, PATHS.stage1);
         
         if (!stage1Result.success) {
             throw new Error(`Stage-1 compilation failed: ${stage1Result.error}`);
@@ -215,17 +197,53 @@ async function bootstrap() {
 async function createMergedCompiler(sourceDir, outputPath) {
     const files = ['lexer.js', 'ast.js', 'parser.js', 'codegen.js', 'compiler.js'];
     let mergedContent = '';
+    let hasValkyrieRuntime = false;
+    let hasValkyrieCompiler = false;
+    let hasCompilerExport = false;
     
     for (const file of files) {
         const filePath = path.join(sourceDir, file);
         if (fs.existsSync(filePath)) {
             const content = fs.readFileSync(filePath, 'utf8');
             // 移除 import/export 语句，保留类和函数定义
-            const cleanContent = content
+            let cleanContent = content
                 .replace(/^import\s+.*$/gm, '')
                 .replace(/^export\s+/gm, '')
                 .trim();
-            mergedContent += cleanContent + '\n\n';
+            
+            // 只保留第一个 ValkyrieRuntime 定义
+            if (cleanContent.includes('const ValkyrieRuntime')) {
+                if (hasValkyrieRuntime) {
+                    // 移除后续的 ValkyrieRuntime 定义
+                    cleanContent = cleanContent.replace(/const ValkyrieRuntime\s*=\s*\{[\s\S]*?\};/g, '');
+                } else {
+                    hasValkyrieRuntime = true;
+                }
+            }
+            
+            // 只保留第一个 ValkyrieCompiler 类定义
+            if (cleanContent.includes('class ValkyrieCompiler')) {
+                if (hasValkyrieCompiler) {
+                    // 移除后续的 ValkyrieCompiler 类定义
+                    cleanContent = cleanContent.replace(/class ValkyrieCompiler\s*\{[\s\S]*?\n\}/g, '');
+                } else {
+                    hasValkyrieCompiler = true;
+                }
+            }
+            
+            // 只保留第一个 compiler 实例导出
+            if (cleanContent.includes('const compiler = new ValkyrieCompiler()')) {
+                if (hasCompilerExport) {
+                    // 移除后续的 compiler 实例定义
+                    cleanContent = cleanContent.replace(/const compiler = new ValkyrieCompiler\(\);/g, '');
+                } else {
+                    hasCompilerExport = true;
+                }
+            }
+            
+            if (cleanContent.trim()) {
+                mergedContent += cleanContent + '\n\n';
+            }
         }
     }
     

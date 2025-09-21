@@ -248,10 +248,10 @@ micro createUnaryExpression(operator, operand, line, column) {
 }
 
 # 创建函数调用表达式节点
-micro createCallExpression(callee, arguments, line, column) {
+micro createCallExpression(callee, args, line, column) {
     let node = {}
     node.callee = callee
-    node.arguments = arguments
+    node.arguments = args
     node.line = line
     node.column = column
     node

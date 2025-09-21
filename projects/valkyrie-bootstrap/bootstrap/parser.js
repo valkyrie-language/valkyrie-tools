@@ -1,631 +1,356 @@
-// Valkyrie 语言语法分析器
-import { TokenType } from './lexer.js';
-import * as AST from './ast.js';
+import fs from "fs";
+import path from "path";
+import { createProgram, createVariableDeclaration, createFunctionDeclaration, createIfStatement, createBlockStatement, createExpressionStatement, createAssignmentExpression, createBinaryExpression, createUnaryExpression, createCallExpression, createIdentifier, createNumberLiteral, createStringLiteral, createBooleanLiteral } from './ast.js';
 
-export class Parser {
-    constructor(tokens) {
-        this.tokens = tokens.filter(token => 
-            token.type !== TokenType.COMMENT && 
-            token.type !== TokenType.NEWLINE
-        );
-        this.position = 0;
-    }
-    
-    current() {
-        if (this.position >= this.tokens.length) {
-            return this.tokens[this.tokens.length - 1]; // EOF token
-        }
-        return this.tokens[this.position];
-    }
-    
-    peek(offset = 1) {
-        const pos = this.position + offset;
-        if (pos >= this.tokens.length) {
-            return this.tokens[this.tokens.length - 1]; // EOF token
-        }
-        return this.tokens[pos];
-    }
-    
-    advance() {
-        if (this.position < this.tokens.length - 1) {
-            this.position++;
-        }
-        return this.current();
-    }
-    
-    match(...types) {
-        return types.includes(this.current().type);
-    }
-    
-    check(type) {
-        return this.current().type === type;
-    }
-    
-    checkNext(type) {
-        return this.peek().type === type;
-    }
-    
-    consume(type, message) {
-        if (this.current().type === type) {
-            const token = this.current();
-            this.advance();
-            return token;
-        }
-        throw new Error(`${message}. Expected ${type}, got ${this.current().type} at line ${this.current().line}`);
-    }
-    
-    // 解析程序
-    parseProgram() {
-        const statements = [];
-        const firstToken = this.current();
-        
-        while (!this.match(TokenType.EOF)) {
-            const stmt = this.parseStatement();
-            if (stmt) {
-                statements.push(stmt);
-            }
-        }
-        
-        return new AST.Program(statements, firstToken.line, firstToken.column);
-    }
-    
-    // 解析语句
-    parseStatement() {
-        if (this.match(TokenType.LET)) {
-            return this.parseVariableDeclaration();
-        }
-        
-        if (this.match(TokenType.MICRO)) {
-            return this.parseFunctionDeclaration();
-        }
-        
-        if (this.match(TokenType.IF)) {
-            return this.parseIfStatement();
-        }
-        
-        if (this.match(TokenType.WHILE)) {
-            return this.parseWhileStatement();
-        }
-        
-        if (this.match(TokenType.LBRACE)) {
-            return this.parseBlockStatement();
-        }
-        
-        // 表达式语句（包括赋值语句）
-        const expr = this.parseExpression();
-        return new AST.ExpressionStatement(expr, expr.line, expr.column);
-    }
-    
-    // 检查是否是赋值语句
-    isAssignmentStatement() {
-        // 简单标识符赋值: identifier = value
-        if (this.check(TokenType.IDENTIFIER) && this.checkNext(TokenType.ASSIGN)) {
-            return true;
-        }
-        
-        // 成员表达式赋值: identifier.property = value 或 identifier[index] = value
-        if (this.check(TokenType.IDENTIFIER)) {
-            let pos = 1;
-            let foundMemberAccess = false;
-            
-            // 跳过可能的成员访问链
-            while (this.peek(pos) && 
-                   (this.peek(pos).type === TokenType.DOT || this.peek(pos).type === TokenType.LBRACKET)) {
-                foundMemberAccess = true;
-                
-                if (this.peek(pos).type === TokenType.DOT) {
-                    pos++; // 跳过 DOT
-                    if (this.peek(pos) && this.peek(pos).type === TokenType.IDENTIFIER) {
-                        pos++; // 跳过属性名
-                    } else {
-                        return false;
-                    }
-                } else if (this.peek(pos).type === TokenType.LBRACKET) {
-                    pos++; // 跳过 LBRACKET
-                    // 跳过索引表达式直到找到 RBRACKET
-                    let bracketCount = 1;
-                    while (this.peek(pos) && bracketCount > 0) {
-                        if (this.peek(pos).type === TokenType.LBRACKET) {
-                            bracketCount++;
-                        } else if (this.peek(pos).type === TokenType.RBRACKET) {
-                            bracketCount--;
-                        }
-                        pos++;
-                    }
-                }
-            }
-            
-            // 如果找到成员访问且以赋值符号结尾，则是赋值语句
-            if (foundMemberAccess && this.peek(pos) && this.peek(pos).type === TokenType.ASSIGN) {
-                return true;
-            }
-        }
-        
-        return false;
-    }
-    
-    // 解析变量声明
-    parseVariableDeclaration() {
-        const letToken = this.consume(TokenType.LET, "Expected 'let'");
-        
-        let mutable = false;
-        if (this.match(TokenType.MUT)) {
-            mutable = true;
-            this.advance();
-        }
-        
-        const nameToken = this.consume(TokenType.IDENTIFIER, "Expected variable name");
-        
-        let typeAnnotation = null;
-        if (this.match(TokenType.COLON)) {
-            this.advance();
-            const typeToken = this.consume(TokenType.IDENTIFIER, "Expected type name");
-            typeAnnotation = new AST.TypeAnnotation(typeToken.value, typeToken.line, typeToken.column);
-        }
-        
-        this.consume(TokenType.ASSIGN, "Expected '=' in variable declaration");
-        const value = this.parseExpression();
-        
-        return new AST.VariableDeclaration(
-            nameToken.value,
-            value,
-            mutable,
-            typeAnnotation,
-            letToken.line,
-            letToken.column
-        );
-    }
-    
-    // 解析函数声明
-    parseFunctionDeclaration() {
-        const microToken = this.consume(TokenType.MICRO, "Expected 'micro'");
-        const nameToken = this.consume(TokenType.IDENTIFIER, "Expected function name");
-        
-        this.consume(TokenType.LPAREN, "Expected '(' after function name");
-        
-        const parameters = [];
-        if (!this.match(TokenType.RPAREN)) {
-            do {
-                const paramName = this.consume(TokenType.IDENTIFIER, "Expected parameter name");
-                
-                let paramType = null;
-                if (this.match(TokenType.COLON)) {
-                    this.advance();
-                    const typeToken = this.consume(TokenType.IDENTIFIER, "Expected parameter type");
-                    paramType = new AST.TypeAnnotation(typeToken.value, typeToken.line, typeToken.column);
-                }
-                
-                parameters.push(new AST.Parameter(
-                    paramName.value,
-                    paramType,
-                    null,
-                    paramName.line,
-                    paramName.column
-                ));
-                
-                if (this.match(TokenType.COMMA)) {
-                    this.advance();
-                } else {
-                    break;
-                }
-            } while (!this.match(TokenType.RPAREN));
-        }
-        
-        this.consume(TokenType.RPAREN, "Expected ')' after parameters");
-        
-        let returnType = null;
-        if (this.match(TokenType.ARROW)) {
-            this.advance();
-            const typeToken = this.consume(TokenType.IDENTIFIER, "Expected return type");
-            returnType = new AST.TypeAnnotation(typeToken.value, typeToken.line, typeToken.column);
-        }
-        
-        const body = this.parseBlockStatement();
-        
-        return new AST.FunctionDeclaration(
-            nameToken.value,
-            parameters,
-            body,
-            returnType,
-            microToken.line,
-            microToken.column
-        );
-    }
-    
-    // 解析匿名函数
-    parseAnonymousFunction() {
-        const microToken = this.consume(TokenType.MICRO, "Expected 'micro'");
-        this.consume(TokenType.LPAREN, "Expected '(' after 'micro'");
-        
-        const parameters = [];
-        if (!this.match(TokenType.RPAREN)) {
-            do {
-                const paramName = this.consume(TokenType.IDENTIFIER, "Expected parameter name");
-                
-                let paramType = null;
-                if (this.match(TokenType.COLON)) {
-                    this.advance();
-                    const typeToken = this.consume(TokenType.IDENTIFIER, "Expected parameter type");
-                    paramType = new AST.TypeAnnotation(typeToken.value, typeToken.line, typeToken.column);
-                }
-                
-                parameters.push(new AST.Parameter(
-                    paramName.value,
-                    paramType,
-                    null,
-                    paramName.line,
-                    paramName.column
-                ));
-                
-                if (this.match(TokenType.COMMA)) {
-                    this.advance();
-                } else {
-                    break;
-                }
-            } while (!this.match(TokenType.RPAREN));
-        }
-        
-        this.consume(TokenType.RPAREN, "Expected ')' after parameters");
-        
-        let returnType = null;
-        if (this.match(TokenType.ARROW)) {
-            this.advance();
-            const typeToken = this.consume(TokenType.IDENTIFIER, "Expected return type");
-            returnType = new AST.TypeAnnotation(typeToken.value, typeToken.line, typeToken.column);
-        }
-        
-        const body = this.parseBlockStatement();
-        
-        return new AST.AnonymousFunction(
-            parameters,
-            body,
-            returnType,
-            microToken.line,
-            microToken.column
-        );
-    }
-    
-    // 解析块语句
-    parseBlockStatement() {
-        const lbraceToken = this.consume(TokenType.LBRACE, "Expected '{'");
-        const statements = [];
-        
-        while (!this.match(TokenType.RBRACE) && !this.match(TokenType.EOF)) {
-            const stmt = this.parseStatement();
-            if (stmt) {
-                statements.push(stmt);
-            }
-        }
-        
-        this.consume(TokenType.RBRACE, "Expected '}'");
-        
-        return new AST.BlockStatement(statements, lbraceToken.line, lbraceToken.column);
-    }
-    
-    // 解析 If 语句
-    parseIfStatement() {
-        const ifToken = this.consume(TokenType.IF, "Expected 'if'");
-        const condition = this.parseExpression();
-        
-        // then分支必须是块语句
-        const thenBranch = this.parseBlockStatement();
-        
-        let elseBranch = null;
-        if (this.match(TokenType.ELSE)) {
-            this.advance();
-            if (this.match(TokenType.IF)) {
-                // else if 情况
-                elseBranch = this.parseIfStatement();
-            } else {
-                // else 分支必须是块语句
-                elseBranch = this.parseBlockStatement();
-            }
-        }
-        
-        return new AST.IfStatement(condition, thenBranch, elseBranch, ifToken.line, ifToken.column);
-    }
-    
-    // 解析 While 语句
-    parseWhileStatement() {
-        const whileToken = this.consume(TokenType.WHILE, "Expected 'while'");
-        const condition = this.parseExpression();
-        
-        // while循环体必须是块语句
-        const body = this.parseBlockStatement();
-        
-        return new AST.WhileStatement(condition, body, whileToken.line, whileToken.column);
-    }
-    
-    // 解析表达式
-    parseExpression() {
-        return this.parseAssignment();
-    }
-    
-    // 解析赋值表达式
-    parseAssignment() {
-        let expr = this.parseLogicalOr();
-        
-        if (this.match(TokenType.ASSIGN)) {
-            console.log(`[DEBUG] Found ASSIGN token at position ${this.position}, current token:`, this.current());
-            console.log(`[DEBUG] Left expression:`, expr);
-            this.advance(); // 消耗 ASSIGN token
-            const right = this.parseAssignment();
-            console.log(`[DEBUG] Right expression:`, right);
-            return new AST.AssignmentExpression(expr, right, expr.line, expr.column);
-        }
-        
-        return expr;
-    }
-    
-    // 解析逻辑或表达式
-    parseLogicalOr() {
-        let expr = this.parseLogicalAnd();
-        
-        while (this.match(TokenType.OR)) {
-            const operator = this.current();
-            this.advance();
-            const right = this.parseLogicalAnd();
-            expr = new AST.BinaryExpression(expr, operator.value, right, operator.line, operator.column);
-        }
-        
-        return expr;
-    }
-    
-    // 解析逻辑与表达式
-    parseLogicalAnd() {
-        let expr = this.parseEquality();
-        
-        while (this.match(TokenType.AND)) {
-            const operator = this.current();
-            this.advance();
-            const right = this.parseEquality();
-            expr = new AST.BinaryExpression(expr, operator.value, right, operator.line, operator.column);
-        }
-        
-        return expr;
-    }
-    
-    // 解析相等性表达式
-    parseEquality() {
-        let expr = this.parseComparison();
-        
-        while (this.match(TokenType.EQUAL, TokenType.NOT_EQUAL)) {
-            const operator = this.current();
-            this.advance();
-            const right = this.parseComparison();
-            expr = new AST.BinaryExpression(expr, operator.value, right, operator.line, operator.column);
-        }
-        
-        return expr;
-    }
-    
-    // 解析比较表达式
-    parseComparison() {
-        let expr = this.parseAddition();
-        
-        while (this.match(TokenType.LESS, TokenType.GREATER, TokenType.LESS_EQUAL, TokenType.GREATER_EQUAL)) {
-            const operator = this.current();
-            this.advance();
-            const right = this.parseAddition();
-            expr = new AST.BinaryExpression(expr, operator.value, right, operator.line, operator.column);
-        }
-        
-        return expr;
-    }
-    
-    // 解析加减表达式
-    parseAddition() {
-        let expr = this.parseMultiplication();
-        
-        while (this.match(TokenType.PLUS, TokenType.MINUS)) {
-            const operator = this.current();
-            this.advance();
-            const right = this.parseMultiplication();
-            expr = new AST.BinaryExpression(expr, operator.value, right, operator.line, operator.column);
-        }
-        
-        return expr;
-    }
-    
-    // 解析乘除表达式
-    parseMultiplication() {
-        let expr = this.parseUnary();
-        
-        while (this.match(TokenType.MULTIPLY, TokenType.DIVIDE)) {
-            const operator = this.current();
-            this.advance();
-            const right = this.parseUnary();
-            expr = new AST.BinaryExpression(expr, operator.value, right, operator.line, operator.column);
-        }
-        
-        return expr;
-    }
-    
-    // 解析一元表达式
-    parseUnary() {
-        if (this.match(TokenType.MINUS, TokenType.NOT)) {
-            const operator = this.current();
-            this.advance();
-            const operand = this.parseUnary();
-            return new AST.UnaryExpression(operator.value, operand, operator.line, operator.column);
-        }
-        
-        return this.parseCall();
-    }
-    
-    // 解析函数调用
-    parseCall() {
-        let expr = this.parsePrimary();
-        
-        while (this.match(TokenType.LPAREN, TokenType.DOT, TokenType.LBRACKET)) {
-            if (this.match(TokenType.LPAREN)) {
-                // 函数调用
-                const lparen = this.current();
-                this.advance();
-                
-                const args = [];
-                if (!this.match(TokenType.RPAREN)) {
-                    do {
-                        args.push(this.parseExpression());
-                        if (this.match(TokenType.COMMA)) {
-                            this.advance();
-                        } else {
-                            break;
-                        }
-                    } while (!this.match(TokenType.RPAREN));
-                }
-                
-                this.consume(TokenType.RPAREN, "Expected ')' after arguments");
-                expr = new AST.CallExpression(expr, args, lparen.line, lparen.column);
-            } else if (this.match(TokenType.DOT)) {
-                // 点号访问 obj.prop
-                const dot = this.current();
-                this.advance();
-                const property = this.consume(TokenType.IDENTIFIER, "Expected property name after '.'");
-                expr = new AST.MemberExpression(expr, new AST.Identifier(property.value, property.line, property.column), false, dot.line, dot.column);
-            } else if (this.match(TokenType.LBRACKET)) {
-                // 数组访问 obj[index]
-                console.log(`[DEBUG] Parsing array access, current position: ${this.position}, tokens around:`, 
-                    this.tokens.slice(Math.max(0, this.position - 2), this.position + 3).map(t => `${t.type}:${t.value}`));
-                const lbracket = this.current();
-                this.advance();
-                const index = this.parseExpression();
-                this.consume(TokenType.RBRACKET, "Expected ']' after array index");
-                expr = new AST.MemberExpression(expr, index, true, lbracket.line, lbracket.column);
-                console.log(`[DEBUG] Created MemberExpression:`, expr);
-            }
-        }
-        
-        return expr;
-    }
-    
-    // 解析基本表达式
-    parsePrimary() {
-        if (this.match(TokenType.NUMBER)) {
-            const token = this.current();
-            this.advance();
-            return new AST.NumberLiteral(token.value, token.line, token.column);
-        }
-        
-        if (this.match(TokenType.STRING)) {
-            const token = this.current();
-            this.advance();
-            return new AST.StringLiteral(token.value, token.line, token.column);
-        }
-        
-        if (this.match(TokenType.BOOLEAN)) {
-            const token = this.current();
-            this.advance();
-            return new AST.BooleanLiteral(token.value, token.line, token.column);
-        }
-        
-        if (this.match(TokenType.IDENTIFIER)) {
-            const token = this.current();
-            this.advance();
-            return new AST.Identifier(token.value, token.line, token.column);
-        }
-        
-        if (this.match(TokenType.MICRO)) {
-            return this.parseAnonymousFunction();
-        }
-        
-        // if表达式
-        if (this.match(TokenType.IF)) {
-            return this.parseIfExpression();
-        }
-        
-       // 数组字面量
-        if (this.match(TokenType.LBRACKET)) {
-            return this.parseArrayLiteral();
-        }
-        
-        // 对象字面量
-        if (this.match(TokenType.LBRACE)) {
-            return this.parseObjectLiteral();
-        }
-        
-        if (this.match(TokenType.LPAREN)) {
-            this.advance();
-            const expr = this.parseExpression();
-            this.consume(TokenType.RPAREN, "Expected ')' after expression");
-            return expr;
-        }
-        
-        throw new Error(`Unexpected token ${this.current().type} at line ${this.current().line}`);
-    }
-    
-    // 解析if表达式
-    parseIfExpression() {
-        const ifToken = this.consume(TokenType.IF, "Expected 'if'");
-        const condition = this.parseExpression();
-        this.consume(TokenType.LBRACE, "Expected '{' after if condition");
-        const thenExpr = this.parseExpression();
-        this.consume(TokenType.RBRACE, "Expected '}' after then expression");
-        
-        this.consume(TokenType.ELSE, "Expected 'else' in if expression");
-        this.consume(TokenType.LBRACE, "Expected '{' after else");
-        const elseExpr = this.parseExpression();
-        this.consume(TokenType.RBRACE, "Expected '}' after else expression");
-        
-        return new AST.IfExpression(condition, thenExpr, elseExpr, ifToken.line, ifToken.column);
-    }
+// Valkyrie Runtime Support
+const ValkyrieRuntime = {
+  print: console.log,
+  assert: (condition, message) => {
+    if (!condition) throw new Error(message || "Assertion failed");
+  }
+};
 
-    // 解析数组字面量
-    parseArrayLiteral() {
-        const startToken = this.current();
-        this.consume(TokenType.LBRACKET, "Expected '['");
-        
-        const elements = [];
-        
-        if (!this.match(TokenType.RBRACKET)) {
-            do {
-                elements.push(this.parseExpression());
-            } while (this.match(TokenType.COMMA) && this.advance());
-        }
-        
-        this.consume(TokenType.RBRACKET, "Expected ']' after array elements");
-        
-        return new AST.ArrayLiteral(elements, startToken.line, startToken.column);
-    }
-    
-    // 解析对象字面量
-    parseObjectLiteral() {
-        const startToken = this.current();
-        this.advance(); // 消耗 '{'
-        
-        const properties = [];
-        
-        while (!this.match(TokenType.RBRACE) && !this.match(TokenType.EOF)) {
-            // 解析属性键
-            let key;
-            if (this.match(TokenType.IDENTIFIER)) {
-                const keyToken = this.current();
-                this.advance();
-                key = new AST.Identifier(keyToken.value, keyToken.line, keyToken.column);
-            } else if (this.match(TokenType.STRING)) {
-                const keyToken = this.current();
-                this.advance();
-                key = new AST.StringLiteral(keyToken.value, keyToken.line, keyToken.column);
-            } else {
-                throw new Error(`Expected property key at line ${this.current().line}`);
-            }
-            
-            this.consume(TokenType.ASSIGN, "Expected '=' after property key");
-            
-            // 解析属性值
-            const value = this.parseExpression();
-            
-            properties.push(new AST.Property(key, value, key.line, key.column));
-            
-            if (this.match(TokenType.COMMA)) {
-                this.advance();
-            } else {
-                break;
-            }
-        }
-        
-        this.consume(TokenType.RBRACE, "Expected '}' after object literal");
-        
-        return new AST.ObjectLiteral(properties, startToken.line, startToken.column);
-    }
+const Parser = {tokens: [], current: 0};
+function initParser(tokens) {
+  const parser = {};
+  parser.tokens = tokens;
+  parser.current = 0;
+  return parser;
 }
+
+function currentToken(parser) {
+  if ((parser.current >= parser.tokens.length)) {
+    parser.tokens[(parser.tokens.length - 1)];
+  } else {
+    parser.tokens[parser.current];
+  }
+}
+
+function peekToken(parser) {
+  if (((parser.current + 1) >= parser.tokens.length)) {
+    parser.tokens[(parser.tokens.length - 1)];
+  } else {
+    parser.tokens[(parser.current + 1)];
+  }
+}
+
+function advance(parser) {
+  if ((parser.current < (parser.tokens.length - 1))) {
+    parser.current = (parser.current + 1);
+  }
+  return parser;
+}
+
+function check(parser, tokenType) {
+  const token = currentToken(parser);
+  return (token.type === tokenType);
+}
+
+function match(parser, tokenType) {
+  if (check(parser, tokenType)) {
+    const token = currentToken(parser);
+    advance(parser);
+    token;
+  } else {
+  }
+}
+
+function expect(parser, tokenType) {
+  const token = match(parser, tokenType);
+  if ((token === {})) {
+    const current = currentToken(parser);
+  } else {
+    token;
+  }
+}
+
+function parseProgram(parser) {
+  const statements = [];
+  while ((!check(parser, "EOF"))) {
+    const stmt = parseStatement(parser);
+    if ((stmt.type !== "")) {
+      statements = (statements + [stmt]);
+    }
+  }
+  return createProgram(statements, 1, 1);
+}
+
+function parseStatement(parser) {
+  const token = currentToken(parser);
+  if ((token.type === "LET")) {
+    return parseVariableDeclaration(parser);
+  } else {
+    if ((token.type === "MICRO")) {
+      return parseFunctionDeclaration(parser);
+    } else {
+      if ((token.type === "IF")) {
+        return parseIfStatement(parser);
+      } else {
+        if ((token.type === "LBRACE")) {
+          return parseBlockStatement(parser);
+        } else {
+          return parseExpressionStatement(parser);
+        }
+      }
+    }
+  }
+}
+
+function parseVariableDeclaration(parser) {
+  const letToken = expect(parser, "LET");
+  const nameToken = expect(parser, "IDENTIFIER");
+  expect(parser, "ASSIGN");
+  const initializer = parseExpression(parser);
+  return createVariableDeclaration(nameToken.value, initializer, letToken.line, letToken.column);
+}
+
+function parseFunctionDeclaration(parser) {
+  const microToken = expect(parser, "MICRO");
+  const nameToken = expect(parser, "IDENTIFIER");
+  expect(parser, "LPAREN");
+  const parameters = [];
+  if ((!check(parser, "RPAREN"))) {
+    const param = expect(parser, "IDENTIFIER");
+    parameters = (parameters + [createParameter(param.value, param.line, param.column)]);
+    while (check(parser, "COMMA")) {
+      advance(parser);
+      param = expect(parser, "IDENTIFIER");
+      parameters = (parameters + [createParameter(param.value, param.line, param.column)]);
+    }
+  }
+  expect(parser, "RPAREN");
+  const body = parseBlockStatement(parser);
+  return createFunctionDeclaration(nameToken.value, parameters, body, microToken.line, microToken.column);
+}
+
+function parseIfStatement(parser) {
+  const ifToken = expect(parser, "IF");
+  const condition = parseExpression(parser);
+  const thenBranch = parseBlockStatement(parser);
+  const elseBranch = {};
+  if (check(parser, "ELSE")) {
+    advance(parser);
+    if (check(parser, "IF")) {
+      elseBranch = parseIfStatement(parser);
+    } else {
+      elseBranch = parseBlockStatement(parser);
+    }
+  }
+  return createIfStatement(condition, thenBranch, elseBranch, ifToken.line, ifToken.column);
+}
+
+function parseBlockStatement(parser) {
+  const lbraceToken = expect(parser, "LBRACE");
+  const statements = [];
+  while (((!check(parser, "RBRACE")) && (!check(parser, "EOF")))) {
+    const stmt = parseStatement(parser);
+    if ((stmt.type !== "")) {
+      statements = (statements + [stmt]);
+    }
+  }
+  expect(parser, "RBRACE");
+  return createBlockStatement(statements, lbraceToken.line, lbraceToken.column);
+}
+
+function parseExpressionStatement(parser) {
+  const expr = parseExpression(parser);
+  return createExpressionStatement(expr, expr.line, expr.column);
+}
+
+function parseExpression(parser) {
+  return parseAssignment(parser);
+}
+
+function parseAssignment(parser) {
+  const expr = parseLogicalOr(parser);
+  if (check(parser, "ASSIGN")) {
+    const assignToken = advance(parser);
+    const right = parseAssignment(parser);
+    createAssignmentExpression(expr, right, assignToken.line, assignToken.column);
+  } else {
+    expr;
+  }
+}
+
+function parseLogicalOr(parser) {
+  const expr = parseLogicalAnd(parser);
+  while (check(parser, "OR")) {
+    const operator = advance(parser);
+    const right = parseLogicalAnd(parser);
+    expr = createBinaryExpression(expr, operator.value, right, operator.line, operator.column);
+  }
+  return expr;
+}
+
+function parseLogicalAnd(parser) {
+  const expr = parseEquality(parser);
+  while (check(parser, "AND")) {
+    const operator = advance(parser);
+    const right = parseEquality(parser);
+    expr = createBinaryExpression(expr, operator.value, right, operator.line, operator.column);
+  }
+  return expr;
+}
+
+function parseEquality(parser) {
+  const expr = parseComparison(parser);
+  while ((check(parser, "EQ") || check(parser, "NE"))) {
+    const operator = advance(parser);
+    const right = parseComparison(parser);
+    expr = createBinaryExpression(expr, operator.value, right, operator.line, operator.column);
+  }
+  return expr;
+}
+
+function parseComparison(parser) {
+  const expr = parseAddition(parser);
+  while ((((check(parser, "LT") || check(parser, "LE")) || check(parser, "GT")) || check(parser, "GE"))) {
+    const operator = advance(parser);
+    const right = parseAddition(parser);
+    expr = createBinaryExpression(expr, operator.value, right, operator.line, operator.column);
+  }
+  return expr;
+}
+
+function parseAddition(parser) {
+  const expr = parseMultiplication(parser);
+  while ((check(parser, "PLUS") || check(parser, "MINUS"))) {
+    const operator = advance(parser);
+    const right = parseMultiplication(parser);
+    expr = createBinaryExpression(expr, operator.value, right, operator.line, operator.column);
+  }
+  return expr;
+}
+
+function parseMultiplication(parser) {
+  const expr = parseUnary(parser);
+  while (((check(parser, "MULTIPLY") || check(parser, "DIVIDE")) || check(parser, "MODULO"))) {
+    const operator = advance(parser);
+    const right = parseUnary(parser);
+    expr = createBinaryExpression(expr, operator.value, right, operator.line, operator.column);
+  }
+  return expr;
+}
+
+function parseUnary(parser) {
+  if ((check(parser, "NOT") || check(parser, "MINUS"))) {
+    const operator = advance(parser);
+    const operand = parseUnary(parser);
+    createUnaryExpression(operator.value, operand, operator.line, operator.column);
+  } else {
+    parseCall(parser);
+  }
+}
+
+function parseCall(parser) {
+  const expr = parsePrimary(parser);
+  while (check(parser, "LPAREN")) {
+    advance(parser);
+    const args = [];
+    if ((!check(parser, "RPAREN"))) {
+      args = (args + [parseExpression(parser)]);
+      while (check(parser, "COMMA")) {
+        advance(parser);
+        args = (args + [parseExpression(parser)]);
+      }
+    }
+    const rparenToken = expect(parser, "RPAREN");
+    expr = createCallExpression(expr, args, expr.line, expr.column);
+  }
+  return expr;
+}
+
+function parsePrimary(parser) {
+  const token = currentToken(parser);
+  if ((token.type === "NUMBER")) {
+    advance(parser);
+    createNumberLiteral(token.value, token.line, token.column);
+  } else {
+    if ((token.type === "STRING")) {
+      advance(parser);
+      createStringLiteral(token.value, token.line, token.column);
+    } else {
+      if ((token.type === "TRUE")) {
+        advance(parser);
+        createBooleanLiteral(true, token.line, token.column);
+      } else {
+        if ((token.type === "FALSE")) {
+          advance(parser);
+          createBooleanLiteral(false, token.line, token.column);
+        } else {
+          if ((token.type === "IDENTIFIER")) {
+            advance(parser);
+            createIdentifier(token.value, token.line, token.column);
+          } else {
+            if ((token.type === "LBRACE")) {
+              advance(parser);
+              const properties = [];
+              if (check(parser, "RBRACE")) {
+                expect(parser, "RBRACE");
+                createObjectLiteral([], token.line, token.column);
+              } else {
+                while (((!check(parser, "RBRACE")) && (!check(parser, "EOF")))) {
+                  const keyToken = expect(parser, "IDENTIFIER");
+                  expect(parser, "ASSIGN");
+                  const value = parseExpression(parser);
+                  properties = (properties + [value]);
+                  if (check(parser, "COMMA")) {
+                    advance(parser);
+                  } else {
+                    const dummy = 0;
+                  }
+                }
+                expect(parser, "RBRACE");
+                createObjectLiteral(properties, token.line, token.column);
+              }
+            } else {
+              if ((token.type === "LPAREN")) {
+                advance(parser);
+                const expr = parseExpression(parser);
+                expect(parser, "RPAREN");
+                expr;
+              } else {
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+function parse(tokens) {
+  const parser = initParser(tokens);
+  return parseProgram(parser);
+}
+
+
+// ValkyrieCompiler 类
+class ValkyrieCompiler {
+  compile(source, options = {}) {
+    const compiler = initCompiler(source);
+    const result = compile(compiler);
+    return { success: true, code: result, ast: compiler.ast, tokens: compiler.tokens };
+  }
+  
+  compileFile(filePath, options = {}) {
+    const source = fs.readFileSync(filePath, "utf8");
+    return this.compile(source, options);
+  }
+  
+  compileDirectory(dirPath, options = {}) {
+    const results = [];
+    const files = fs.readdirSync(dirPath);
+    for (const file of files) {
+      if (file.endsWith(".valkyrie")) {
+        const filePath = path.join(dirPath, file);
+        results.push(this.compileFile(filePath, options));
+      }
+    }
+    return results;
+  }
+}
+
+// 导出编译器实例
+const compiler = new ValkyrieCompiler();
+export { ValkyrieCompiler, compiler, parse };
