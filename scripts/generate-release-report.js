@@ -17,22 +17,22 @@ const path = require('path');
 
 // Emoji 类型映射和优先级
 const EMOJI_TYPES = {
-    '✨': {name: 'feature', priority: 1, label: '稳定特性'},
+    '✨': {name: 'feature', priority: 1, label: '新特性'},
     '🔮': {name: 'experiment', priority: 2, label: '实验特性'},
     '🔧': {name: 'fix', priority: 3, label: 'Bug 修复'},
     '⚡️': {name: 'perf', priority: 4, label: '性能优化'},
-    '📝': {name: 'documentation', priority: 5, label: '文档更新'},
-    '🎨': {name: 'style', priority: 9, label: '样式'},
-    '☢️': {name: 'refactor', priority: 9, label: '重构'},
-    '🧪': {name: 'test', priority: 9, label: '测试'},
-    '🔨': {name: 'config', priority: 9, label: '配置'},
+    '📝': {name: 'docs', priority: 5, label: '文档更新'},
+    '🎨': {name: 'style', priority: 9, label: '样式优化'},
+    '☢️': {name: 'breaking', priority: 1, label: '破坏性变更'},
+    '🧪': {name: 'test', priority: 9, label: '测试相关'},
+    '🔨': {name: 'refactor', priority: 2, label: '重构'},
     '🚦': {name: 'ci', priority: 9, label: 'CI/CD'},
-    '📦': {name: 'build', priority: 9, label: '构建'},
-    '⏪': {name: 'revert', priority: 9, label: '回滚'},
+    '📦': {name: 'deps', priority: 3, label: '依赖更新'},
+    '⏪': {name: 'revert', priority: 3, label: '回滚'},
     '💡': {name: 'idea', priority: 9, label: '想法'},
     '🧨': {name: 'delete', priority: 9, label: '删除'},
-    '✅': {name: 'complete', priority: 9, label: '完成'},
-    '🔀': {name: 'branch', priority: 9, label: '分支'},
+    '✅': {name: 'done', priority: 9, label: '完成'},
+    '🔀': {name: 'merge', priority: -1, label: '合并'},
     '🚀': {name: 'release', priority: -1, label: '发布'},
     '🔖': {name: 'tag', priority: -1, label: '标签'},
 };
@@ -44,13 +44,15 @@ class ReleaseReportGenerator {
     }
 
     /**
-     * 获取两个 tag 之间的提交记录
+     * 获取两个 tag 之间的提交记录，包含作者信息
      */
     getCommitsBetweenTags(fromTag, toTag = 'HEAD') {
         try {
+            // 使用 --pretty=format 获取 hash, emoji, message, author
+            const format = '%h|%s|%an';
             const command = fromTag
-                ? `git log ${fromTag}..${toTag} --oneline`
-                : `git log --oneline -20`; // 如果没有 fromTag，获取最近20条
+                ? `git log ${fromTag}..${toTag} --pretty=format:${format}`
+                : `git log --pretty=format:${format} -20`; // 如果没有 fromTag，获取最近20条
 
             const output = execSync(command, {encoding: 'utf8'});
             return output.trim().split('\n').filter(line => line.length > 0);
@@ -61,15 +63,40 @@ class ReleaseReportGenerator {
     }
 
     /**
+     * 获取 tag 的创建时间
+     */
+    getTagDate(tag) {
+        try {
+            if (!tag || tag === 'HEAD') {
+                return new Date();
+            }
+            const timestamp = execSync(`git log -1 --format=%ai ${tag}`, {encoding: 'utf8'}).trim();
+            return new Date(timestamp);
+        } catch (error) {
+            console.warn(`无法获取 tag ${tag} 的时间，使用当前时间`);
+            return new Date();
+        }
+    }
+
+    /**
      * 解析提交记录
      */
     parseCommit(line) {
-        const match = line.match(/^([a-f0-9]+)\s+([✨🔧📝🎨☢️🧪🔨⚡️🚀🔖🚦📦⏪💡🧨✅🔀🔮])\s+(.+)$/);
-        if (!match) {
+        // 格式: hash|message|author
+        const parts = line.split('|');
+        if (parts.length !== 3) {
             return null;
         }
 
-        const [, hash, emoji, message] = match;
+        const [hash, message, author] = parts;
+        
+        // 提取 emoji 和消息内容
+        const emojiMatch = message.match(/^([✨🔧📝🎨☢️🧪🔨⚡️🚀🔖🚦📦⏪💡🧨✅🔀🔮])\s+(.+)$/);
+        if (!emojiMatch) {
+            return null;
+        }
+
+        const [, emoji, msgContent] = emojiMatch;
         const type = EMOJI_TYPES[emoji] || {name: 'other', priority: 5, label: '其他'};
 
         return {
@@ -78,7 +105,8 @@ class ReleaseReportGenerator {
             type: type.name,
             priority: type.priority,
             label: type.label,
-            message: message.trim()
+            message: msgContent.trim(),
+            author: author.trim()
         };
     }
 
@@ -114,15 +142,23 @@ class ReleaseReportGenerator {
 
         const groupedCommits = this.groupCommitsByType(parsedCommits);
 
-        // 按优先级排序的类型
-        const sortedTypes = Object.keys(groupedCommits).sort((a, b) => {
-            const priorityA = EMOJI_TYPES[Object.values(EMOJI_TYPES).find(t => t.name === a)?.name] || {priority: 5};
-            const priorityB = EMOJI_TYPES[Object.values(EMOJI_TYPES).find(t => t.name === b)?.name] || {priority: 5};
-            return priorityA.priority - priorityB.priority;
-        });
+        // 按优先级排序的类型，过滤掉 priority < 0 的类型
+        const sortedTypes = Object.keys(groupedCommits)
+            .filter(type => {
+                const typeInfo = Object.values(EMOJI_TYPES).find(t => t.name === type);
+                return typeInfo && typeInfo.priority >= 0;
+            })
+            .sort((a, b) => {
+                const priorityA = EMOJI_TYPES[Object.values(EMOJI_TYPES).find(t => t.name === a)?.name] || {priority: 5};
+                const priorityB = EMOJI_TYPES[Object.values(EMOJI_TYPES).find(t => t.name === b)?.name] || {priority: 5};
+                return priorityA.priority - priorityB.priority;
+            });
+
+        // 获取发布时间（使用 toTag 的时间）
+        const releaseDate = this.getTagDate(toTag);
 
         let report = `# 🚀 Release ${version}\n\n`;
-        report += `发布日期: ${new Date().toLocaleString('zh-CN')}\n\n`;
+        report += `发布日期: ${releaseDate.toLocaleString('zh-CN')}\n\n`;
 
         sortedTypes.forEach(type => {
             const commits = groupedCommits[type];
@@ -133,7 +169,7 @@ class ReleaseReportGenerator {
 
             report += `## ${emoji} ${label} (${commits.length})\n\n`;
             commits.forEach(commit => {
-                report += `- ${commit.message} ([${commit.hash}](../../commit/${commit.hash}))\n`;
+                report += `- ${commit.message} ([${commit.hash}](../../commit/${commit.hash})) by @${commit.author}\n`;
             });
             report += '\n';
         });
@@ -217,12 +253,12 @@ function main() {
 
     console.log(`🔄 正在生成 release 报告...`);
     console.log(`📋 版本: ${version}`);
-    if (effectiveFromTag) console.log(`📍 起始: ${effectiveFromTag}`);
+    if (fromTag) console.log(`📍 起始: ${fromTag}`);
     console.log(`📍 结束: ${toTag}`);
     console.log('');
 
     try {
-        const report = generator.generateMarkdownReport(version, effectiveFromTag, toTag);
+        const report = generator.generateMarkdownReport(version, fromTag, toTag);
         const outputPath = generator.saveReport(report, outputFile);
 
         console.log('✅ Release 报告生成成功!');

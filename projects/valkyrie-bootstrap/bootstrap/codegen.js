@@ -45,6 +45,8 @@ export class CodeGenerator {
                 return this.generateReturnStatement(node);
             case 'IfStatement':
                 return this.generateIfStatement(node);
+            case 'WhileStatement':
+                return this.generateWhileStatement(node);
             case 'BinaryExpression':
                 return this.generateBinaryExpression(node);
             case 'UnaryExpression':
@@ -76,6 +78,11 @@ export class CodeGenerator {
     
     generateProgram(node) {
         this.output = [];
+        
+        // 添加ES模块导入
+        this.emitLine('import fs from "fs";');
+        this.emitLine('import path from "path";');
+        this.emitLine();
         
         // 添加运行时支持
         this.emitLine('// Valkyrie Runtime Support');
@@ -109,7 +116,6 @@ export class CodeGenerator {
         this.emitLine();
         this.emitLine('compileFile(filePath, options = {}) {');
         this.increaseIndent();
-        this.emitLine('const fs = require("fs");');
         this.emitLine('const source = fs.readFileSync(filePath, "utf8");');
         this.emitLine('return this.compile(source, options);');
         this.decreaseIndent();
@@ -117,8 +123,6 @@ export class CodeGenerator {
         this.emitLine();
         this.emitLine('compileDirectory(dirPath, options = {}) {');
         this.increaseIndent();
-        this.emitLine('const fs = require("fs");');
-        this.emitLine('const path = require("path");');
         this.emitLine('const results = [];');
         this.emitLine('const files = fs.readdirSync(dirPath);');
         this.emitLine('for (const file of files) {');
@@ -253,6 +257,15 @@ export class CodeGenerator {
         this.emitLine('}');
     }
     
+    generateWhileStatement(node) {
+        const condition = this.generate(node.condition);
+        this.emitLine(`while (${condition}) {`);
+        this.increaseIndent();
+        this.generate(node.body);
+        this.decreaseIndent();
+        this.emitLine('}');
+    }
+    
     generateBinaryExpression(node) {
         const left = this.generate(node.left);
         const right = this.generate(node.right);
@@ -346,6 +359,6 @@ export class CodeGenerator {
     generateProperty(node) {
         const key = this.generate(node.key);
         const value = this.generate(node.value);
-        return `${key} = ${value}`;
+        return `${key}: ${value}`;
     }
 }

@@ -83,6 +83,10 @@ export class Parser {
             return this.parseIfStatement();
         }
         
+        if (this.match(TokenType.WHILE)) {
+            return this.parseWhileStatement();
+        }
+        
         if (this.match(TokenType.LBRACE)) {
             return this.parseBlockStatement();
         }
@@ -319,6 +323,17 @@ export class Parser {
         }
         
         return new AST.IfStatement(condition, thenBranch, elseBranch, ifToken.line, ifToken.column);
+    }
+    
+    // 解析 While 语句
+    parseWhileStatement() {
+        const whileToken = this.consume(TokenType.WHILE, "Expected 'while'");
+        const condition = this.parseExpression();
+        
+        // while循环体必须是块语句
+        const body = this.parseBlockStatement();
+        
+        return new AST.WhileStatement(condition, body, whileToken.line, whileToken.column);
     }
     
     // 解析表达式

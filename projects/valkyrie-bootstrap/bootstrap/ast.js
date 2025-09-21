@@ -92,6 +92,15 @@ export class IfStatement extends ASTNode {
     }
 }
 
+// While 语句
+export class WhileStatement extends ASTNode {
+    constructor(condition, body, line, column) {
+        super('WhileStatement', line, column);
+        this.condition = condition;
+        this.body = body;
+    }
+}
+
 // if表达式
 export class IfExpression extends ASTNode {
     constructor(condition, thenExpr, elseExpr, line, column) {

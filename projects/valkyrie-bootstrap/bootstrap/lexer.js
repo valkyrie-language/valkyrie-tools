@@ -15,6 +15,7 @@ export const TokenType = {
     MICRO: 'MICRO',
     IF: 'IF',
     ELSE: 'ELSE',
+    WHILE: 'WHILE',
     
     // 标识符和字面量
     IDENTIFIER: 'IDENTIFIER',
@@ -70,6 +71,7 @@ export class Lexer {
             'micro': TokenType.MICRO,
             'if': TokenType.IF,
             'else': TokenType.ELSE,
+            'while': TokenType.WHILE,
             'true': TokenType.BOOLEAN,
             'false': TokenType.BOOLEAN
         };

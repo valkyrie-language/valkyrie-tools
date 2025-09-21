@@ -162,7 +162,7 @@ async function bootstrap() {
         }
         
         // 动态导入 stage-0 编译器
-        const stage0Module = await import(stage0CompilerPath);
+        const stage0Module = await import(`file://${stage0CompilerPath}`);
         const stage0Compiler = new stage0Module.ValkyrieCompiler();
         
         // 使用 stage-0 编译器编译 library

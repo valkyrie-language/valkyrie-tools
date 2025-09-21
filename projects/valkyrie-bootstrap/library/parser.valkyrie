@@ -298,19 +298,19 @@ micro parseCall(parser) {
     
     while check(parser, "LPAREN") {
         advance(parser)  # 消费左括号
-        let arguments = []
+        let args = []
         
         if !check(parser, "RPAREN") {
-            arguments = arguments + [parseExpression(parser)]
+            args = args + [parseExpression(parser)]
             
             while check(parser, "COMMA") {
                 advance(parser)  # 消费逗号
-                arguments = arguments + [parseExpression(parser)]
+                args = args + [parseExpression(parser)]
             }
         }
         
         let rparenToken = expect(parser, "RPAREN")
-        expr = createCallExpression(expr, arguments, expr.line, expr.column)
+        expr = createCallExpression(expr, args, expr.line, expr.column)
     }
     
     expr
