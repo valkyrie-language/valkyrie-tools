@@ -344,7 +344,30 @@ export class Parser {
     
     // 解析逻辑或表达式
     parseLogicalOr() {
-        return this.parseEquality();
+        let expr = this.parseLogicalAnd();
+        
+        while (this.match(TokenType.OR)) {
+            const operator = this.current();
+            this.advance();
+            const right = this.parseLogicalAnd();
+            expr = new AST.BinaryExpression(expr, operator.value, right, operator.line, operator.column);
+        }
+        
+        return expr;
+    }
+    
+    // 解析逻辑与表达式
+    parseLogicalAnd() {
+        let expr = this.parseEquality();
+        
+        while (this.match(TokenType.AND)) {
+            const operator = this.current();
+            this.advance();
+            const right = this.parseEquality();
+            expr = new AST.BinaryExpression(expr, operator.value, right, operator.line, operator.column);
+        }
+        
+        return expr;
     }
     
     // 解析相等性表达式
