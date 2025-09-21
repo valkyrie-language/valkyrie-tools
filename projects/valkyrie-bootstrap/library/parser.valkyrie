@@ -1,404 +1,353 @@
-# Valkyrie 语言语法分析器
+# Valkyrie 语法分析器
+# 使用 Valkyrie 语言实现
 
-# 导入 AST 节点构造函数（在实际实现中需要模块系统）
-# 这里假设所有 AST 构造函数都可用
+# 导入词法分析器和 AST 模块
+# import lexer
+# import ast
 
 # 语法分析器类
-micro Parser(tokens) {
-    let self = {
-        tokens: tokens,
-        current: 0
-    };
+let Parser = {
+    tokens: [],
+    current: 0
+}
+
+# 初始化语法分析器
+micro initParser(tokens) {
+    let parser = Parser
+    parser.tokens = tokens
+    parser.current = 0
+    parser
+}
+
+# 获取当前 token
+micro currentToken(parser) {
+    if parser.current >= parser.tokens.length {
+        parser.tokens[parser.tokens.length - 1]  # EOF token
+    } else {
+        parser.tokens[parser.current]
+    }
+}
+
+# 获取下一个 token
+micro peekToken(parser) {
+    if parser.current + 1 >= parser.tokens.length {
+        parser.tokens[parser.tokens.length - 1]  # EOF token
+    } else {
+        parser.tokens[parser.current + 1]
+    }
+}
+
+# 前进到下一个 token
+micro advance(parser) {
+    if parser.current < parser.tokens.length - 1 {
+        parser.current = parser.current + 1
+    }
+    parser
+}
+
+# 检查当前 token 类型
+micro check(parser, tokenType) {
+    let token = currentToken(parser)
+    token.type == tokenType
+}
+
+# 匹配并消费 token
+micro match(parser, tokenType) {
+    if check(parser, tokenType) {
+        let token = currentToken(parser)
+        advance(parser)
+        token
+    } else {
+        {}  # 返回空对象表示匹配失败
+    }
+}
+
+# 期望特定类型的 token
+micro expect(parser, tokenType) {
+    let token = match(parser, tokenType)
+    if token.type == "" {
+        # 错误处理：期望的 token 类型不匹配
+        let current = currentToken(parser)
+        # 这里应该抛出错误，但暂时返回空对象
+        {}
+    } else {
+        token
+    }
+}
+
+# 解析程序
+micro parseProgram(parser) {
+    let statements = []
     
-    # 获取当前 token
-    let peek = micro() {
-        if (self.current >= self.tokens.length) {
-            return self.tokens[self.tokens.length - 1]; # EOF token
+    # 解析所有语句直到 EOF
+    while !check(parser, "EOF") {
+        let stmt = parseStatement(parser)
+        if stmt.type != "" {
+            statements = statements + [stmt]
         }
-        return self.tokens[self.current];
-    };
+    }
     
-    # 获取前一个 token
-    let previous = micro() {
-        return self.tokens[self.current - 1];
-    };
+    createProgram(statements, 1, 1)
+}
+
+# 解析语句
+micro parseStatement(parser) {
+    let token = currentToken(parser)
     
-    # 检查是否到达末尾
-    let isAtEnd = micro() {
-        return peek().type === "EOF";
-    };
+    if token.type == "LET" {
+        parseVariableDeclaration(parser)
+    } else if token.type == "MICRO" {
+        parseFunctionDeclaration(parser)
+    } else if token.type == "IF" {
+        parseIfStatement(parser)
+    } else if token.type == "LBRACE" {
+        parseBlockStatement(parser)
+    } else {
+        parseExpressionStatement(parser)
+    }
+}
+
+# 解析变量声明
+micro parseVariableDeclaration(parser) {
+    let letToken = expect(parser, "LET")
+    let nameToken = expect(parser, "IDENTIFIER")
     
-    # 前进到下一个 token
-    let advance = micro() {
-        if (!isAtEnd()) {
-            self.current = self.current + 1;
+    expect(parser, "ASSIGN")
+    let initializer = parseExpression(parser)
+    
+    createVariableDeclaration(nameToken.value, initializer, letToken.line, letToken.column)
+}
+
+# 解析函数声明
+micro parseFunctionDeclaration(parser) {
+    let microToken = expect(parser, "MICRO")
+    let nameToken = expect(parser, "IDENTIFIER")
+    
+    expect(parser, "LPAREN")
+    let parameters = []
+    
+    # 解析参数列表
+    if !check(parser, "RPAREN") {
+        let param = expect(parser, "IDENTIFIER")
+        parameters = parameters + [createParameter(param.value, param.line, param.column)]
+        
+        while check(parser, "COMMA") {
+            advance(parser)  # 消费逗号
+            param = expect(parser, "IDENTIFIER")
+            parameters = parameters + [createParameter(param.value, param.line, param.column)]
         }
-        return previous();
-    };
+    }
     
-    # 检查当前 token 是否匹配指定类型
-    let check = micro(type) {
-        if (isAtEnd()) return false;
-        return peek().type === type;
-    };
+    expect(parser, "RPAREN")
+    let body = parseBlockStatement(parser)
     
-    # 如果当前 token 匹配任一类型，则消费它
-    let match = micro(...types) {
-        let i = 0;
-        while (i < types.length) {
-            if (check(types[i])) {
-                advance();
-                return true;
-            }
-            i = i + 1;
+    createFunctionDeclaration(nameToken.value, parameters, body, microToken.line, microToken.column)
+}
+
+# 解析 If 语句
+micro parseIfStatement(parser) {
+    let ifToken = expect(parser, "IF")
+    let condition = parseExpression(parser)
+    let thenBranch = parseBlockStatement(parser)
+    
+    let elseBranch = {}
+    if check(parser, "ELSE") {
+        advance(parser)  # 消费 else
+        if check(parser, "IF") {
+            elseBranch = parseIfStatement(parser)  # else if
+        } else {
+            elseBranch = parseBlockStatement(parser)  # else block
         }
-        return false;
-    };
+    }
     
-    # 消费指定类型的 token，否则抛出错误
-    let consume = micro(type, message) {
-        if (check(type)) return advance();
-        
-        let current = peek();
-        throw new Error(message + " at line " + current.line + ", column " + current.column);
-    };
+    createIfStatement(condition, thenBranch, elseBranch, ifToken.line, ifToken.column)
+}
+
+# 解析块语句
+micro parseBlockStatement(parser) {
+    let lbraceToken = expect(parser, "LBRACE")
+    let statements = []
     
-    # 解析程序
-    let parseProgram = micro() {
-        let statements = [];
-        
-        while (!isAtEnd()) {
-            let stmt = parseStatement();
-            if (stmt !== null) {
-                statements.push(stmt);
-            }
+    while !check(parser, "RBRACE") && !check(parser, "EOF") {
+        let stmt = parseStatement(parser)
+        if stmt.type != "" {
+            statements = statements + [stmt]
         }
-        
-        return Program(statements);
-    };
+    }
     
-    # 解析语句
-    let parseStatement = micro() {
-        if (match("LET")) return parseVariableDeclaration();
-        if (match("MICRO")) return parseFunctionDeclaration();
-        if (match("IF")) return parseIfStatement();
-        if (match("RETURN")) return parseReturnStatement();
-        if (match("LEFT_BRACE")) return parseBlockStatement();
-        
-        return parseExpressionStatement();
-    };
+    expect(parser, "RBRACE")
+    createBlockStatement(statements, lbraceToken.line, lbraceToken.column)
+}
+
+# 解析表达式语句
+micro parseExpressionStatement(parser) {
+    let expr = parseExpression(parser)
+    createExpressionStatement(expr, expr.line, expr.column)
+}
+
+# 解析表达式
+micro parseExpression(parser) {
+    parseAssignment(parser)
+}
+
+# 解析赋值表达式
+micro parseAssignment(parser) {
+    let expr = parseLogicalOr(parser)
     
-    # 解析变量声明
-    let parseVariableDeclaration = micro() {
-        let name = consume("IDENTIFIER", "Expected variable name").value;
-        
-        let initializer = null;
-        if (match("ASSIGN")) {
-            initializer = parseExpression();
-        }
-        
-        consume("SEMICOLON", "Expected ';' after variable declaration");
-        return VariableDeclaration(Identifier(name), initializer, false);
-    };
+    if check(parser, "ASSIGN") {
+        let assignToken = advance(parser)
+        let right = parseAssignment(parser)
+        createAssignmentExpression(expr, right, assignToken.line, assignToken.column)
+    } else {
+        expr
+    }
+}
+
+# 解析逻辑或表达式
+micro parseLogicalOr(parser) {
+    let expr = parseLogicalAnd(parser)
     
-    # 解析函数声明
-    let parseFunctionDeclaration = micro() {
-        let name = consume("IDENTIFIER", "Expected function name").value;
-        
-        consume("LEFT_PAREN", "Expected '(' after function name");
-        
-        let parameters = [];
-        if (!check("RIGHT_PAREN")) {
-            parameters.push(consume("IDENTIFIER", "Expected parameter name").value);
-            while (match("COMMA")) {
-                parameters.push(consume("IDENTIFIER", "Expected parameter name").value);
-            }
-        }
-        
-        consume("RIGHT_PAREN", "Expected ')' after parameters");
-        
-        let body = parseBlockStatement();
-        
-        return FunctionDeclaration(Identifier(name), parameters.map(micro(p) { return Identifier(p); }), body);
-    };
+    while check(parser, "OR") {
+        let operator = advance(parser)
+        let right = parseLogicalAnd(parser)
+        expr = createBinaryExpression(expr, operator.value, right, operator.line, operator.column)
+    }
     
-    # 解析 if 语句
-    let parseIfStatement = micro() {
-        consume("LEFT_PAREN", "Expected '(' after 'if'");
-        let condition = parseExpression();
-        consume("RIGHT_PAREN", "Expected ')' after if condition");
-        
-        let thenBranch = parseStatement();
-        let elseBranch = null;
-        
-        if (match("ELSE")) {
-            elseBranch = parseStatement();
-        }
-        
-        return IfStatement(condition, thenBranch, elseBranch);
-    };
+    expr
+}
+
+# 解析逻辑与表达式
+micro parseLogicalAnd(parser) {
+    let expr = parseEquality(parser)
     
-    # 解析返回语句
-    let parseReturnStatement = micro() {
-        let expression = null;
-        
-        if (!check("SEMICOLON")) {
-            expression = parseExpression();
-        }
-        
-        consume("SEMICOLON", "Expected ';' after return value");
-        return ReturnStatement(expression);
-    };
+    while check(parser, "AND") {
+        let operator = advance(parser)
+        let right = parseEquality(parser)
+        expr = createBinaryExpression(expr, operator.value, right, operator.line, operator.column)
+    }
     
-    # 解析块语句
-    let parseBlockStatement = micro() {
-        let statements = [];
-        
-        while (!check("RIGHT_BRACE") && !isAtEnd()) {
-            let stmt = parseStatement();
-            if (stmt !== null) {
-                statements.push(stmt);
-            }
-        }
-        
-        consume("RIGHT_BRACE", "Expected '}' after block");
-        return BlockStatement(statements);
-    };
+    expr
+}
+
+# 解析相等性表达式
+micro parseEquality(parser) {
+    let expr = parseComparison(parser)
     
-    # 解析表达式语句
-    let parseExpressionStatement = micro() {
-        let expr = parseExpression();
-        consume("SEMICOLON", "Expected ';' after expression");
-        return ExpressionStatement(expr);
-    };
+    while check(parser, "EQ") || check(parser, "NE") {
+        let operator = advance(parser)
+        let right = parseComparison(parser)
+        expr = createBinaryExpression(expr, operator.value, right, operator.line, operator.column)
+    }
     
-    # 解析表达式
-    let parseExpression = micro() {
-        return parseAssignment();
-    };
+    expr
+}
+
+# 解析比较表达式
+micro parseComparison(parser) {
+    let expr = parseAddition(parser)
     
-    # 解析赋值表达式
-    let parseAssignment = micro() {
-        let expr = parseLogicalOr();
-        
-        if (match("ASSIGN")) {
-            let value = parseAssignment();
-            return AssignmentExpression(expr, value);
-        }
-        
-        return expr;
-    };
+    while check(parser, "LT") || check(parser, "LE") || check(parser, "GT") || check(parser, "GE") {
+        let operator = advance(parser)
+        let right = parseAddition(parser)
+        expr = createBinaryExpression(expr, operator.value, right, operator.line, operator.column)
+    }
     
-    # 解析逻辑或表达式
-    let parseLogicalOr = micro() {
-        let expr = parseLogicalAnd();
-        
-        while (match("OR")) {
-            let operator = previous().value;
-            let right = parseLogicalAnd();
-            expr = BinaryExpression(expr, operator, right);
-        }
-        
-        return expr;
-    };
+    expr
+}
+
+# 解析加法表达式
+micro parseAddition(parser) {
+    let expr = parseMultiplication(parser)
     
-    # 解析逻辑与表达式
-    let parseLogicalAnd = micro() {
-        let expr = parseEquality();
-        
-        while (match("AND")) {
-            let operator = previous().value;
-            let right = parseEquality();
-            expr = BinaryExpression(expr, operator, right);
-        }
-        
-        return expr;
-    };
+    while check(parser, "PLUS") || check(parser, "MINUS") {
+        let operator = advance(parser)
+        let right = parseMultiplication(parser)
+        expr = createBinaryExpression(expr, operator.value, right, operator.line, operator.column)
+    }
     
-    # 解析相等性表达式
-    let parseEquality = micro() {
-        let expr = parseComparison();
-        
-        while (match("NOT_EQUAL", "EQUAL")) {
-            let operator = previous().value;
-            let right = parseComparison();
-            expr = BinaryExpression(expr, operator, right);
-        }
-        
-        return expr;
-    };
+    expr
+}
+
+# 解析乘法表达式
+micro parseMultiplication(parser) {
+    let expr = parseUnary(parser)
     
-    # 解析比较表达式
-    let parseComparison = micro() {
-        let expr = parseAddition();
-        
-        while (match("GREATER_THAN", "GREATER_EQUAL", "LESS_THAN", "LESS_EQUAL")) {
-            let operator = previous().value;
-            let right = parseAddition();
-            expr = BinaryExpression(expr, operator, right);
-        }
-        
-        return expr;
-    };
+    while check(parser, "MULTIPLY") || check(parser, "DIVIDE") || check(parser, "MODULO") {
+        let operator = advance(parser)
+        let right = parseUnary(parser)
+        expr = createBinaryExpression(expr, operator.value, right, operator.line, operator.column)
+    }
     
-    # 解析加减表达式
-    let parseAddition = micro() {
-        let expr = parseMultiplication();
-        
-        while (match("MINUS", "PLUS")) {
-            let operator = previous().value;
-            let right = parseMultiplication();
-            expr = BinaryExpression(expr, operator, right);
-        }
-        
-        return expr;
-    };
+    expr
+}
+
+# 解析一元表达式
+micro parseUnary(parser) {
+    if check(parser, "NOT") || check(parser, "MINUS") {
+        let operator = advance(parser)
+        let operand = parseUnary(parser)
+        createUnaryExpression(operator.value, operand, operator.line, operator.column)
+    } else {
+        parseCall(parser)
+    }
+}
+
+# 解析函数调用表达式
+micro parseCall(parser) {
+    let expr = parsePrimary(parser)
     
-    # 解析乘除表达式
-    let parseMultiplication = micro() {
-        let expr = parseUnary();
+    while check(parser, "LPAREN") {
+        advance(parser)  # 消费左括号
+        let arguments = []
         
-        while (match("DIVIDE", "MULTIPLY", "MODULO")) {
-            let operator = previous().value;
-            let right = parseUnary();
-            expr = BinaryExpression(expr, operator, right);
-        }
-        
-        return expr;
-    };
-    
-    # 解析一元表达式
-    let parseUnary = micro() {
-        if (match("NOT", "MINUS")) {
-            let operator = previous().value;
-            let right = parseUnary();
-            return UnaryExpression(operator, right);
-        }
-        
-        return parseCall();
-    };
-    
-    # 解析函数调用表达式
-    let parseCall = micro() {
-        let expr = parsePrimary();
-        
-        while (true) {
-            if (match("LEFT_PAREN")) {
-                expr = finishCall(expr);
-            } else if (match("DOT")) {
-                let name = consume("IDENTIFIER", "Expected property name after '.'").value;
-                expr = MemberExpression(expr, Identifier(name), false);
-            } else if (match("LEFT_BRACKET")) {
-                let index = parseExpression();
-                consume("RIGHT_BRACKET", "Expected ']' after array index");
-                expr = MemberExpression(expr, index, true);
-            } else {
-                break;
-            }
-        }
-        
-        return expr;
-    };
-    
-    # 完成函数调用解析
-    let finishCall = micro(callee) {
-        let arguments = [];
-        
-        if (!check("RIGHT_PAREN")) {
-            arguments.push(parseExpression());
-            while (match("COMMA")) {
-                arguments.push(parseExpression());
-            }
-        }
-        
-        consume("RIGHT_PAREN", "Expected ')' after arguments");
-        return CallExpression(callee, arguments);
-    };
-    
-    # 解析基本表达式
-    let parsePrimary = micro() {
-        if (match("TRUE")) return BooleanLiteral(true);
-        if (match("FALSE")) return BooleanLiteral(false);
-        
-        if (match("NUMBER")) {
-            let value = previous().value;
-            return NumberLiteral(parseFloat(value));
-        }
-        
-        if (match("STRING")) {
-            return StringLiteral(previous().value);
-        }
-        
-        if (match("IDENTIFIER")) {
-            return Identifier(previous().value);
-        }
-        
-        if (match("LEFT_PAREN")) {
-            let expr = parseExpression();
-            consume("RIGHT_PAREN", "Expected ')' after expression");
-            return expr;
-        }
-        
-        # 匿名函数
-        if (match("MICRO")) {
-            consume("LEFT_PAREN", "Expected '(' after 'micro'");
+        if !check(parser, "RPAREN") {
+            arguments = arguments + [parseExpression(parser)]
             
-            let parameters = [];
-            if (!check("RIGHT_PAREN")) {
-                parameters.push(consume("IDENTIFIER", "Expected parameter name").value);
-                while (match("COMMA")) {
-                    parameters.push(consume("IDENTIFIER", "Expected parameter name").value);
-                }
+            while check(parser, "COMMA") {
+                advance(parser)  # 消费逗号
+                arguments = arguments + [parseExpression(parser)]
             }
-            
-            consume("RIGHT_PAREN", "Expected ')' after parameters");
-            
-            let body = parseBlockStatement();
-            
-            return AnonymousFunction(parameters.map(micro(p) { return Identifier(p); }), body);
         }
         
-        # 数组字面量
-        if (match("LEFT_BRACKET")) {
-            let elements = [];
-            
-            if (!check("RIGHT_BRACKET")) {
-                elements.push(parseExpression());
-                while (match("COMMA")) {
-                    elements.push(parseExpression());
-                }
-            }
-            
-            consume("RIGHT_BRACKET", "Expected ']' after array elements");
-            return ArrayLiteral(elements);
-        }
-        
-        # 对象字面量
-        if (match("LEFT_BRACE")) {
-            let properties = [];
-            
-            if (!check("RIGHT_BRACE")) {
-                let key = consume("IDENTIFIER", "Expected property name").value;
-                consume("COLON", "Expected ':' after property name");
-                let value = parseExpression();
-                properties.push(Property(Identifier(key), value));
-                
-                while (match("COMMA")) {
-                    key = consume("IDENTIFIER", "Expected property name").value;
-                    consume("COLON", "Expected ':' after property name");
-                    value = parseExpression();
-                    properties.push(Property(Identifier(key), value));
-                }
-            }
-            
-            consume("RIGHT_BRACE", "Expected '}' after object properties");
-            return ObjectLiteral(properties);
-        }
-        
-        throw new Error("Unexpected token: " + peek().value);
-    };
+        let rparenToken = expect(parser, "RPAREN")
+        expr = createCallExpression(expr, arguments, expr.line, expr.column)
+    }
     
-    return {
-        parseProgram: parseProgram
-    };
+    expr
+}
+
+# 解析基本表达式
+micro parsePrimary(parser) {
+    let token = currentToken(parser)
+    
+    if token.type == "NUMBER" {
+        advance(parser)
+        createNumberLiteral(token.value, token.line, token.column)
+    } else if token.type == "STRING" {
+        advance(parser)
+        createStringLiteral(token.value, token.line, token.column)
+    } else if token.type == "TRUE" {
+        advance(parser)
+        createBooleanLiteral(true, token.line, token.column)
+    } else if token.type == "FALSE" {
+        advance(parser)
+        createBooleanLiteral(false, token.line, token.column)
+    } else if token.type == "IDENTIFIER" {
+        advance(parser)
+        createIdentifier(token.value, token.line, token.column)
+    } else if token.type == "LPAREN" {
+        advance(parser)  # 消费左括号
+        let expr = parseExpression(parser)
+        expect(parser, "RPAREN")
+        expr
+    } else {
+        # 错误：意外的 token
+        {}
+    }
+}
+
+# 解析函数，主入口
+micro parse(tokens) {
+    let parser = initParser(tokens)
+    parseProgram(parser)
 }

@@ -1,39 +1,258 @@
-# Valkyrie 语言编译器主模块
+# Valkyrie 编译器主模块
+# 使用 Valkyrie 语言实现
+
+# 导入所需模块
+# import lexer
+# import parser
+# import codegen
 
 # 编译器类
-micro ValkyrieCompiler() {
-    let self = {
-        lexer: null,
-        parser: null,
-        codegen: CodeGenerator()
-    };
+let Compiler = {
+    source: "",
+    tokens: [],
+    ast: {},
+    output: ""
+}
+
+# 初始化编译器
+micro initCompiler(source) {
+    let compiler = Compiler
+    compiler.source = source
+    compiler.tokens = []
+    compiler.ast = {}
+    compiler.output = ""
+    compiler
+}
+
+# 编译源代码
+micro compile(compiler) {
+    # 词法分析阶段
+    let lexer = initLexer(compiler.source)
+    compiler.tokens = tokenize(lexer)
     
-    # 编译源码
-    let compile = micro(source, filename) {
-        if (filename === undefined) {
-            filename = "<unknown>";
+    # 检查词法分析是否成功
+    if compiler.tokens.length == 0 {
+        compiler.output = "Error: Lexical analysis failed"
+        compiler
+    } else {
+        # 语法分析阶段
+        compiler.ast = parse(compiler.tokens)
+        
+        # 检查语法分析是否成功
+        if compiler.ast.type == "" {
+            compiler.output = "Error: Syntax analysis failed"
+            compiler
+        } else {
+            # 代码生成阶段
+            compiler.output = generate(compiler.ast)
+            compiler
         }
-        
-        # 词法分析
-        self.lexer = Lexer(source);
-        let tokens = self.lexer.tokenize();
-        
-        # 语法分析
-        self.parser = Parser(tokens);
-        let ast = self.parser.parseProgram();
-        
-        # 代码生成
-        let jsCode = self.codegen.generate(ast);
-        
-        return {
-            success: true,
-            code: jsCode,
-            ast: ast,
-            tokens: tokens
-        };
-    };
+    }
+}
+
+# 编译错误处理
+let CompilerError = {
+    type: "CompilerError",
+    message: "",
+    line: 0,
+    column: 0
+}
+
+# 创建编译错误
+micro createCompilerError(message, line, column) {
+    let error = CompilerError
+    error.message = message
+    error.line = line
+    error.column = column
+    error
+}
+
+# 报告错误
+micro reportError(error) {
+    let errorMessage = "Error at line " + error.line + ", column " + error.column + ": " + error.message
+    errorMessage
+}
+
+# 编译器选项
+let CompilerOptions = {
+    outputFormat: "javascript",  # 输出格式：javascript, wasm 等
+    optimize: false,             # 是否优化
+    debug: false                 # 是否包含调试信息
+}
+
+# 创建编译器选项
+micro createCompilerOptions(outputFormat, optimize, debug) {
+    let options = CompilerOptions
+    options.outputFormat = outputFormat
+    options.optimize = optimize
+    options.debug = debug
+    options
+}
+
+# 带选项的编译函数
+micro compileWithOptions(compiler, options) {
+    # 词法分析阶段
+    let lexer = initLexer(compiler.source)
+    compiler.tokens = tokenize(lexer)
     
-    return {
-        compile: compile
-    };
+    # 检查词法分析是否成功
+    if compiler.tokens.length == 0 {
+        let error = createCompilerError("Lexical analysis failed", 1, 1)
+        compiler.output = reportError(error)
+        compiler
+    } else {
+        # 语法分析阶段
+        compiler.ast = parse(compiler.tokens)
+        
+        # 检查语法分析是否成功
+        if compiler.ast.type == "" {
+            let error = createCompilerError("Syntax analysis failed", 1, 1)
+            compiler.output = reportError(error)
+            compiler
+        } else {
+            # 代码生成阶段
+            if options.outputFormat == "javascript" {
+                compiler.output = generate(compiler.ast)
+            } else {
+                let error = createCompilerError("Unsupported output format: " + options.outputFormat, 1, 1)
+                compiler.output = reportError(error)
+            }
+            
+            # 如果启用调试模式，添加调试信息
+            if options.debug {
+                compiler.output = "// Debug mode enabled\n" + compiler.output
+            }
+            
+            compiler
+        }
+    }
+}
+
+# 编译统计信息
+let CompilerStats = {
+    tokensCount: 0,
+    astNodesCount: 0,
+    outputSize: 0,
+    compileTime: 0
+}
+
+# 创建编译统计信息
+micro createCompilerStats() {
+    let stats = CompilerStats
+    stats.tokensCount = 0
+    stats.astNodesCount = 0
+    stats.outputSize = 0
+    stats.compileTime = 0
+    stats
+}
+
+# 计算 AST 节点数量
+micro countASTNodes(node) {
+    if node.type == "" {
+        0
+    } else if node.type == "Program" {
+        let count = 1
+        let i = 0
+        while i < node.statements.length {
+            count = count + countASTNodes(node.statements[i])
+            i = i + 1
+        }
+        count
+    } else if node.type == "BlockStatement" {
+        let count = 1
+        let i = 0
+        while i < node.statements.length {
+            count = count + countASTNodes(node.statements[i])
+            i = i + 1
+        }
+        count
+    } else if node.type == "IfStatement" {
+        let count = 1
+        count = count + countASTNodes(node.condition)
+        count = count + countASTNodes(node.thenBranch)
+        if node.elseBranch.type != "" {
+            count = count + countASTNodes(node.elseBranch)
+        }
+        count
+    } else if node.type == "BinaryExpression" {
+        let count = 1
+        count = count + countASTNodes(node.left)
+        count = count + countASTNodes(node.right)
+        count
+    } else if node.type == "UnaryExpression" {
+        let count = 1
+        count = count + countASTNodes(node.operand)
+        count
+    } else if node.type == "CallExpression" {
+        let count = 1
+        count = count + countASTNodes(node.callee)
+        let i = 0
+        while i < node.arguments.length {
+            count = count + countASTNodes(node.arguments[i])
+            i = i + 1
+        }
+        count
+    } else {
+        1  # 叶子节点
+    }
+}
+
+# 带统计信息的编译函数
+micro compileWithStats(compiler, options) {
+    let stats = createCompilerStats()
+    
+    # 记录开始时间（简化实现）
+    let startTime = 0
+    
+    # 执行编译
+    compileWithOptions(compiler, options)
+    
+    # 收集统计信息
+    stats.tokensCount = compiler.tokens.length
+    stats.astNodesCount = countASTNodes(compiler.ast)
+    stats.outputSize = compiler.output.length
+    stats.compileTime = 1  # 简化的编译时间
+    
+    # 将统计信息添加到输出（如果启用调试模式）
+    if options.debug {
+        let statsInfo = "\n// Compilation Statistics:\n"
+        statsInfo = statsInfo + "// Tokens: " + stats.tokensCount + "\n"
+        statsInfo = statsInfo + "// AST Nodes: " + stats.astNodesCount + "\n"
+        statsInfo = statsInfo + "// Output Size: " + stats.outputSize + " characters\n"
+        statsInfo = statsInfo + "// Compile Time: " + stats.compileTime + " ms\n"
+        compiler.output = compiler.output + statsInfo
+    }
+    
+    compiler
+}
+
+# 主编译函数 - 简单接口
+micro compileSource(source) {
+    let compiler = initCompiler(source)
+    compile(compiler)
+    compiler.output
+}
+
+# 主编译函数 - 完整接口
+micro compileSourceWithOptions(source, outputFormat, optimize, debug) {
+    let compiler = initCompiler(source)
+    let options = createCompilerOptions(outputFormat, optimize, debug)
+    compileWithStats(compiler, options)
+    compiler.output
+}
+
+# 验证源代码语法
+micro validateSyntax(source) {
+    let compiler = initCompiler(source)
+    
+    # 只进行词法和语法分析
+    let lexer = initLexer(compiler.source)
+    compiler.tokens = tokenize(lexer)
+    
+    if compiler.tokens.length == 0 {
+        false
+    } else {
+        compiler.ast = parse(compiler.tokens)
+        compiler.ast.type != ""
+    }
 }

@@ -1,327 +1,401 @@
-# Valkyrie 语言词法分析器
-# Token 类型枚举
+# Valkyrie 词法分析器
+# 使用 Valkyrie 语言实现
+
+# Token 类
+let Token = {
+    type: "",
+    value: "",
+    line: 0,
+    column: 0
+}
+
+# TokenType 枚举
 let TokenType = {
-    # 字面量
-    STRING: "STRING",
-    NUMBER: "NUMBER",
-    BOOLEAN: "BOOLEAN",
-    
-    # 标识符和关键字
-    IDENTIFIER: "IDENTIFIER",
+    # 关键字
     LET: "LET",
-    MICRO: "MICRO",
+    MICRO: "MICRO", 
     IF: "IF",
     ELSE: "ELSE",
-    RETURN: "RETURN",
-    TRUE: "TRUE",
-    FALSE: "FALSE",
     
-    # 运算符
-    ASSIGN: "ASSIGN",
-    PLUS: "PLUS",
-    MINUS: "MINUS",
-    MULTIPLY: "MULTIPLY",
-    DIVIDE: "DIVIDE",
-    MODULO: "MODULO",
+    # 标识符和字面量
+    IDENTIFIER: "IDENTIFIER",
+    NUMBER: "NUMBER", 
+    STRING: "STRING",
+    BOOLEAN: "BOOLEAN",
     
-    # 比较运算符
-    EQUAL: "EQUAL",
-    NOT_EQUAL: "NOT_EQUAL",
-    LESS_THAN: "LESS_THAN",
-    LESS_EQUAL: "LESS_EQUAL",
-    GREATER_THAN: "GREATER_THAN",
-    GREATER_EQUAL: "GREATER_EQUAL",
+    # 操作符
+    ASSIGN: "ASSIGN",        # =
+    PLUS: "PLUS",            # +
+    MINUS: "MINUS",          # -
+    MULTIPLY: "MULTIPLY",    # *
+    DIVIDE: "DIVIDE",        # /
+    EQUAL: "EQUAL",          # ==
+    NOT_EQUAL: "NOT_EQUAL",  # !=
+    LESS: "LESS",            # <
+    GREATER: "GREATER",      # >
     
-    # 逻辑运算符
-    AND: "AND",
-    OR: "OR",
-    NOT: "NOT",
-    
-    # 分隔符
-    SEMICOLON: "SEMICOLON",
-    COMMA: "COMMA",
-    DOT: "DOT",
-    
-    # 括号
-    LEFT_PAREN: "LEFT_PAREN",
-    RIGHT_PAREN: "RIGHT_PAREN",
-    LEFT_BRACE: "LEFT_BRACE",
-    RIGHT_BRACE: "RIGHT_BRACE",
-    LEFT_BRACKET: "LEFT_BRACKET",
-    RIGHT_BRACKET: "RIGHT_BRACKET",
+    # 符号
+    LPAREN: "LPAREN",        # (
+    RPAREN: "RPAREN",        # )
+    LBRACE: "LBRACE",        # {
+    RBRACE: "RBRACE",        # }
+    COMMA: "COMMA",          # ,
+    SEMICOLON: "SEMICOLON",  # ;
+    COLON: "COLON",          # :
+    ARROW: "ARROW",          # ->
     
     # 特殊
     EOF: "EOF",
-    NEWLINE: "NEWLINE"
-};
-
-# Token 类
-micro Token(type, value, line, column) {
-    return {
-        type: type,
-        value: value,
-        line: line,
-        column: column
-    };
+    COMMENT: "COMMENT"
 }
 
-# 词法分析器类
-micro Lexer(source) {
-    let self = {
-        source: source,
-        position: 0,
-        line: 1,
-        column: 1,
-        current: source.length > 0 ? source[0] : null
-    };
-    
-    # 关键字映射
-    let keywords = {
+# Lexer 类
+let Lexer = {
+    source: "",
+    position: 0,
+    line: 1,
+    column: 1,
+    tokens: [],
+    keywords: {}
+}
+
+# 初始化 Lexer
+micro initLexer(source) {
+    let lexer = Lexer
+    lexer.source = source
+    lexer.position = 0
+    lexer.line = 1
+    lexer.column = 1
+    lexer.tokens = []
+    lexer.keywords = {
         "let": TokenType.LET,
         "micro": TokenType.MICRO,
         "if": TokenType.IF,
         "else": TokenType.ELSE,
-        "return": TokenType.RETURN,
-        "true": TokenType.TRUE,
-        "false": TokenType.FALSE
-    };
-    
-    # 前进一个字符
-    let advance = micro() {
-        if (self.current === "\n") {
-            self.line = self.line + 1;
-            self.column = 1;
+        "true": TokenType.BOOLEAN,
+        "false": TokenType.BOOLEAN
+    }
+    lexer
+}
+
+# 获取当前字符
+micro current(lexer) {
+    if lexer.position >= lexer.source.length {
+        ""
+    } else {
+        lexer.source[lexer.position]
+    }
+}
+
+# 向前查看字符
+micro peek(lexer, offset) {
+    let pos = lexer.position + offset
+    if pos >= lexer.source.length {
+        ""
+    } else {
+        lexer.source[pos]
+    }
+}
+
+# 前进一个字符
+micro advance(lexer) {
+    if lexer.position < lexer.source.length {
+        if lexer.source[lexer.position] == "\n" {
+            lexer.line = lexer.line + 1
+            lexer.column = 1
         } else {
-            self.column = self.column + 1;
+            lexer.column = lexer.column + 1
         }
-        
-        self.position = self.position + 1;
-        if (self.position >= self.source.length) {
-            self.current = null;
-        } else {
-            self.current = self.source[self.position];
-        }
-    };
+        lexer.position = lexer.position + 1
+    }
+}
+
+# 跳过空白字符
+micro skipWhitespace(lexer) {
+    let char = current(lexer)
+    if char == " " || char == "\t" || char == "\r" || char == "\n" {
+        advance(lexer)
+        skipWhitespace(lexer)
+    }
+}
+
+# 读取字符串
+micro readString(lexer) {
+    let startLine = lexer.line
+    let startColumn = lexer.column
+    advance(lexer) # 跳过开始的引号
     
-    # 跳过空白字符
-    let skipWhitespace = micro() {
-        while (self.current !== null && (self.current === " " || self.current === "\t" || self.current === "\r")) {
-            advance();
-        }
-    };
-    
-    # 跳过注释
-    let skipComment = micro() {
-        if (self.current === "/" && self.position + 1 < self.source.length && self.source[self.position + 1] === "/") {
-            while (self.current !== null && self.current !== "\n") {
-                advance();
-            }
-        }
-    };
-    
-    # 读取字符串
-    let readString = micro() {
-        let value = "";
-        advance(); # 跳过开始的引号
-        
-        while (self.current !== null && self.current !== "\"") {
-            if (self.current === "\\") {
-                advance();
-                if (self.current === "n") {
-                    value = value + "\n";
-                } else if (self.current === "t") {
-                    value = value + "\t";
-                } else if (self.current === "r") {
-                    value = value + "\r";
-                } else if (self.current === "\\") {
-                    value = value + "\\";
-                } else if (self.current === "\"") {
-                    value = value + "\"";
-                } else {
-                    value = value + self.current;
-                }
+    let value = ""
+    let char = current(lexer)
+    if char != "" && char != "\"" {
+        if char == "\\" {
+            advance(lexer)
+            let escaped = current(lexer)
+            if escaped == "n" {
+                value = value + "\n"
+            } else if escaped == "t" {
+                value = value + "\t"
+            } else if escaped == "r" {
+                value = value + "\r"
+            } else if escaped == "\\" {
+                value = value + "\\"
+            } else if escaped == "\"" {
+                value = value + "\""
             } else {
-                value = value + self.current;
+                value = value + escaped
             }
-            advance();
+        } else {
+            value = value + char
         }
-        
-        if (self.current === "\"") {
-            advance(); # 跳过结束的引号
+        advance(lexer)
+        let nextValue = readString(lexer)
+        value = value + nextValue.value
+    }
+    
+    advance(lexer) # 跳过结束的引号
+    
+    let token = Token
+    token.type = TokenType.STRING
+    token.value = value
+    token.line = startLine
+    token.column = startColumn
+    token
+}
+
+# 读取数字
+micro readNumber(lexer) {
+    let startLine = lexer.line
+    let startColumn = lexer.column
+    let value = ""
+    
+    let char = current(lexer)
+    if char >= "0" && char <= "9" {
+        value = value + char
+        advance(lexer)
+        let nextValue = readNumber(lexer)
+        value = value + nextValue.value
+    }
+    
+    # 处理小数点
+    if current(lexer) == "." {
+        value = value + "."
+        advance(lexer)
+        let char2 = current(lexer)
+        if char2 >= "0" && char2 <= "9" {
+            value = value + char2
+            advance(lexer)
+            let nextValue2 = readNumber(lexer)
+            value = value + nextValue2.value
         }
-        
-        return value;
-    };
+    }
     
-    # 读取数字
-    let readNumber = micro() {
-        let value = "";
-        let hasDot = false;
-        
-        while (self.current !== null && (isDigit(self.current) || (self.current === "." && !hasDot))) {
-            if (self.current === ".") {
-                hasDot = true;
-            }
-            value = value + self.current;
-            advance();
+    let token = Token
+    token.type = TokenType.NUMBER
+    token.value = value
+    token.line = startLine
+    token.column = startColumn
+    token
+}
+
+# 读取标识符
+micro readIdentifier(lexer) {
+    let startLine = lexer.line
+    let startColumn = lexer.column
+    let value = ""
+    
+    let char = current(lexer)
+    if (char >= "a" && char <= "z") || (char >= "A" && char <= "Z") || char == "_" || (char >= "0" && char <= "9") {
+        value = value + char
+        advance(lexer)
+        let nextValue = readIdentifier(lexer)
+        value = value + nextValue.value
+    }
+    
+    let tokenType = lexer.keywords[value]
+    if tokenType == "" {
+        tokenType = TokenType.IDENTIFIER
+    }
+    
+    let tokenValue = value
+    if tokenType == TokenType.BOOLEAN {
+        if value == "true" {
+            tokenValue = true
+        } else {
+            tokenValue = false
         }
-        
-        return value;
-    };
+    }
     
-    # 读取标识符
-    let readIdentifier = micro() {
-        let value = "";
+    let token = Token
+    token.type = tokenType
+    token.value = tokenValue
+    token.line = startLine
+    token.column = startColumn
+    token
+}
+
+# 读取注释
+micro readComment(lexer) {
+    let startLine = lexer.line
+    let startColumn = lexer.column
+    advance(lexer) # 跳过 #
+    
+    let value = ""
+    let char = current(lexer)
+    if char != "" && char != "\n" {
+        value = value + char
+        advance(lexer)
+        let nextValue = readComment(lexer)
+        value = value + nextValue.value
+    }
+    
+    let token = Token
+    token.type = TokenType.COMMENT
+    token.value = value
+    token.line = startLine
+    token.column = startColumn
+    token
+}
+
+# 创建 Token
+micro createToken(type, value, line, column) {
+    let token = Token
+    token.type = type
+    token.value = value
+    token.line = line
+    token.column = column
+    token
+}
+
+# 词法分析主函数
+micro tokenize(lexer) {
+    if lexer.position < lexer.source.length {
+        skipWhitespace(lexer)
         
-        while (self.current !== null && (isAlphaNumeric(self.current) || self.current === "_")) {
-            value = value + self.current;
-            advance();
+        let char = current(lexer)
+        if char != "" {
+            let line = lexer.line
+            let column = lexer.column
+            
+            # 注释
+            if char == "#" {
+                let comment = readComment(lexer)
+                lexer.tokens = lexer.tokens + [comment]
+                tokenize(lexer)
+            } else if char == "\"" {
+                # 字符串
+                let str = readString(lexer)
+                lexer.tokens = lexer.tokens + [str]
+                tokenize(lexer)
+            } else if char >= "0" && char <= "9" {
+                # 数字
+                let num = readNumber(lexer)
+                lexer.tokens = lexer.tokens + [num]
+                tokenize(lexer)
+            } else if (char >= "a" && char <= "z") || (char >= "A" && char <= "Z") || char == "_" {
+                # 标识符和关键字
+                let id = readIdentifier(lexer)
+                lexer.tokens = lexer.tokens + [id]
+                tokenize(lexer)
+            } else if char == "=" && peek(lexer, 1) == "=" {
+                # ==
+                let token = createToken(TokenType.EQUAL, "==", line, column)
+                lexer.tokens = lexer.tokens + [token]
+                advance(lexer)
+                advance(lexer)
+                tokenize(lexer)
+            } else if char == "!" && peek(lexer, 1) == "=" {
+                # !=
+                let token = createToken(TokenType.NOT_EQUAL, "!=", line, column)
+                lexer.tokens = lexer.tokens + [token]
+                advance(lexer)
+                advance(lexer)
+                tokenize(lexer)
+            } else if char == "-" && peek(lexer, 1) == ">" {
+                # ->
+                let token = createToken(TokenType.ARROW, "->", line, column)
+                lexer.tokens = lexer.tokens + [token]
+                advance(lexer)
+                advance(lexer)
+                tokenize(lexer)
+            } else if char == "=" {
+                let token = createToken(TokenType.ASSIGN, "=", line, column)
+                lexer.tokens = lexer.tokens + [token]
+                advance(lexer)
+                tokenize(lexer)
+            } else if char == "+" {
+                let token = createToken(TokenType.PLUS, "+", line, column)
+                lexer.tokens = lexer.tokens + [token]
+                advance(lexer)
+                tokenize(lexer)
+            } else if char == "-" {
+                let token = createToken(TokenType.MINUS, "-", line, column)
+                lexer.tokens = lexer.tokens + [token]
+                advance(lexer)
+                tokenize(lexer)
+            } else if char == "*" {
+                let token = createToken(TokenType.MULTIPLY, "*", line, column)
+                lexer.tokens = lexer.tokens + [token]
+                advance(lexer)
+                tokenize(lexer)
+            } else if char == "/" {
+                let token = createToken(TokenType.DIVIDE, "/", line, column)
+                lexer.tokens = lexer.tokens + [token]
+                advance(lexer)
+                tokenize(lexer)
+            } else if char == "<" {
+                let token = createToken(TokenType.LESS, "<", line, column)
+                lexer.tokens = lexer.tokens + [token]
+                advance(lexer)
+                tokenize(lexer)
+            } else if char == ">" {
+                let token = createToken(TokenType.GREATER, ">", line, column)
+                lexer.tokens = lexer.tokens + [token]
+                advance(lexer)
+                tokenize(lexer)
+            } else if char == "(" {
+                let token = createToken(TokenType.LPAREN, "(", line, column)
+                lexer.tokens = lexer.tokens + [token]
+                advance(lexer)
+                tokenize(lexer)
+            } else if char == ")" {
+                let token = createToken(TokenType.RPAREN, ")", line, column)
+                lexer.tokens = lexer.tokens + [token]
+                advance(lexer)
+                tokenize(lexer)
+            } else if char == "{" {
+                let token = createToken(TokenType.LBRACE, "{", line, column)
+                lexer.tokens = lexer.tokens + [token]
+                advance(lexer)
+                tokenize(lexer)
+            } else if char == "}" {
+                let token = createToken(TokenType.RBRACE, "}", line, column)
+                lexer.tokens = lexer.tokens + [token]
+                advance(lexer)
+                tokenize(lexer)
+            } else if char == "," {
+                let token = createToken(TokenType.COMMA, ",", line, column)
+                lexer.tokens = lexer.tokens + [token]
+                advance(lexer)
+                tokenize(lexer)
+            } else if char == ";" {
+                let token = createToken(TokenType.SEMICOLON, ";", line, column)
+                lexer.tokens = lexer.tokens + [token]
+                advance(lexer)
+                tokenize(lexer)
+            } else if char == ":" {
+                let token = createToken(TokenType.COLON, ":", line, column)
+                lexer.tokens = lexer.tokens + [token]
+                advance(lexer)
+                tokenize(lexer)
+            } else {
+                advance(lexer)
+                tokenize(lexer)
+            }
         }
-        
-        return value;
-    };
+    }
     
-    # 检查是否为数字
-    let isDigit = micro(char) {
-        return char >= "0" && char <= "9";
-    };
-    
-    # 检查是否为字母
-    let isAlpha = micro(char) {
-        return (char >= "a" && char <= "z") || (char >= "A" && char <= "Z");
-    };
-    
-    # 检查是否为字母或数字
-    let isAlphaNumeric = micro(char) {
-        return isAlpha(char) || isDigit(char);
-    };
-    
-    # 获取下一个 token
-    let nextToken = micro() {
-        while (self.current !== null) {
-            let line = self.line;
-            let column = self.column;
-            
-            # 跳过空白字符
-            if (self.current === " " || self.current === "\t" || self.current === "\r") {
-                skipWhitespace();
-                continue;
-            }
-            
-            # 处理换行
-            if (self.current === "\n") {
-                let token = Token(TokenType.NEWLINE, "\n", line, column);
-                advance();
-                return token;
-            }
-            
-            # 跳过注释
-            if (self.current === "/" && self.position + 1 < self.source.length && self.source[self.position + 1] === "/") {
-                skipComment();
-                continue;
-            }
-            
-            # 字符串字面量
-            if (self.current === "\"") {
-                let value = readString();
-                return Token(TokenType.STRING, value, line, column);
-            }
-            
-            # 数字字面量
-            if (isDigit(self.current)) {
-                let value = readNumber();
-                return Token(TokenType.NUMBER, value, line, column);
-            }
-            
-            # 标识符和关键字
-            if (isAlpha(self.current) || self.current === "_") {
-                let value = readIdentifier();
-                let type = keywords[value] || TokenType.IDENTIFIER;
-                return Token(type, value, line, column);
-            }
-            
-            # 双字符运算符
-            if (self.current === "=" && self.position + 1 < self.source.length && self.source[self.position + 1] === "=") {
-                advance();
-                advance();
-                return Token(TokenType.EQUAL, "==", line, column);
-            }
-            
-            if (self.current === "!" && self.position + 1 < self.source.length && self.source[self.position + 1] === "=") {
-                advance();
-                advance();
-                return Token(TokenType.NOT_EQUAL, "!=", line, column);
-            }
-            
-            if (self.current === "<" && self.position + 1 < self.source.length && self.source[self.position + 1] === "=") {
-                advance();
-                advance();
-                return Token(TokenType.LESS_EQUAL, "<=", line, column);
-            }
-            
-            if (self.current === ">" && self.position + 1 < self.source.length && self.source[self.position + 1] === "=") {
-                advance();
-                advance();
-                return Token(TokenType.GREATER_EQUAL, ">=", line, column);
-            }
-            
-            if (self.current === "&" && self.position + 1 < self.source.length && self.source[self.position + 1] === "&") {
-                advance();
-                advance();
-                return Token(TokenType.AND, "&&", line, column);
-            }
-            
-            if (self.current === "|" && self.position + 1 < self.source.length && self.source[self.position + 1] === "|") {
-                advance();
-                advance();
-                return Token(TokenType.OR, "||", line, column);
-            }
-            
-            # 单字符 token
-            let char = self.current;
-            advance();
-            
-            if (char === "=") return Token(TokenType.ASSIGN, "=", line, column);
-            if (char === "+") return Token(TokenType.PLUS, "+", line, column);
-            if (char === "-") return Token(TokenType.MINUS, "-", line, column);
-            if (char === "*") return Token(TokenType.MULTIPLY, "*", line, column);
-            if (char === "/") return Token(TokenType.DIVIDE, "/", line, column);
-            if (char === "%") return Token(TokenType.MODULO, "%", line, column);
-            if (char === "<") return Token(TokenType.LESS_THAN, "<", line, column);
-            if (char === ">") return Token(TokenType.GREATER_THAN, ">", line, column);
-            if (char === "!") return Token(TokenType.NOT, "!", line, column);
-            if (char === ";") return Token(TokenType.SEMICOLON, ";", line, column);
-            if (char === ",") return Token(TokenType.COMMA, ",", line, column);
-            if (char === ".") return Token(TokenType.DOT, ".", line, column);
-            if (char === "(") return Token(TokenType.LEFT_PAREN, "(", line, column);
-            if (char === ")") return Token(TokenType.RIGHT_PAREN, ")", line, column);
-            if (char === "{") return Token(TokenType.LEFT_BRACE, "{", line, column);
-            if (char === "}") return Token(TokenType.RIGHT_BRACE, "}", line, column);
-            if (char === "[") return Token(TokenType.LEFT_BRACKET, "[", line, column);
-            if (char === "]") return Token(TokenType.RIGHT_BRACKET, "]", line, column);
-        }
-        
-        return Token(TokenType.EOF, null, self.line, self.column);
-    };
-    
-    # 标记化整个源码
-    let tokenize = micro() {
-        let tokens = [];
-        let token = nextToken();
-        
-        while (token.type !== TokenType.EOF) {
-            if (token.type !== TokenType.NEWLINE) {
-                tokens.push(token);
-            }
-            token = nextToken();
-        }
-        
-        tokens.push(token); # 添加 EOF token
-        return tokens;
-    };
-    
-    return {
-        nextToken: nextToken,
-        tokenize: tokenize
-    };
+    # 添加 EOF token
+    let eofToken = createToken(TokenType.EOF, "", lexer.line, lexer.column)
+    lexer.tokens = lexer.tokens + [eofToken]
+    lexer.tokens
 }
