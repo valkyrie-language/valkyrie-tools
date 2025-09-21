@@ -73,6 +73,31 @@ class ReleaseReportGenerator {
     }
 
     /**
+     * 获取所有历史提交记录，包含作者信息
+     */
+    getAllCommits() {
+        try {
+            const logCommand = 'git log --oneline';
+            const logOutput = execSync(logCommand, {encoding: 'utf8'});
+            const commits = logOutput.trim().split('\n').filter(line => line.length > 0);
+
+            // 为每个提交获取作者信息
+            return commits.map(line => {
+                const hash = line.split(' ')[0];
+                try {
+                    const author = execSync(`git log -1 --format=%an ${hash}`, {encoding: 'utf8'}).trim();
+                    return `${line}|${author}`;
+                } catch (error) {
+                    return `${line}|Unknown`;
+                }
+            });
+        } catch (error) {
+            console.error('获取所有提交记录失败:', error.message);
+            return [];
+        }
+    }
+
+    /**
      * 获取 tag 的创建时间
      */
     getTagDate(tag) {
@@ -148,14 +173,14 @@ class ReleaseReportGenerator {
     }
 
     /**
-     * 生成 Markdown 格式的报告
+     * 生成 pnpm changeset 风格的 Markdown 报告
      */
     generateMarkdownReport(version, fromTag, toTag = 'HEAD') {
         const commitLines = this.getCommitsBetweenTags(fromTag, toTag);
         const parsedCommits = commitLines.map(line => this.parseCommit(line)).filter(Boolean);
 
         if (parsedCommits.length === 0) {
-            return '没有找到符合规范的提交记录。';
+            return '## Unreleased\n\n没有找到符合规范的提交记录。\n';
         }
 
         const groupedCommits = this.groupCommitsByType(parsedCommits);
@@ -175,8 +200,14 @@ class ReleaseReportGenerator {
         // 获取发布时间（使用 toTag 的时间）
         const releaseDate = this.getTagDate(toTag);
 
-        let report = `# 🚀 Release ${version}\n\n`;
-        report += `发布日期: ${releaseDate.toLocaleString('zh-CN')}\n\n`;
+        let report = '';
+        
+        if (version) {
+            report += `## ${version}\n\n`;
+            report += `发布日期: ${releaseDate.toLocaleString('zh-CN')}\n\n`;
+        } else {
+            report += '## Unreleased\n\n';
+        }
 
         sortedTypes.forEach(type => {
             const commits = groupedCommits[type];
@@ -185,9 +216,53 @@ class ReleaseReportGenerator {
             const emoji = commits[0].emoji;
             const label = EMOJI_TYPES[emoji]?.label || type;
 
-            report += `## ${emoji} ${label} (${commits.length})\n\n`;
+            report += `### ${label}\n\n`;
             commits.forEach(commit => {
-                report += `- ${commit.message} ([${commit.hash}](../../commit/${commit.hash})) by @${commit.author}\n`;
+                report += `- ${commit.message} (${commit.hash}, @${commit.author})\n`;
+            });
+            report += '\n';
+        });
+
+        return report;
+    }
+
+    /**
+     * 生成完整的 pnpm changeset 风格 changelog
+     */
+    generateCompleteChangelog() {
+        const commitLines = this.getAllCommits();
+        const parsedCommits = commitLines.map(line => this.parseCommit(line)).filter(Boolean);
+
+        if (parsedCommits.length === 0) {
+            return '## Unreleased\n\n没有找到符合规范的提交记录。\n';
+        }
+
+        const groupedCommits = this.groupCommitsByType(parsedCommits);
+
+        // 按优先级排序的类型，过滤掉 priority < 0 的类型
+        const sortedTypes = Object.keys(groupedCommits)
+            .filter(type => {
+                const typeInfo = Object.values(EMOJI_TYPES).find(t => t.name === type);
+                return typeInfo && typeInfo.priority >= 0;
+            })
+            .sort((a, b) => {
+                const priorityA = EMOJI_TYPES[Object.values(EMOJI_TYPES).find(t => t.name === a)?.name] || {priority: 5};
+                const priorityB = EMOJI_TYPES[Object.values(EMOJI_TYPES).find(t => t.name === b)?.name] || {priority: 5};
+                return priorityA.priority - priorityB.priority;
+            });
+
+        let report = '## Unreleased\n\n';
+
+        sortedTypes.forEach(type => {
+            const commits = groupedCommits[type];
+            if (commits.length === 0) return;
+
+            const emoji = commits[0].emoji;
+            const label = EMOJI_TYPES[emoji]?.label || type;
+
+            report += `### ${label}\n\n`;
+            commits.forEach(commit => {
+                report += `- ${commit.message} (${commit.hash}, @${commit.author})\n`;
             });
             report += '\n';
         });
@@ -233,12 +308,14 @@ function main() {
   --from <tag>    起始 tag (默认: 最近20条提交)
   --to <tag>      结束 tag (默认: HEAD)
   --output <file> 输出文件名 (默认: RELEASE-YYYY-MM-DD.md)
+  --changelog     生成完整 changelog 模式
   --help, -h      显示帮助信息
 
 示例:
   node generate-release-report.js v1.2.0
   node generate-release-report.js v1.2.0 --from v1.1.0
   node generate-release-report.js v1.2.0 --from v1.1.0 --output my-release.md
+  node generate-release-report.js --changelog
 `);
         return;
     }
@@ -248,6 +325,7 @@ function main() {
     let fromTag = null;
     let toTag = 'HEAD';
     let outputFile = null;
+    let changelogMode = false;
 
     for (let i = 0; i < args.length; i++) {
         const arg = args[i];
@@ -257,27 +335,44 @@ function main() {
             toTag = args[++i];
         } else if (arg === '--output') {
             outputFile = args[++i];
+        } else if (arg === '--changelog') {
+            changelogMode = true;
         } else if (!arg.startsWith('--') && !version) {
             version = arg;
         }
     }
 
-    // 如果没有提供版本号，使用当前日期
-    if (!version) {
-        version = `v${new Date().toISOString().slice(0, 10)}`;
-    }
-
     const generator = new ReleaseReportGenerator();
 
     console.log(`🔄 正在生成 release 报告...`);
-    console.log(`📋 版本: ${version}`);
-    if (fromTag) console.log(`📍 起始: ${fromTag}`);
-    console.log(`📍 结束: ${toTag}`);
-    console.log('');
 
     try {
-        const report = generator.generateMarkdownReport(version, fromTag, toTag);
-        const outputPath = generator.saveReport(report, outputFile);
+        let report;
+        let outputPath;
+
+        if (changelogMode) {
+            // 生成完整的 changelog
+            console.log(`📋 生成完整 changelog...`);
+            report = generator.generateCompleteChangelog();
+            
+            if (!outputFile) {
+                outputFile = 'CHANGELOG.md';
+            }
+            outputPath = generator.saveReport(report, outputFile);
+        } else {
+            // 生成单个 release 报告
+            if (!version) {
+                version = `v${new Date().toISOString().slice(0, 10)}`;
+            }
+
+            console.log(`📋 版本: ${version}`);
+            if (fromTag) console.log(`📍 起始: ${fromTag}`);
+            console.log(`📍 结束: ${toTag}`);
+            console.log('');
+
+            report = generator.generateMarkdownReport(version, fromTag, toTag);
+            outputPath = generator.saveReport(report, outputFile);
+        }
 
         console.log('✅ Release 报告生成成功!');
         console.log(`📄 文件路径: ${outputPath}`);

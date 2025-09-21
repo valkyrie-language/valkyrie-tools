@@ -1,0 +1,111 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'  # 匹配以 v 开头的 tag
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write  # 需要写权限来创建 release
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # 获取完整的 git 历史
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+      
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: Get previous tag
+        id: previoustag
+        run: |
+          # 获取前一个 tag
+          PREVIOUS_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
+          echo "tag=${PREVIOUS_TAG}" >> $GITHUB_OUTPUT
+      
+      - name: Generate release notes
+        id: release_notes
+        run: |
+          # 生成发布说明
+          if [ -n "${{ steps.previoustag.outputs.tag }}" ]; then
+            # 如果有前一个 tag，生成两个 tag 之间的变更
+            node scripts/generate-release-report.js ${{ github.ref_name }} --from ${{ steps.previoustag.outputs.tag }} --output release-notes.md
+          else
+            # 如果没有前一个 tag，生成所有历史提交
+            node scripts/generate-release-report.js ${{ github.ref_name }} --output release-notes.md
+          fi
+          
+          # 读取发布说明内容
+          RELEASE_NOTES=$(cat releases/release-notes.md)
+          
+          # 设置多行输出
+          echo "notes<<EOF" >> $GITHUB_OUTPUT
+          echo "$RELEASE_NOTES" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+      
+      - name: Build project
+        run: |
+          # 构建 bootstrap 中的脚本
+          if [ -f "bootstrap/build.sh" ]; then
+            chmod +x bootstrap/build.sh
+            ./bootstrap/build.sh
+          fi
+          
+          # 如果有其他构建步骤，在这里添加
+          # npm run build
+      
+      - name: Create archive
+        run: |
+          # 创建发布包（包含 bootstrap 脚本）
+          ARCHIVE_NAME="release-${{ github.ref_name }}.tar.gz"
+          tar -czf "$ARCHIVE_NAME" \
+            --exclude='.git' \
+            --exclude='node_modules' \
+            --exclude='releases' \
+            --exclude='.github' \
+            bootstrap/ \
+            scripts/ \
+            package*.json \
+            *.md \
+            . 2>/dev/null || true
+          
+          echo "archive_name=$ARCHIVE_NAME" >> $GITHUB_ENV
+      
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          name: Release ${{ github.ref_name }}
+          body: ${{ steps.release_notes.outputs.notes }}
+          files: |
+            ${{ env.archive_name }}
+          draft: false
+          prerelease: false
+          generate_release_notes: false  # 使用我们自定义的发布说明
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Update CHANGELOG.md
+        run: |
+          # 生成完整的 changelog
+          node scripts/generate-release-report.js --changelog --output CHANGELOG.md
+          
+          # 配置 git
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          
+          # 提交 changelog 更新
+          git add CHANGELOG.md
+          git commit -m "📝 Update CHANGELOG.md for ${{ github.ref_name }}" || true
+          
+          # 推送到仓库（可选，如果需要更新主分支）
+          # git push origin HEAD:main || true

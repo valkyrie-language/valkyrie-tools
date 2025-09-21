@@ -161,8 +161,12 @@ async function bootstrap() {
             throw new Error("Stage-0 compiler not found");
         }
         
-        // 动态导入 stage-0 编译器
-        const stage0Module = await import(`file://${stage0CompilerPath}`);
+        // 使用合并的编译器文件
+        const mergedCompilerPath = path.join(PATHS.stage0, 'merged-compiler.js');
+        if (!fs.existsSync(mergedCompilerPath)) {
+            throw new Error(`Merged compiler not found at: ${mergedCompilerPath}`);
+        }
+        const stage0Module = await import(`file://${mergedCompilerPath}`);
         const stage0Compiler = new stage0Module.ValkyrieCompiler();
         
         // 使用 stage-0 编译器编译 library

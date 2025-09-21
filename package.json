@@ -13,6 +13,7 @@
         "commitmsg": "commitlint -E GIT_PARAMS",
         "setup-commit": "npm install && npm install -g commitizen @commitlint/cli",
         "release:report": "node scripts/generate-release-report.js",
+    "changelog": "node scripts/generate-release-report.js --changelog",
         "release:latest": "node scripts/generate-release-report.js $(date +v%Y.%m.%d)"
     },
     "dependencies": {},
