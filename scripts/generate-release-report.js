@@ -196,13 +196,28 @@ class ReleaseReportGenerator {
         // 按优先级排序的类型，过滤掉 priority < 0 的类型
         const sortedTypes = Object.keys(groupedCommits)
             .filter(type => {
+                // 获取类型的优先级信息
                 const typeInfo = Object.values(EMOJI_TYPES).find(t => t.name === type);
-                return typeInfo && typeInfo.priority >= 0;
+                
+                if (type === 'other') {
+                    // other 类型默认优先级为 5，应该包含
+                    return true;
+                }
+                
+                if (!typeInfo) {
+                    // 未知类型，排除
+                    return false;
+                }
+                
+                return typeInfo.priority >= 0;
             })
             .sort((a, b) => {
-                const priorityA = EMOJI_TYPES[Object.values(EMOJI_TYPES).find(t => t.name === a)?.name] || {priority: 5};
-                const priorityB = EMOJI_TYPES[Object.values(EMOJI_TYPES).find(t => t.name === b)?.name] || {priority: 5};
-                return priorityA.priority - priorityB.priority;
+                // 获取类型的优先级用于排序
+                const typeInfoA = Object.values(EMOJI_TYPES).find(t => t.name === a);
+                const typeInfoB = Object.values(EMOJI_TYPES).find(t => t.name === b);
+                const priorityA = a === 'other' ? 5 : (typeInfoA ? typeInfoA.priority : 5);
+                const priorityB = b === 'other' ? 5 : (typeInfoB ? typeInfoB.priority : 5);
+                return priorityA - priorityB;
             });
 
         // 获取发布时间（使用 toTag 的时间）
@@ -219,6 +234,8 @@ class ReleaseReportGenerator {
 
         sortedTypes.forEach(type => {
             const commits = groupedCommits[type];
+            console.log(`${type} 类型有 ${commits.length} 条提交`);
+            console.log(`${type} 类型的优先级: ${EMOJI_TYPES[commits[0]?.emoji]?.priority}`);
             if (commits.length === 0) return;
 
             const emoji = commits[0].emoji;
@@ -249,6 +266,7 @@ class ReleaseReportGenerator {
         }
 
         const groupedCommits = this.groupCommitsByType(parsedCommits);
+        console.log('分组结果:', Object.keys(groupedCommits));
 
         // 按优先级排序的类型，过滤掉 priority < 0 的类型
         const sortedTypes = Object.keys(groupedCommits)
@@ -262,10 +280,13 @@ class ReleaseReportGenerator {
                 return priorityA.priority - priorityB.priority;
             });
 
+        console.log('排序后的类型:', sortedTypes);
+
         let report = '## Unreleased\n\n';
 
         sortedTypes.forEach(type => {
             const commits = groupedCommits[type];
+            console.log(`处理类型 ${type}: ${commits.length} 条提交`);
             if (commits.length === 0) return;
 
             const emoji = commits[0].emoji;
