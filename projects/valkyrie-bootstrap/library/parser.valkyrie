@@ -21,7 +21,11 @@ micro initParser(tokens) {
 
 # 获取当前 token
 micro currentToken(parser) {
-    if parser.current >= parser.tokens.length { parser.tokens[parser.tokens.length - 1] } else { parser.tokens[parser.current] }
+    if parser.current >= parser.tokens.length { 
+        parser.tokens[parser.tokens.length - 1] 
+    } else { 
+        parser.tokens[parser.current] 
+    }
 }
 
 # 获取下一个 token

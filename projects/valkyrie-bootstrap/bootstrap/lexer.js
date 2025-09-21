@@ -32,6 +32,8 @@ export const TokenType = {
     NOT_EQUAL: 'NOT_EQUAL',  // !=
     LESS: 'LESS',            // <
     GREATER: 'GREATER',      // >
+    LESS_EQUAL: 'LESS_EQUAL',       // <=
+    GREATER_EQUAL: 'GREATER_EQUAL', // >=
     NOT: 'NOT',              // !
     OR: 'OR',                // ||
     AND: 'AND',              // &&
@@ -234,6 +236,20 @@ export class Lexer {
             
             if (char === '!' && this.peek() === '=') {
                 this.tokens.push(new Token(TokenType.NOT_EQUAL, '!=', line, column));
+                this.advance();
+                this.advance();
+                continue;
+            }
+            
+            if (char === '>' && this.peek() === '=') {
+                this.tokens.push(new Token(TokenType.GREATER_EQUAL, '>=', line, column));
+                this.advance();
+                this.advance();
+                continue;
+            }
+            
+            if (char === '<' && this.peek() === '=') {
+                this.tokens.push(new Token(TokenType.LESS_EQUAL, '<=', line, column));
                 this.advance();
                 this.advance();
                 continue;

@@ -82,7 +82,11 @@ micro initLexer(source) {
 
 # 获取当前字符
 micro current(lexer) {
-    if lexer.position >= lexer.source.length { "" } else { lexer.source[lexer.position] }
+    if lexer.position >= lexer.source.length { 
+        "" 
+    } else { 
+        lexer.source[lexer.position] 
+    }
 }
 
 # 向前查看字符

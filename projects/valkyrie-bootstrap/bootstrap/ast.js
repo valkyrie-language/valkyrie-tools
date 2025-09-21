@@ -92,6 +92,16 @@ export class IfStatement extends ASTNode {
     }
 }
 
+// if表达式
+export class IfExpression extends ASTNode {
+    constructor(condition, thenExpr, elseExpr, line, column) {
+        super('IfExpression', line, column);
+        this.condition = condition;
+        this.thenExpr = thenExpr;
+        this.elseExpr = elseExpr;
+    }
+}
+
 // 二元表达式
 export class BinaryExpression extends ASTNode {
     constructor(left, operator, right, line, column) {
