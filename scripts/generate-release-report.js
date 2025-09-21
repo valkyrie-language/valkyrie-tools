@@ -27,7 +27,7 @@ const EMOJI_TYPES = {
     '🧪': {name: 'test', priority: 7, label: 'Tests'},
     '🔨': {name: 'refactor', priority: 2, label: 'Refactoring'},
     '🚦': {name: 'ci', priority: 8, label: 'CI/CD'},
-    '📦': {name: 'deps', priority: 3, label: '依赖更新'},
+    '📦': {name: 'deps', priority: 3, label: 'Dependencies'},
     '⏪': {name: 'revert', priority: 3, label: '回滚'},
     '💡': {name: 'idea', priority: 9, label: '想法'},
     '🧨': {name: 'delete', priority: 9, label: '删除'},
@@ -95,7 +95,6 @@ class ReleaseReportGenerator {
         // 格式: hash emoji message | author
         const parts = line.split('|');
         if (parts.length !== 2) {
-            console.log(`解析失败 - 格式不正确: ${line}`);
             return null;
         }
 
@@ -104,7 +103,6 @@ class ReleaseReportGenerator {
         // 提取 hash 和消息部分
         const commitMatch = commitInfo.match(/^([a-f0-9]+)\s+(.+)$/);
         if (!commitMatch) {
-            console.log(`解析失败 - 无法提取 hash 和消息: ${commitInfo}`);
             return null;
         }
 
@@ -113,7 +111,6 @@ class ReleaseReportGenerator {
         // 提取 emoji 和消息内容
         const emojiMatch = message.match(/^([✨🔧📝🎨☢️🧪🔨⚡️🚀🔖🚦📦⏪💡🧨✅🔀🔮])\s+(.+)$/);
         if (!emojiMatch) {
-            console.log(`解析失败 - 无法提取 emoji: ${message}`);
             return null;
         }
 
