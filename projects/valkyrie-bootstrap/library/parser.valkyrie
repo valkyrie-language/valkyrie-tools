@@ -1,0 +1,404 @@
+// Valkyrie 语言语法分析器
+
+// 导入 AST 节点构造函数（在实际实现中需要模块系统）
+// 这里假设所有 AST 构造函数都可用
+
+// 语法分析器类
+micro Parser(tokens) {
+    let self = {
+        tokens: tokens,
+        current: 0
+    };
+    
+    // 获取当前 token
+    let peek = micro() {
+        if (self.current >= self.tokens.length) {
+            return self.tokens[self.tokens.length - 1]; // EOF token
+        }
+        return self.tokens[self.current];
+    };
+    
+    // 获取前一个 token
+    let previous = micro() {
+        return self.tokens[self.current - 1];
+    };
+    
+    // 检查是否到达末尾
+    let isAtEnd = micro() {
+        return peek().type === "EOF";
+    };
+    
+    // 前进到下一个 token
+    let advance = micro() {
+        if (!isAtEnd()) {
+            self.current = self.current + 1;
+        }
+        return previous();
+    };
+    
+    // 检查当前 token 是否匹配指定类型
+    let check = micro(type) {
+        if (isAtEnd()) return false;
+        return peek().type === type;
+    };
+    
+    // 如果当前 token 匹配任一类型，则消费它
+    let match = micro(...types) {
+        let i = 0;
+        while (i < types.length) {
+            if (check(types[i])) {
+                advance();
+                return true;
+            }
+            i = i + 1;
+        }
+        return false;
+    };
+    
+    // 消费指定类型的 token，否则抛出错误
+    let consume = micro(type, message) {
+        if (check(type)) return advance();
+        
+        let current = peek();
+        throw new Error(message + " at line " + current.line + ", column " + current.column);
+    };
+    
+    // 解析程序
+    let parseProgram = micro() {
+        let statements = [];
+        
+        while (!isAtEnd()) {
+            let stmt = parseStatement();
+            if (stmt !== null) {
+                statements.push(stmt);
+            }
+        }
+        
+        return Program(statements);
+    };
+    
+    // 解析语句
+    let parseStatement = micro() {
+        if (match("LET")) return parseVariableDeclaration();
+        if (match("MICRO")) return parseFunctionDeclaration();
+        if (match("IF")) return parseIfStatement();
+        if (match("RETURN")) return parseReturnStatement();
+        if (match("LEFT_BRACE")) return parseBlockStatement();
+        
+        return parseExpressionStatement();
+    };
+    
+    // 解析变量声明
+    let parseVariableDeclaration = micro() {
+        let name = consume("IDENTIFIER", "Expected variable name").value;
+        
+        let initializer = null;
+        if (match("ASSIGN")) {
+            initializer = parseExpression();
+        }
+        
+        consume("SEMICOLON", "Expected ';' after variable declaration");
+        return VariableDeclaration(Identifier(name), initializer, false);
+    };
+    
+    // 解析函数声明
+    let parseFunctionDeclaration = micro() {
+        let name = consume("IDENTIFIER", "Expected function name").value;
+        
+        consume("LEFT_PAREN", "Expected '(' after function name");
+        
+        let parameters = [];
+        if (!check("RIGHT_PAREN")) {
+            parameters.push(consume("IDENTIFIER", "Expected parameter name").value);
+            while (match("COMMA")) {
+                parameters.push(consume("IDENTIFIER", "Expected parameter name").value);
+            }
+        }
+        
+        consume("RIGHT_PAREN", "Expected ')' after parameters");
+        
+        let body = parseBlockStatement();
+        
+        return FunctionDeclaration(Identifier(name), parameters.map(micro(p) { return Identifier(p); }), body);
+    };
+    
+    // 解析 if 语句
+    let parseIfStatement = micro() {
+        consume("LEFT_PAREN", "Expected '(' after 'if'");
+        let condition = parseExpression();
+        consume("RIGHT_PAREN", "Expected ')' after if condition");
+        
+        let thenBranch = parseStatement();
+        let elseBranch = null;
+        
+        if (match("ELSE")) {
+            elseBranch = parseStatement();
+        }
+        
+        return IfStatement(condition, thenBranch, elseBranch);
+    };
+    
+    // 解析返回语句
+    let parseReturnStatement = micro() {
+        let expression = null;
+        
+        if (!check("SEMICOLON")) {
+            expression = parseExpression();
+        }
+        
+        consume("SEMICOLON", "Expected ';' after return value");
+        return ReturnStatement(expression);
+    };
+    
+    // 解析块语句
+    let parseBlockStatement = micro() {
+        let statements = [];
+        
+        while (!check("RIGHT_BRACE") && !isAtEnd()) {
+            let stmt = parseStatement();
+            if (stmt !== null) {
+                statements.push(stmt);
+            }
+        }
+        
+        consume("RIGHT_BRACE", "Expected '}' after block");
+        return BlockStatement(statements);
+    };
+    
+    // 解析表达式语句
+    let parseExpressionStatement = micro() {
+        let expr = parseExpression();
+        consume("SEMICOLON", "Expected ';' after expression");
+        return ExpressionStatement(expr);
+    };
+    
+    // 解析表达式
+    let parseExpression = micro() {
+        return parseAssignment();
+    };
+    
+    // 解析赋值表达式
+    let parseAssignment = micro() {
+        let expr = parseLogicalOr();
+        
+        if (match("ASSIGN")) {
+            let value = parseAssignment();
+            return AssignmentExpression(expr, value);
+        }
+        
+        return expr;
+    };
+    
+    // 解析逻辑或表达式
+    let parseLogicalOr = micro() {
+        let expr = parseLogicalAnd();
+        
+        while (match("OR")) {
+            let operator = previous().value;
+            let right = parseLogicalAnd();
+            expr = BinaryExpression(expr, operator, right);
+        }
+        
+        return expr;
+    };
+    
+    // 解析逻辑与表达式
+    let parseLogicalAnd = micro() {
+        let expr = parseEquality();
+        
+        while (match("AND")) {
+            let operator = previous().value;
+            let right = parseEquality();
+            expr = BinaryExpression(expr, operator, right);
+        }
+        
+        return expr;
+    };
+    
+    // 解析相等性表达式
+    let parseEquality = micro() {
+        let expr = parseComparison();
+        
+        while (match("NOT_EQUAL", "EQUAL")) {
+            let operator = previous().value;
+            let right = parseComparison();
+            expr = BinaryExpression(expr, operator, right);
+        }
+        
+        return expr;
+    };
+    
+    // 解析比较表达式
+    let parseComparison = micro() {
+        let expr = parseAddition();
+        
+        while (match("GREATER_THAN", "GREATER_EQUAL", "LESS_THAN", "LESS_EQUAL")) {
+            let operator = previous().value;
+            let right = parseAddition();
+            expr = BinaryExpression(expr, operator, right);
+        }
+        
+        return expr;
+    };
+    
+    // 解析加减表达式
+    let parseAddition = micro() {
+        let expr = parseMultiplication();
+        
+        while (match("MINUS", "PLUS")) {
+            let operator = previous().value;
+            let right = parseMultiplication();
+            expr = BinaryExpression(expr, operator, right);
+        }
+        
+        return expr;
+    };
+    
+    // 解析乘除表达式
+    let parseMultiplication = micro() {
+        let expr = parseUnary();
+        
+        while (match("DIVIDE", "MULTIPLY", "MODULO")) {
+            let operator = previous().value;
+            let right = parseUnary();
+            expr = BinaryExpression(expr, operator, right);
+        }
+        
+        return expr;
+    };
+    
+    // 解析一元表达式
+    let parseUnary = micro() {
+        if (match("NOT", "MINUS")) {
+            let operator = previous().value;
+            let right = parseUnary();
+            return UnaryExpression(operator, right);
+        }
+        
+        return parseCall();
+    };
+    
+    // 解析函数调用表达式
+    let parseCall = micro() {
+        let expr = parsePrimary();
+        
+        while (true) {
+            if (match("LEFT_PAREN")) {
+                expr = finishCall(expr);
+            } else if (match("DOT")) {
+                let name = consume("IDENTIFIER", "Expected property name after '.'").value;
+                expr = MemberExpression(expr, Identifier(name), false);
+            } else if (match("LEFT_BRACKET")) {
+                let index = parseExpression();
+                consume("RIGHT_BRACKET", "Expected ']' after array index");
+                expr = MemberExpression(expr, index, true);
+            } else {
+                break;
+            }
+        }
+        
+        return expr;
+    };
+    
+    // 完成函数调用解析
+    let finishCall = micro(callee) {
+        let arguments = [];
+        
+        if (!check("RIGHT_PAREN")) {
+            arguments.push(parseExpression());
+            while (match("COMMA")) {
+                arguments.push(parseExpression());
+            }
+        }
+        
+        consume("RIGHT_PAREN", "Expected ')' after arguments");
+        return CallExpression(callee, arguments);
+    };
+    
+    // 解析基本表达式
+    let parsePrimary = micro() {
+        if (match("TRUE")) return BooleanLiteral(true);
+        if (match("FALSE")) return BooleanLiteral(false);
+        
+        if (match("NUMBER")) {
+            let value = previous().value;
+            return NumberLiteral(parseFloat(value));
+        }
+        
+        if (match("STRING")) {
+            return StringLiteral(previous().value);
+        }
+        
+        if (match("IDENTIFIER")) {
+            return Identifier(previous().value);
+        }
+        
+        if (match("LEFT_PAREN")) {
+            let expr = parseExpression();
+            consume("RIGHT_PAREN", "Expected ')' after expression");
+            return expr;
+        }
+        
+        // 匿名函数
+        if (match("MICRO")) {
+            consume("LEFT_PAREN", "Expected '(' after 'micro'");
+            
+            let parameters = [];
+            if (!check("RIGHT_PAREN")) {
+                parameters.push(consume("IDENTIFIER", "Expected parameter name").value);
+                while (match("COMMA")) {
+                    parameters.push(consume("IDENTIFIER", "Expected parameter name").value);
+                }
+            }
+            
+            consume("RIGHT_PAREN", "Expected ')' after parameters");
+            
+            let body = parseBlockStatement();
+            
+            return AnonymousFunction(parameters.map(micro(p) { return Identifier(p); }), body);
+        }
+        
+        // 数组字面量
+        if (match("LEFT_BRACKET")) {
+            let elements = [];
+            
+            if (!check("RIGHT_BRACKET")) {
+                elements.push(parseExpression());
+                while (match("COMMA")) {
+                    elements.push(parseExpression());
+                }
+            }
+            
+            consume("RIGHT_BRACKET", "Expected ']' after array elements");
+            return ArrayLiteral(elements);
+        }
+        
+        // 对象字面量
+        if (match("LEFT_BRACE")) {
+            let properties = [];
+            
+            if (!check("RIGHT_BRACE")) {
+                let key = consume("IDENTIFIER", "Expected property name").value;
+                consume("COLON", "Expected ':' after property name");
+                let value = parseExpression();
+                properties.push(Property(Identifier(key), value));
+                
+                while (match("COMMA")) {
+                    key = consume("IDENTIFIER", "Expected property name").value;
+                    consume("COLON", "Expected ':' after property name");
+                    value = parseExpression();
+                    properties.push(Property(Identifier(key), value));
+                }
+            }
+            
+            consume("RIGHT_BRACE", "Expected '}' after object properties");
+            return ObjectLiteral(properties);
+        }
+        
+        throw new Error("Unexpected token: " + peek().value);
+    };
+    
+    return {
+        parseProgram: parseProgram
+    };
+}

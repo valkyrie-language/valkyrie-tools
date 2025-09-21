@@ -6,10 +6,17 @@
     "main": "bootstrap.js",
     "type": "module",
     "bin": {
-        "bootstrap": "./bootstrap.js",
-        "valkyrie": "./dist/stage-2/bootstrap.js"
+        "valkyrie-bootstrap": "./bootstrap.js",
+        "valkyrie": "./bootstrap.js"
     },
-    "scripts": {},
+    "scripts": {
+        "bootstrap": "node bootstrap.js bootstrap",
+        "compile": "node bootstrap.js compile",
+        "compile-dir": "node bootstrap.js compile-dir",
+        "test": "node bootstrap.js bootstrap && echo 'Bootstrap test passed'",
+        "clean": "rimraf dist",
+        "help": "node bootstrap.js help"
+    },
     "keywords": [
         "valkyrie",
         "compiler",

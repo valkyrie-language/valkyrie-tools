@@ -1,0 +1,176 @@
+// Valkyrie 语言抽象语法树节点定义
+
+// 程序根节点
+micro Program(statements) {
+    return {
+        type: "Program",
+        statements: statements
+    };
+}
+
+// 变量声明节点
+micro VariableDeclaration(identifier, initializer, isMutable) {
+    return {
+        type: "VariableDeclaration",
+        identifier: identifier,
+        initializer: initializer,
+        isMutable: isMutable || false
+    };
+}
+
+// 函数声明节点
+micro FunctionDeclaration(name, parameters, body) {
+    return {
+        type: "FunctionDeclaration",
+        name: name,
+        parameters: parameters,
+        body: body
+    };
+}
+
+// 匿名函数节点
+micro AnonymousFunction(parameters, body) {
+    return {
+        type: "AnonymousFunction",
+        parameters: parameters,
+        body: body
+    };
+}
+
+// 返回语句节点
+micro ReturnStatement(expression) {
+    return {
+        type: "ReturnStatement",
+        expression: expression
+    };
+}
+
+// If 语句节点
+micro IfStatement(condition, thenBranch, elseBranch) {
+    return {
+        type: "IfStatement",
+        condition: condition,
+        thenBranch: thenBranch,
+        elseBranch: elseBranch
+    };
+}
+
+// 表达式语句节点
+micro ExpressionStatement(expression) {
+    return {
+        type: "ExpressionStatement",
+        expression: expression
+    };
+}
+
+// 块语句节点
+micro BlockStatement(statements) {
+    return {
+        type: "BlockStatement",
+        statements: statements
+    };
+}
+
+// 赋值表达式节点
+micro AssignmentExpression(left, right) {
+    return {
+        type: "AssignmentExpression",
+        left: left,
+        right: right
+    };
+}
+
+// 二元表达式节点
+micro BinaryExpression(left, operator, right) {
+    return {
+        type: "BinaryExpression",
+        left: left,
+        operator: operator,
+        right: right
+    };
+}
+
+// 一元表达式节点
+micro UnaryExpression(operator, operand) {
+    return {
+        type: "UnaryExpression",
+        operator: operator,
+        operand: operand
+    };
+}
+
+// 函数调用表达式节点
+micro CallExpression(callee, arguments) {
+    return {
+        type: "CallExpression",
+        callee: callee,
+        arguments: arguments
+    };
+}
+
+// 成员访问表达式节点
+micro MemberExpression(object, property, computed) {
+    return {
+        type: "MemberExpression",
+        object: object,
+        property: property,
+        computed: computed || false
+    };
+}
+
+// 标识符节点
+micro Identifier(name) {
+    return {
+        type: "Identifier",
+        name: name
+    };
+}
+
+// 字符串字面量节点
+micro StringLiteral(value) {
+    return {
+        type: "StringLiteral",
+        value: value
+    };
+}
+
+// 数字字面量节点
+micro NumberLiteral(value) {
+    return {
+        type: "NumberLiteral",
+        value: value
+    };
+}
+
+// 布尔字面量节点
+micro BooleanLiteral(value) {
+    return {
+        type: "BooleanLiteral",
+        value: value
+    };
+}
+
+// 数组字面量节点
+micro ArrayLiteral(elements) {
+    return {
+        type: "ArrayLiteral",
+        elements: elements
+    };
+}
+
+// 对象字面量节点
+micro ObjectLiteral(properties) {
+    return {
+        type: "ObjectLiteral",
+        properties: properties
+    };
+}
+
+// 对象属性节点
+micro Property(key, value) {
+    return {
+        type: "Property",
+        key: key,
+        value: value
+    };
+}

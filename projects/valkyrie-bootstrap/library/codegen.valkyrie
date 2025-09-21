@@ -1,0 +1,343 @@
+// Valkyrie 语言代码生成器
+
+// 代码生成器类
+micro CodeGenerator() {
+    let self = {
+        indentLevel: 0
+    };
+    
+    // 生成缩进
+    let indent = micro() {
+        let result = "";
+        let i = 0;
+        while (i < self.indentLevel) {
+            result = result + "    ";
+            i = i + 1;
+        }
+        return result;
+    };
+    
+    // 增加缩进级别
+    let increaseIndent = micro() {
+        self.indentLevel = self.indentLevel + 1;
+    };
+    
+    // 减少缩进级别
+    let decreaseIndent = micro() {
+        self.indentLevel = self.indentLevel - 1;
+    };
+    
+    // 生成代码
+    let generate = micro(node) {
+        if (node.type === "Program") {
+            return generateProgram(node);
+        } else if (node.type === "VariableDeclaration") {
+            return generateVariableDeclaration(node);
+        } else if (node.type === "FunctionDeclaration") {
+            return generateFunctionDeclaration(node);
+        } else if (node.type === "AnonymousFunction") {
+            return generateAnonymousFunction(node);
+        } else if (node.type === "ReturnStatement") {
+            return generateReturnStatement(node);
+        } else if (node.type === "IfStatement") {
+            return generateIfStatement(node);
+        } else if (node.type === "ExpressionStatement") {
+            return generateExpressionStatement(node);
+        } else if (node.type === "BlockStatement") {
+            return generateBlockStatement(node);
+        } else if (node.type === "AssignmentExpression") {
+            return generateAssignmentExpression(node);
+        } else if (node.type === "BinaryExpression") {
+            return generateBinaryExpression(node);
+        } else if (node.type === "UnaryExpression") {
+            return generateUnaryExpression(node);
+        } else if (node.type === "CallExpression") {
+            return generateCallExpression(node);
+        } else if (node.type === "MemberExpression") {
+            return generateMemberExpression(node);
+        } else if (node.type === "Identifier") {
+            return generateIdentifier(node);
+        } else if (node.type === "StringLiteral") {
+            return generateStringLiteral(node);
+        } else if (node.type === "NumberLiteral") {
+            return generateNumberLiteral(node);
+        } else if (node.type === "BooleanLiteral") {
+            return generateBooleanLiteral(node);
+        } else if (node.type === "ArrayLiteral") {
+            return generateArrayLiteral(node);
+        } else if (node.type === "ObjectLiteral") {
+            return generateObjectLiteral(node);
+        } else if (node.type === "Property") {
+            return generateProperty(node);
+        } else {
+            throw new Error("Unknown node type: " + node.type);
+        }
+    };
+    
+    // 生成程序
+    let generateProgram = micro(node) {
+        let result = "";
+        let i = 0;
+        while (i < node.statements.length) {
+            result = result + generate(node.statements[i]);
+            if (i < node.statements.length - 1) {
+                result = result + "\n";
+            }
+            i = i + 1;
+        }
+        return result;
+    };
+    
+    // 生成变量声明
+    let generateVariableDeclaration = micro(node) {
+        let result = indent() + "let " + generate(node.identifier);
+        if (node.initializer !== null) {
+            result = result + " = " + generate(node.initializer);
+        }
+        return result + ";";
+    };
+    
+    // 生成函数声明
+    let generateFunctionDeclaration = micro(node) {
+        let result = indent() + "function " + generate(node.name) + "(";
+        
+        let i = 0;
+        while (i < node.parameters.length) {
+            result = result + generate(node.parameters[i]);
+            if (i < node.parameters.length - 1) {
+                result = result + ", ";
+            }
+            i = i + 1;
+        }
+        
+        result = result + ") ";
+        result = result + generate(node.body);
+        return result;
+    };
+    
+    // 生成匿名函数
+    let generateAnonymousFunction = micro(node) {
+        let result = "(";
+        
+        let i = 0;
+        while (i < node.parameters.length) {
+            result = result + generate(node.parameters[i]);
+            if (i < node.parameters.length - 1) {
+                result = result + ", ";
+            }
+            i = i + 1;
+        }
+        
+        result = result + ") => ";
+        
+        if (node.body.type === "BlockStatement") {
+            result = result + generate(node.body);
+        } else {
+            result = result + generate(node.body);
+        }
+        
+        return result;
+    };
+    
+    // 生成返回语句
+    let generateReturnStatement = micro(node) {
+        let result = indent() + "return";
+        if (node.expression !== null) {
+            result = result + " " + generate(node.expression);
+        }
+        return result + ";";
+    };
+    
+    // 生成 if 语句
+    let generateIfStatement = micro(node) {
+        let result = indent() + "if (" + generate(node.condition) + ") ";
+        
+        if (node.thenBranch.type === "BlockStatement") {
+            result = result + generate(node.thenBranch);
+        } else {
+            result = result + "{\n";
+            increaseIndent();
+            result = result + generate(node.thenBranch) + "\n";
+            decreaseIndent();
+            result = result + indent() + "}";
+        }
+        
+        if (node.elseBranch !== null) {
+            result = result + " else ";
+            if (node.elseBranch.type === "BlockStatement") {
+                result = result + generate(node.elseBranch);
+            } else {
+                result = result + "{\n";
+                increaseIndent();
+                result = result + generate(node.elseBranch) + "\n";
+                decreaseIndent();
+                result = result + indent() + "}";
+            }
+        }
+        
+        return result;
+    };
+    
+    // 生成表达式语句
+    let generateExpressionStatement = micro(node) {
+        return indent() + generate(node.expression) + ";";
+    };
+    
+    // 生成块语句
+    let generateBlockStatement = micro(node) {
+        let result = "{\n";
+        increaseIndent();
+        
+        let i = 0;
+        while (i < node.statements.length) {
+            result = result + generate(node.statements[i]);
+            if (i < node.statements.length - 1) {
+                result = result + "\n";
+            }
+            i = i + 1;
+        }
+        
+        decreaseIndent();
+        result = result + "\n" + indent() + "}";
+        return result;
+    };
+    
+    // 生成赋值表达式
+    let generateAssignmentExpression = micro(node) {
+        return generate(node.left) + " = " + generate(node.right);
+    };
+    
+    // 生成二元表达式
+    let generateBinaryExpression = micro(node) {
+        let left = generate(node.left);
+        let right = generate(node.right);
+        let operator = node.operator;
+        
+        // 转换 Valkyrie 运算符到 JavaScript
+        if (operator === "&&") {
+            operator = "&&";
+        } else if (operator === "||") {
+            operator = "||";
+        }
+        
+        return "(" + left + " " + operator + " " + right + ")";
+    };
+    
+    // 生成一元表达式
+    let generateUnaryExpression = micro(node) {
+        let operator = node.operator;
+        let operand = generate(node.operand);
+        
+        if (operator === "!") {
+            return "!" + operand;
+        } else if (operator === "-") {
+            return "-" + operand;
+        } else {
+            return operator + operand;
+        }
+    };
+    
+    // 生成函数调用表达式
+    let generateCallExpression = micro(node) {
+        let result = generate(node.callee) + "(";
+        
+        let i = 0;
+        while (i < node.arguments.length) {
+            result = result + generate(node.arguments[i]);
+            if (i < node.arguments.length - 1) {
+                result = result + ", ";
+            }
+            i = i + 1;
+        }
+        
+        return result + ")";
+    };
+    
+    // 生成成员访问表达式
+    let generateMemberExpression = micro(node) {
+        let object = generate(node.object);
+        let property = generate(node.property);
+        
+        if (node.computed) {
+            return object + "[" + property + "]";
+        } else {
+            return object + "." + property;
+        }
+    };
+    
+    // 生成标识符
+    let generateIdentifier = micro(node) {
+        return node.name;
+    };
+    
+    // 生成字符串字面量
+    let generateStringLiteral = micro(node) {
+        let escaped = node.value
+            .replace(/\\/g, "\\\\")
+            .replace(/"/g, "\\\"")
+            .replace(/\n/g, "\\n")
+            .replace(/\t/g, "\\t")
+            .replace(/\r/g, "\\r");
+        return "\"" + escaped + "\"";
+    };
+    
+    // 生成数字字面量
+    let generateNumberLiteral = micro(node) {
+        return node.value.toString();
+    };
+    
+    // 生成布尔字面量
+    let generateBooleanLiteral = micro(node) {
+        return node.value ? "true" : "false";
+    };
+    
+    // 生成数组字面量
+    let generateArrayLiteral = micro(node) {
+        let result = "[";
+        
+        let i = 0;
+        while (i < node.elements.length) {
+            result = result + generate(node.elements[i]);
+            if (i < node.elements.length - 1) {
+                result = result + ", ";
+            }
+            i = i + 1;
+        }
+        
+        return result + "]";
+    };
+    
+    // 生成对象字面量
+    let generateObjectLiteral = micro(node) {
+        let result = "{";
+        
+        if (node.properties.length > 0) {
+            result = result + "\n";
+            increaseIndent();
+            
+            let i = 0;
+            while (i < node.properties.length) {
+                result = result + indent() + generate(node.properties[i]);
+                if (i < node.properties.length - 1) {
+                    result = result + ",";
+                }
+                result = result + "\n";
+                i = i + 1;
+            }
+            
+            decreaseIndent();
+            result = result + indent();
+        }
+        
+        return result + "}";
+    };
+    
+    // 生成对象属性
+    let generateProperty = micro(node) {
+        return generate(node.key) + ": " + generate(node.value);
+    };
+    
+    return {
+        generate: generate
+    };
+}
