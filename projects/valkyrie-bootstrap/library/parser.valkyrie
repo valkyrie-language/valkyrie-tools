@@ -13,10 +13,9 @@ let Parser = {
 
 # 初始化语法分析器
 micro initParser(tokens) {
-    let parser = {
-        tokens = tokens,
-        current = 0
-    }
+    let parser = {}
+    parser.tokens = tokens
+    parser.current = 0
     parser
 }
 
