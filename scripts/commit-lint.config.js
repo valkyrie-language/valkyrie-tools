@@ -3,7 +3,7 @@ module.exports = {
     rules: {
         'type-enum': [2, 'always', [
             'feat', 'fix', 'docs', 'style', 'refactor', 'test', 'config', 'perf',
-            'release', 'tag', 'ci', 'build', 'revert', 'idea', 'delete', 'add', 'complete', 'branch'
+            'release', 'tag', 'ci', 'build', 'revert', 'idea', 'delete', 'complete', 'branch', 'experiment'
         ]],
         'type-empty': [2, 'never'],
         'subject-empty': [2, 'never'],
@@ -34,10 +34,10 @@ module.exports = {
                         title: 'Styles',
                         emoji: '🎨'
                     },
-                    '💥 refactor': {
+                    '☢️ refactor': {
                         description: '重构代码',
                         title: 'Code Refactoring',
-                        emoji: '💥'
+                        emoji: '☢️'
                     },
                     '🧪 test': {
                         description: '测试相关',
@@ -84,15 +84,10 @@ module.exports = {
                         title: 'Idea',
                         emoji: '💡'
                     },
-                    '🗑️ delete': {
+                    '🧨 delete': {
                         description: '删除文件',
                         title: 'Delete',
-                        emoji: '🗑️'
-                    },
-                    '📦 add': {
-                        description: '添加文件',
-                        title: 'Add',
-                        emoji: '📦'
+                        emoji: '🧨'
                     },
                     '✅ complete': {
                         description: '完成任务',
@@ -103,6 +98,11 @@ module.exports = {
                         description: '分支操作',
                         title: 'Branch',
                         emoji: '🔀'
+                    },
+                    '🔮 experiment': {
+                        description: '实验性功能',
+                        title: 'Experiment',
+                        emoji: '🔮'
                     }
                 }
             }

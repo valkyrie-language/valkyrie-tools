@@ -1,41 +1,84 @@
-name: Commit Message Lint
+name: Commit Lint
 
 on:
   push:
-    branches: [ main, develop, master ]
+    branches: [ main, master, develop ]
   pull_request:
-    branches: [ main, develop, master ]
+    branches: [ main, master, develop ]
 
 jobs:
   commit-lint:
     runs-on: ubuntu-latest
+    
     steps:
-    - uses: actions/checkout@v3
+    - name: Checkout code
+      uses: actions/checkout@v4
       with:
         fetch-depth: 0
     
     - name: Setup Node.js
-      uses: actions/setup-node@v3
+      uses: actions/setup-node@v4
       with:
-        node-version: '16'
-        
+        node-version: '18'
+        cache: 'npm'
+    
     - name: Install dependencies
       run: |
-        npm install -g @commitlint/cli @commitlint/config-conventional
-        
-    - name: Lint commit messages
+        npm install
+        npm install -g commitizen @commitlint/cli
+    
+    - name: Validate commit messages
       run: |
-        npx commitlint --from=${{ github.event.before }} --to=${{ github.sha }} --verbose
-      continue-on-error: false
-      
+        if [ "${{ github.event_name }}" = "pull_request" ]; then
+          # 对于PR，检查所有提交的commit消息
+          npx commitlint --from ${{ github.event.pull_request.base.sha }} --to ${{ github.event.pull_request.head.sha }} --verbose
+        else
+          # 对于push，检查最近的commit
+          npx commitlint --from HEAD~1 --to HEAD --verbose
+        fi
+      env:
+        NODE_PATH: /usr/local/lib/node_modules
+    
+    - name: Validate current commit
+      if: always()
+      run: |
+        echo "Validating current commit message..."
+        git log -1 --pretty=format:"%s" | npx commitlint --verbose
+    
     - name: Check emoji format
       run: |
-        # 检查commit消息是否以emoji开头
-        git log --format="%s" ${{ github.event.before }}..${{ github.sha }} | while read -r message; do
-          if ! echo "$message" | grep -qE "^[✨🐛📝🎨♻️🧪🔧⚡️🚀🔖🚦📦🔄⏪💡🗑️📦✅🔀] "; then
-            echo "错误: commit 消息必须以 emoji"
-            echo "错误的commit消息: $message"
-            echo "支持的emoji: ✨🐛📝🎨♻️🧪🔧⚡️🚀🔖🚦📦🔄⏪💡🗑️📦✅🔀"
+        echo "Checking emoji format in commit messages..."
+        # 检查commit消息是否符合emoji格式
+        if [ "${{ github.event_name }}" = "pull_request" ]; then
+          COMMITS=$(git log --format="%s" ${{ github.event.pull_request.base.sha }}..${{ github.event.pull_request.head.sha }})
+        else
+          COMMITS=$(git log -1 --pretty=format:"%s")
+        fi
+        
+        echo "$COMMITS" | while read -r message; do
+          if [ -n "$message" ] && ! echo "$message" | grep -qE "^[✨🔧📝🎨☢️🧪🔨⚡️🚀🔖🚦📦⏪💡🧨✅🔀🔮] [^ ]"; then
+            echo "❌ 错误: commit消息必须以emoji开头"
+            echo "当前消息: $message"
+            echo "支持的emoji类型:"
+            echo "  ✨ feat: 新功能"
+            echo "  🔧 fix: 修复bug"
+            echo "  📝 docs: 文档更新"
+            echo "  🎨 style: 代码格式调整"
+            echo "  ☢️ refactor: 重构代码"
+            echo "  🧪 test: 测试相关"
+            echo "  🔨 config: 配置文件修改"
+            echo "  ⚡️ perf: 性能优化"
+            echo "  🚀 release: 发布版本"
+            echo "  🔖 tag: 标签相关"
+            echo "  🚦 ci: CI/CD相关"
+            echo "  📦 build: 构建相关"
+            echo "  ⏪ revert: 回滚操作"
+            echo "  💡 idea: 新想法"
+            echo "  🧨 delete: 删除文件"
+            echo "  ✅ complete: 完成任务"
+            echo "  🔀 branch: 分支操作"
+            echo "  🔮 experiment: 实验性功能"
             exit 1
           fi
         done
+        echo "✅ commit消息格式正确"

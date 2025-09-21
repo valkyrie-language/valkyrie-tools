@@ -1,0 +1,53 @@
+#!/bin/sh
+
+# Emoji Commit Git Hook
+# 强制所有commit消息以emoji+空格开头
+
+# 获取commit消息
+commit_msg=$(cat "$1")
+
+# 检查是否以emoji+1个空格开头
+if ! echo "$commit_msg" | grep -qE "^[✨🔧📝🎨☢️🧪🔨⚡️🚀🔖🚦📦⏪💡🧨✅🔀🔮] [^ ]"; then
+    echo "错误: commit 消息必须以 emoji 开头"
+    echo ""
+    echo "示例:"
+    echo "  ✨ 添加新功能"
+    echo "  🔧 修复首页加载问题"
+    echo "  📝 更新API文档"
+    echo ""
+    echo "支持的 emoji 类型:"
+    echo "  ✨ feat: 新功能"
+    echo "  🔧 fix: 修复bug"
+    echo "  📝 docs: 文档更新"
+    echo "  🎨 style: 代码格式调整"
+    echo "  ☢️ refactor: 重构代码"
+    echo "  🧪 test: 测试相关"
+    echo "  🔨 config: 配置文件修改"
+    echo "  ⚡️ perf: 性能优化"
+    echo "  🚀 release: 发布版本"
+    echo "  🔖 tag: 标签相关"
+    echo "  🚦 ci: CI/CD相关"
+    echo "  📦 build: 构建相关"
+    echo "  ⏪ revert: 回滚操作"
+    echo "  💡 idea: 新想法"
+    echo "  🧨 delete: 删除文件"
+    echo "  ✅ complete: 完成任务"
+    echo "  🔀 branch: 分支操作"
+    echo "  🔮 experiment: 实验性功能"
+    echo ""
+    echo "请使用 'npm run commit' 进行交互式提交，或手动添加emoji前缀。"
+    exit 1
+fi
+
+# 检查emoji后是否只有一个空格
+if echo "$commit_msg" | grep -qE "^[✨🔧📝🎨☢️🧪🔨⚡️🚀🔖🚦📦⏪💡🧨✅🔀🔮]  [^ ]"; then
+    echo "错误: emoji后只能有一个空格"
+    exit 1
+fi
+
+# 检查消息长度（不超过72个字符）
+if [ ${#commit_msg} -gt 72 ]; then
+    echo "警告: commit消息建议不超过72个字符"
+fi
+
+exit 0

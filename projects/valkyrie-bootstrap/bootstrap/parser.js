@@ -302,19 +302,19 @@ export class Parser {
     parseIfStatement() {
         const ifToken = this.consume(TokenType.IF, "Expected 'if'");
         const condition = this.parseExpression();
+        
+        // then分支必须是块语句
         const thenBranch = this.parseBlockStatement();
         
         let elseBranch = null;
         if (this.match(TokenType.ELSE)) {
             this.advance();
             if (this.match(TokenType.IF)) {
+                // else if 情况
                 elseBranch = this.parseIfStatement();
-            } else if (this.match(TokenType.LBRACE)) {
-                elseBranch = this.parseBlockStatement();
             } else {
-                // else 分支可以是单个表达式
-                const expr = this.parseExpression();
-                elseBranch = new AST.ExpressionStatement(expr, expr.line, expr.column);
+                // else 分支必须是块语句
+                elseBranch = this.parseBlockStatement();
             }
         }
         
@@ -490,6 +490,12 @@ export class Parser {
         if (this.match(TokenType.MICRO)) {
             return this.parseAnonymousFunction();
         }
+        
+        // if表达式
+        if (this.match(TokenType.IF)) {
+            return this.parseIfExpression();
+        }
+        
        // 数组字面量
         if (this.match(TokenType.LBRACKET)) {
             return this.parseArrayLiteral();
@@ -510,6 +516,22 @@ export class Parser {
         throw new Error(`Unexpected token ${this.current().type} at line ${this.current().line}`);
     }
     
+    // 解析if表达式
+    parseIfExpression() {
+        const ifToken = this.consume(TokenType.IF, "Expected 'if'");
+        const condition = this.parseExpression();
+        this.consume(TokenType.LBRACE, "Expected '{' after if condition");
+        const thenExpr = this.parseExpression();
+        this.consume(TokenType.RBRACE, "Expected '}' after then expression");
+        
+        this.consume(TokenType.ELSE, "Expected 'else' in if expression");
+        this.consume(TokenType.LBRACE, "Expected '{' after else");
+        const elseExpr = this.parseExpression();
+        this.consume(TokenType.RBRACE, "Expected '}' after else expression");
+        
+        return new AST.IfExpression(condition, thenExpr, elseExpr, ifToken.line, ifToken.column);
+    }
+
     // 解析数组字面量
     parseArrayLiteral() {
         const startToken = this.current();
