@@ -1,6 +1,6 @@
-// Valkyrie 语言编译器主模块
+# Valkyrie 语言编译器主模块
 
-// 编译器类
+# 编译器类
 micro ValkyrieCompiler() {
     let self = {
         lexer: null,
@@ -8,21 +8,21 @@ micro ValkyrieCompiler() {
         codegen: CodeGenerator()
     };
     
-    // 编译源码
+    # 编译源码
     let compile = micro(source, filename) {
         if (filename === undefined) {
             filename = "<unknown>";
         }
         
-        // 词法分析
+        # 词法分析
         self.lexer = Lexer(source);
         let tokens = self.lexer.tokenize();
         
-        // 语法分析
+        # 语法分析
         self.parser = Parser(tokens);
         let ast = self.parser.parseProgram();
         
-        // 代码生成
+        # 代码生成
         let jsCode = self.codegen.generate(ast);
         
         return {

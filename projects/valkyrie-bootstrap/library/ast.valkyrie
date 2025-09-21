@@ -1,6 +1,6 @@
-// Valkyrie 语言抽象语法树节点定义
+# Valkyrie 语言抽象语法树节点定义
 
-// 程序根节点
+# 程序根节点
 micro Program(statements) {
     return {
         type: "Program",
@@ -8,7 +8,7 @@ micro Program(statements) {
     };
 }
 
-// 变量声明节点
+# 变量声明节点
 micro VariableDeclaration(identifier, initializer, isMutable) {
     return {
         type: "VariableDeclaration",
@@ -18,7 +18,7 @@ micro VariableDeclaration(identifier, initializer, isMutable) {
     };
 }
 
-// 函数声明节点
+# 函数声明节点
 micro FunctionDeclaration(name, parameters, body) {
     return {
         type: "FunctionDeclaration",
@@ -28,7 +28,7 @@ micro FunctionDeclaration(name, parameters, body) {
     };
 }
 
-// 匿名函数节点
+# 匿名函数节点
 micro AnonymousFunction(parameters, body) {
     return {
         type: "AnonymousFunction",
@@ -37,7 +37,7 @@ micro AnonymousFunction(parameters, body) {
     };
 }
 
-// 返回语句节点
+# 返回语句节点
 micro ReturnStatement(expression) {
     return {
         type: "ReturnStatement",
@@ -45,7 +45,7 @@ micro ReturnStatement(expression) {
     };
 }
 
-// If 语句节点
+# If 语句节点
 micro IfStatement(condition, thenBranch, elseBranch) {
     return {
         type: "IfStatement",
@@ -55,7 +55,7 @@ micro IfStatement(condition, thenBranch, elseBranch) {
     };
 }
 
-// 表达式语句节点
+# 表达式语句节点
 micro ExpressionStatement(expression) {
     return {
         type: "ExpressionStatement",
@@ -63,7 +63,7 @@ micro ExpressionStatement(expression) {
     };
 }
 
-// 块语句节点
+# 块语句节点
 micro BlockStatement(statements) {
     return {
         type: "BlockStatement",
@@ -71,7 +71,7 @@ micro BlockStatement(statements) {
     };
 }
 
-// 赋值表达式节点
+# 赋值表达式节点
 micro AssignmentExpression(left, right) {
     return {
         type: "AssignmentExpression",
@@ -80,7 +80,7 @@ micro AssignmentExpression(left, right) {
     };
 }
 
-// 二元表达式节点
+# 二元表达式节点
 micro BinaryExpression(left, operator, right) {
     return {
         type: "BinaryExpression",
@@ -90,7 +90,7 @@ micro BinaryExpression(left, operator, right) {
     };
 }
 
-// 一元表达式节点
+# 一元表达式节点
 micro UnaryExpression(operator, operand) {
     return {
         type: "UnaryExpression",
@@ -99,7 +99,7 @@ micro UnaryExpression(operator, operand) {
     };
 }
 
-// 函数调用表达式节点
+# 函数调用表达式节点
 micro CallExpression(callee, arguments) {
     return {
         type: "CallExpression",
@@ -108,7 +108,7 @@ micro CallExpression(callee, arguments) {
     };
 }
 
-// 成员访问表达式节点
+# 成员访问表达式节点
 micro MemberExpression(object, property, computed) {
     return {
         type: "MemberExpression",
@@ -118,7 +118,7 @@ micro MemberExpression(object, property, computed) {
     };
 }
 
-// 标识符节点
+# 标识符节点
 micro Identifier(name) {
     return {
         type: "Identifier",
@@ -126,7 +126,7 @@ micro Identifier(name) {
     };
 }
 
-// 字符串字面量节点
+# 字符串字面量节点
 micro StringLiteral(value) {
     return {
         type: "StringLiteral",
@@ -134,7 +134,7 @@ micro StringLiteral(value) {
     };
 }
 
-// 数字字面量节点
+# 数字字面量节点
 micro NumberLiteral(value) {
     return {
         type: "NumberLiteral",
@@ -142,7 +142,7 @@ micro NumberLiteral(value) {
     };
 }
 
-// 布尔字面量节点
+# 布尔字面量节点
 micro BooleanLiteral(value) {
     return {
         type: "BooleanLiteral",
@@ -150,7 +150,7 @@ micro BooleanLiteral(value) {
     };
 }
 
-// 数组字面量节点
+# 数组字面量节点
 micro ArrayLiteral(elements) {
     return {
         type: "ArrayLiteral",
@@ -158,7 +158,7 @@ micro ArrayLiteral(elements) {
     };
 }
 
-// 对象字面量节点
+# 对象字面量节点
 micro ObjectLiteral(properties) {
     return {
         type: "ObjectLiteral",
@@ -166,7 +166,7 @@ micro ObjectLiteral(properties) {
     };
 }
 
-// 对象属性节点
+# 对象属性节点
 micro Property(key, value) {
     return {
         type: "Property",

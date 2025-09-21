@@ -1,12 +1,12 @@
-// Valkyrie 语言代码生成器
+# Valkyrie 语言代码生成器
 
-// 代码生成器类
+# 代码生成器类
 micro CodeGenerator() {
     let self = {
         indentLevel: 0
     };
     
-    // 生成缩进
+    # 生成缩进
     let indent = micro() {
         let result = "";
         let i = 0;
@@ -17,17 +17,17 @@ micro CodeGenerator() {
         return result;
     };
     
-    // 增加缩进级别
+    # 增加缩进级别
     let increaseIndent = micro() {
         self.indentLevel = self.indentLevel + 1;
     };
     
-    // 减少缩进级别
+    # 减少缩进级别
     let decreaseIndent = micro() {
         self.indentLevel = self.indentLevel - 1;
     };
     
-    // 生成代码
+    # 生成代码
     let generate = micro(node) {
         if (node.type === "Program") {
             return generateProgram(node);
@@ -74,7 +74,7 @@ micro CodeGenerator() {
         }
     };
     
-    // 生成程序
+    # 生成程序
     let generateProgram = micro(node) {
         let result = "";
         let i = 0;
@@ -88,7 +88,7 @@ micro CodeGenerator() {
         return result;
     };
     
-    // 生成变量声明
+    # 生成变量声明
     let generateVariableDeclaration = micro(node) {
         let result = indent() + "let " + generate(node.identifier);
         if (node.initializer !== null) {
@@ -97,7 +97,7 @@ micro CodeGenerator() {
         return result + ";";
     };
     
-    // 生成函数声明
+    # 生成函数声明
     let generateFunctionDeclaration = micro(node) {
         let result = indent() + "function " + generate(node.name) + "(";
         
@@ -115,7 +115,7 @@ micro CodeGenerator() {
         return result;
     };
     
-    // 生成匿名函数
+    # 生成匿名函数
     let generateAnonymousFunction = micro(node) {
         let result = "(";
         
@@ -139,7 +139,7 @@ micro CodeGenerator() {
         return result;
     };
     
-    // 生成返回语句
+    # 生成返回语句
     let generateReturnStatement = micro(node) {
         let result = indent() + "return";
         if (node.expression !== null) {
@@ -148,7 +148,7 @@ micro CodeGenerator() {
         return result + ";";
     };
     
-    // 生成 if 语句
+    # 生成 if 语句
     let generateIfStatement = micro(node) {
         let result = indent() + "if (" + generate(node.condition) + ") ";
         
@@ -178,12 +178,12 @@ micro CodeGenerator() {
         return result;
     };
     
-    // 生成表达式语句
+    # 生成表达式语句
     let generateExpressionStatement = micro(node) {
         return indent() + generate(node.expression) + ";";
     };
     
-    // 生成块语句
+    # 生成块语句
     let generateBlockStatement = micro(node) {
         let result = "{\n";
         increaseIndent();
@@ -202,18 +202,18 @@ micro CodeGenerator() {
         return result;
     };
     
-    // 生成赋值表达式
+    # 生成赋值表达式
     let generateAssignmentExpression = micro(node) {
         return generate(node.left) + " = " + generate(node.right);
     };
     
-    // 生成二元表达式
+    # 生成二元表达式
     let generateBinaryExpression = micro(node) {
         let left = generate(node.left);
         let right = generate(node.right);
         let operator = node.operator;
         
-        // 转换 Valkyrie 运算符到 JavaScript
+        # 转换 Valkyrie 运算符到 JavaScript
         if (operator === "&&") {
             operator = "&&";
         } else if (operator === "||") {
@@ -223,7 +223,7 @@ micro CodeGenerator() {
         return "(" + left + " " + operator + " " + right + ")";
     };
     
-    // 生成一元表达式
+    # 生成一元表达式
     let generateUnaryExpression = micro(node) {
         let operator = node.operator;
         let operand = generate(node.operand);
@@ -237,7 +237,7 @@ micro CodeGenerator() {
         }
     };
     
-    // 生成函数调用表达式
+    # 生成函数调用表达式
     let generateCallExpression = micro(node) {
         let result = generate(node.callee) + "(";
         
@@ -253,7 +253,7 @@ micro CodeGenerator() {
         return result + ")";
     };
     
-    // 生成成员访问表达式
+    # 生成成员访问表达式
     let generateMemberExpression = micro(node) {
         let object = generate(node.object);
         let property = generate(node.property);
@@ -265,12 +265,12 @@ micro CodeGenerator() {
         }
     };
     
-    // 生成标识符
+    # 生成标识符
     let generateIdentifier = micro(node) {
         return node.name;
     };
     
-    // 生成字符串字面量
+    # 生成字符串字面量
     let generateStringLiteral = micro(node) {
         let escaped = node.value
             .replace(/\\/g, "\\\\")
@@ -281,17 +281,17 @@ micro CodeGenerator() {
         return "\"" + escaped + "\"";
     };
     
-    // 生成数字字面量
+    # 生成数字字面量
     let generateNumberLiteral = micro(node) {
         return node.value.toString();
     };
     
-    // 生成布尔字面量
+    # 生成布尔字面量
     let generateBooleanLiteral = micro(node) {
         return node.value ? "true" : "false";
     };
     
-    // 生成数组字面量
+    # 生成数组字面量
     let generateArrayLiteral = micro(node) {
         let result = "[";
         
@@ -307,7 +307,7 @@ micro CodeGenerator() {
         return result + "]";
     };
     
-    // 生成对象字面量
+    # 生成对象字面量
     let generateObjectLiteral = micro(node) {
         let result = "{";
         
@@ -332,7 +332,7 @@ micro CodeGenerator() {
         return result + "}";
     };
     
-    // 生成对象属性
+    # 生成对象属性
     let generateProperty = micro(node) {
         return generate(node.key) + ": " + generate(node.value);
     };

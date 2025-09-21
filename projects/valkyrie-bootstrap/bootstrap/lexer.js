@@ -33,7 +33,7 @@ export const TokenType = {
     LESS: 'LESS',            // <
     GREATER: 'GREATER',      // >
     
-    // 分隔符
+    // 符号
     LPAREN: 'LPAREN',        // (
     RPAREN: 'RPAREN',        // )
     LBRACE: 'LBRACE',        // {
@@ -44,7 +44,6 @@ export const TokenType = {
     ARROW: 'ARROW',          // ->
     
     // 特殊
-    NEWLINE: 'NEWLINE',
     EOF: 'EOF',
     COMMENT: 'COMMENT'
 };
@@ -96,7 +95,7 @@ export class Lexer {
     }
     
     skipWhitespace() {
-        while (this.current() && /\s/.test(this.current()) && this.current() !== '\n') {
+        while (this.current() && /\s/.test(this.current())) {
             this.advance();
         }
     }
@@ -193,13 +192,6 @@ export class Lexer {
             
             const line = this.line;
             const column = this.column;
-            
-            // 换行符
-            if (char === '\n') {
-                this.tokens.push(new Token(TokenType.NEWLINE, '\n', line, column));
-                this.advance();
-                continue;
-            }
             
             // 注释
             if (char === '#') {
