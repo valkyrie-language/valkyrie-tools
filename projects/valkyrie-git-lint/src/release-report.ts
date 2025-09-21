@@ -328,9 +328,12 @@ export class ReleaseReportGenerator {
      */
     generateChangelog(): string {
         try {
+            process.stderr.write('Starting changelog generation...\n');
             // 获取所有 tags
             const tagsOutput = execSync('git tag --sort=-version:refname', { encoding: 'utf8' });
+            process.stderr.write('Tags output: ' + tagsOutput + '\n');
             const tags = tagsOutput.trim().split('\n').filter(tag => tag.length > 0);
+            process.stderr.write('Parsed tags: ' + JSON.stringify(tags) + '\n');
             
             let changelog = '# Changelog\n\n';
             changelog += '本文档记录了项目的所有重要变更。\n\n';
@@ -340,12 +343,15 @@ export class ReleaseReportGenerator {
                 const currentTag = tags[i];
                 const previousTag = tags[i + 1] || null;
                 
+                process.stderr.write(`Processing tag ${currentTag}, previous tag: ${previousTag}\n`);
+                
                 const tagDate = this.getTagDate(currentTag);
                 const formattedDate = tagDate ? new Date(tagDate).toLocaleDateString('zh-CN') : '';
                 
                 changelog += `## [${currentTag}]${formattedDate ? ` - ${formattedDate}` : ''}\n\n`;
                 
                 const commitLines = this.getCommitsBetweenTags(previousTag, currentTag);
+                process.stderr.write(`Found ${commitLines.length} commits between ${previousTag} and ${currentTag}\n`);
                 const commits = commitLines.map(line => this.parseCommit(line)).filter((commit): commit is ParsedCommit => commit !== null);
                 const groupedCommits = this.groupCommitsByType(commits);
                 
@@ -371,9 +377,10 @@ export class ReleaseReportGenerator {
                 }
             }
             
+            process.stderr.write('Final changelog length: ' + changelog.length + '\n');
             return changelog;
         } catch (error) {
-            console.error('生成完整 changelog 失败:', error);
+            process.stderr.write('生成完整 changelog 失败: ' + error + '\n');
             return '# Changelog\n\n生成失败，请检查 git 仓库状态。\n';
         }
     }

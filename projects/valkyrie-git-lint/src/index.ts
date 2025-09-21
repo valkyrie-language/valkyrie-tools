@@ -47,8 +47,13 @@ export class ValkyrieGitLintCli {
      */
     generateChangelog(): string {
         const changelog = this.releaseReportGenerator.generateChangelog();
+        console.log('Generated changelog content:');
+        console.log(changelog);
+        console.log('--- End of changelog ---');
         // 默认保存 changelog 文件
-        return this.releaseReportGenerator.saveReport(changelog);
+        const savedPath = this.releaseReportGenerator.saveReport(changelog);
+        console.log('Saved changelog to:', savedPath);
+        return changelog;
     }
 
     /**
