@@ -26,15 +26,15 @@ const EMOJI_TYPES = {
     '☢️': {name: 'refactor', priority: 9, label: '重构'},
     '🧪': {name: 'test', priority: 9, label: '测试'},
     '🔨': {name: 'config', priority: 9, label: '配置'},
-    '🚀': {name: 'release', priority: -1, label: '发布'},
-    '🔖': {name: 'tag', priority: 9, label: '标签'},
     '🚦': {name: 'ci', priority: 9, label: 'CI/CD'},
     '📦': {name: 'build', priority: 9, label: '构建'},
     '⏪': {name: 'revert', priority: 9, label: '回滚'},
     '💡': {name: 'idea', priority: 9, label: '想法'},
     '🧨': {name: 'delete', priority: 9, label: '删除'},
     '✅': {name: 'complete', priority: 9, label: '完成'},
-    '🔀': {name: 'branch', priority: 9, label: '分支'}
+    '🔀': {name: 'branch', priority: 9, label: '分支'},
+    '🚀': {name: 'release', priority: -1, label: '发布'},
+    '🔖': {name: 'tag', priority: -1, label: '标签'},
 };
 
 class ReleaseReportGenerator {
@@ -164,7 +164,7 @@ class ReleaseReportGenerator {
 // CLI 处理
 function main() {
     const args = process.argv.slice(2);
-
+    
     if (args.includes('--help') || args.includes('-h')) {
         console.log(`
 🚀 Release Report Generator
@@ -189,21 +189,40 @@ function main() {
         return;
     }
 
-    const version = args.find((arg, index) => index === 0 && !arg.startsWith('--')) || `v${new Date().toISOString().slice(0, 10)}`;
-    const fromTag = args[args.indexOf('--from') + 1];
-    const toTag = args[args.indexOf('--to') + 1] || 'HEAD';
-    const outputFile = args[args.indexOf('--output') + 1];
+    // 解析参数
+    let version = null;
+    let fromTag = null;
+    let toTag = 'HEAD';
+    let outputFile = null;
+
+    for (let i = 0; i < args.length; i++) {
+        const arg = args[i];
+        if (arg === '--from') {
+            fromTag = args[++i];
+        } else if (arg === '--to') {
+            toTag = args[++i];
+        } else if (arg === '--output') {
+            outputFile = args[++i];
+        } else if (!arg.startsWith('--') && !version) {
+            version = arg;
+        }
+    }
+
+    // 如果没有提供版本号，使用当前日期
+    if (!version) {
+        version = `v${new Date().toISOString().slice(0, 10)}`;
+    }
 
     const generator = new ReleaseReportGenerator();
 
     console.log(`🔄 正在生成 release 报告...`);
     console.log(`📋 版本: ${version}`);
-    if (fromTag) console.log(`📍 起始: ${fromTag}`);
+    if (effectiveFromTag) console.log(`📍 起始: ${effectiveFromTag}`);
     console.log(`📍 结束: ${toTag}`);
     console.log('');
 
     try {
-        const report = generator.generateMarkdownReport(version, fromTag, toTag);
+        const report = generator.generateMarkdownReport(version, effectiveFromTag, toTag);
         const outputPath = generator.saveReport(report, outputFile);
 
         console.log('✅ Release 报告生成成功!');

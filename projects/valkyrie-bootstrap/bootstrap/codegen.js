@@ -96,6 +96,51 @@ export class CodeGenerator {
             this.generate(statement);
         }
         
+        // 添加ValkyrieCompiler类导出
+        this.emitLine();
+        this.emitLine('// ValkyrieCompiler 类');
+        this.emitLine('class ValkyrieCompiler {');
+        this.increaseIndent();
+        this.emitLine('compile(source, options = {}) {');
+        this.increaseIndent();
+        this.emitLine('return compileSourceWithOptions(source, options);');
+        this.decreaseIndent();
+        this.emitLine('}');
+        this.emitLine();
+        this.emitLine('compileFile(filePath, options = {}) {');
+        this.increaseIndent();
+        this.emitLine('const fs = require("fs");');
+        this.emitLine('const source = fs.readFileSync(filePath, "utf8");');
+        this.emitLine('return this.compile(source, options);');
+        this.decreaseIndent();
+        this.emitLine('}');
+        this.emitLine();
+        this.emitLine('compileDirectory(dirPath, options = {}) {');
+        this.increaseIndent();
+        this.emitLine('const fs = require("fs");');
+        this.emitLine('const path = require("path");');
+        this.emitLine('const results = [];');
+        this.emitLine('const files = fs.readdirSync(dirPath);');
+        this.emitLine('for (const file of files) {');
+        this.increaseIndent();
+        this.emitLine('if (file.endsWith(".valkyrie")) {');
+        this.increaseIndent();
+        this.emitLine('const filePath = path.join(dirPath, file);');
+        this.emitLine('results.push(this.compileFile(filePath, options));');
+        this.decreaseIndent();
+        this.emitLine('}');
+        this.decreaseIndent();
+        this.emitLine('}');
+        this.emitLine('return results;');
+        this.decreaseIndent();
+        this.emitLine('}');
+        this.decreaseIndent();
+        this.emitLine('}');
+        this.emitLine();
+        this.emitLine('// 导出编译器实例');
+        this.emitLine('const compiler = new ValkyrieCompiler();');
+        this.emitLine('export { ValkyrieCompiler, compiler };');
+        
         return this.output.join('');
     }
     
