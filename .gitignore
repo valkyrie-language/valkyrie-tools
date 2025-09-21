@@ -4,16 +4,12 @@
 *.iml
 time-travel.*
 
-# Rust
-target/
-Cargo.lock
-Untitled.ipynb
-.ipynb_checkpoints/
-
+# Valkyrie
 
 # Node
 node_modules/
 cache/
+dist/
 package-lock.json
 *.wasm
 
