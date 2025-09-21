@@ -83,8 +83,8 @@ export class Parser {
             return this.parseIfStatement();
         }
         
-        // 检查是否是赋值语句
-        if (this.check(TokenType.IDENTIFIER) && this.checkNext(TokenType.ASSIGN)) {
+        // 检查是否是赋值语句 - 支持简单标识符和成员表达式
+        if (this.isAssignmentStatement()) {
             const expr = this.parseExpression();
             return new AST.ExpressionStatement(expr, expr.line, expr.column);
         }
@@ -92,6 +92,47 @@ export class Parser {
         // 表达式语句
         const expr = this.parseExpression();
         return new AST.ExpressionStatement(expr, expr.line, expr.column);
+    }
+    
+    // 检查是否是赋值语句
+    isAssignmentStatement() {
+        // 简单标识符赋值: identifier = value
+        if (this.check(TokenType.IDENTIFIER) && this.checkNext(TokenType.ASSIGN)) {
+            return true;
+        }
+        
+        // 成员表达式赋值: identifier.property = value 或 identifier[index] = value
+        if (this.check(TokenType.IDENTIFIER)) {
+            let pos = 1;
+            // 跳过可能的成员访问链
+            while (this.peek(pos) && 
+                   (this.peek(pos).type === TokenType.DOT || this.peek(pos).type === TokenType.LBRACKET)) {
+                if (this.peek(pos).type === TokenType.DOT) {
+                    pos++; // 跳过 DOT
+                    if (this.peek(pos) && this.peek(pos).type === TokenType.IDENTIFIER) {
+                        pos++; // 跳过属性名
+                    } else {
+                        return false;
+                    }
+                } else if (this.peek(pos).type === TokenType.LBRACKET) {
+                    pos++; // 跳过 LBRACKET
+                    // 跳过索引表达式直到找到 RBRACKET
+                    let bracketCount = 1;
+                    while (this.peek(pos) && bracketCount > 0) {
+                        if (this.peek(pos).type === TokenType.LBRACKET) {
+                            bracketCount++;
+                        } else if (this.peek(pos).type === TokenType.RBRACKET) {
+                            bracketCount--;
+                        }
+                        pos++;
+                    }
+                }
+            }
+            // 检查是否以赋值符号结尾
+            return this.peek(pos) && this.peek(pos).type === TokenType.ASSIGN;
+        }
+        
+        return false;
     }
     
     // 解析变量声明

@@ -138,11 +138,12 @@ let CompilerStats = {
 
 # 创建编译统计信息
 micro createCompilerStats() {
-    let stats = {}
-    stats.tokensCount = 0
-    stats.astNodesCount = 0
-    stats.outputSize = 0
-    stats.compileTime = 0
+    let stats = {
+        tokensCount = 0,
+        astNodesCount = 0,
+        outputSize = 0,
+        compileTime = 0
+    }
     stats
 }
 
