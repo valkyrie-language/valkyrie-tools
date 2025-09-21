@@ -37,6 +37,14 @@ export class Parser {
         return types.includes(this.current().type);
     }
     
+    check(type) {
+        return this.current().type === type;
+    }
+    
+    checkNext(type) {
+        return this.peek().type === type;
+    }
+    
     consume(type, message) {
         if (this.current().type === type) {
             const token = this.current();
@@ -73,6 +81,12 @@ export class Parser {
         
         if (this.match(TokenType.IF)) {
             return this.parseIfStatement();
+        }
+        
+        // 检查是否是赋值语句
+        if (this.check(TokenType.IDENTIFIER) && this.checkNext(TokenType.ASSIGN)) {
+            const expr = this.parseExpression();
+            return new AST.ExpressionStatement(expr, expr.line, expr.column);
         }
         
         // 表达式语句
