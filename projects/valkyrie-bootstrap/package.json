@@ -5,7 +5,8 @@
     "main": "bootstrap.js",
     "type": "module",
     "bin": {
-        "valkyrie": "./bootstrap.js"
+        "bootstrap": "./bootstrap.js",
+        "valkyrie": "./dist/stage-2/bootstrap.js"
     },
     "scripts": {
         "bootstrap": "node bootstrap.js --bootstrap",
