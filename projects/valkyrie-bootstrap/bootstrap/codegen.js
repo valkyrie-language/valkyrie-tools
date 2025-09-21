@@ -53,6 +53,14 @@ export class CodeGenerator {
                 return this.generateCallExpression(node);
             case 'AssignmentExpression':
                 return this.generateAssignmentExpression(node);
+            case 'ArrayLiteral':
+                return this.generateArrayLiteral(node);
+            case 'MemberExpression':
+                return this.generateMemberExpression(node);
+            case 'ObjectLiteral':
+                return this.generateObjectLiteral(node);
+            case 'Property':
+                return this.generateProperty(node);
             case 'Identifier':
                 return this.generateIdentifier(node);
             case 'NumberLiteral':
@@ -258,5 +266,41 @@ export class CodeGenerator {
     
     generateBooleanLiteral(node) {
         return node.value.toString();
+    }
+    
+    // 生成数组字面量
+    generateArrayLiteral(node) {
+        const elements = node.elements.map(element => this.generate(element));
+        return `[${elements.join(', ')}]`;
+    }
+    
+    // 生成成员访问表达式
+    generateMemberExpression(node) {
+        const object = this.generate(node.object);
+        if (node.computed) {
+            // obj[prop]
+            const property = this.generate(node.property);
+            return `${object}[${property}]`;
+        } else {
+            // obj.prop
+            const property = this.generate(node.property);
+            return `${object}.${property}`;
+        }
+    }
+    
+    // 生成对象字面量
+    generateObjectLiteral(node) {
+        if (node.properties.length === 0) {
+            return '{}';
+        }
+        const properties = node.properties.map(prop => this.generate(prop));
+        return `{${properties.join(', ')}}`;
+    }
+    
+    // 生成对象属性
+    generateProperty(node) {
+        const key = this.generate(node.key);
+        const value = this.generate(node.value);
+        return `${key}: ${value}`;
     }
 }

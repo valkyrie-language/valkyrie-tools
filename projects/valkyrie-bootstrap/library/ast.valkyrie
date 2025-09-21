@@ -140,7 +140,7 @@ let BooleanLiteral = {
 
 # 创建程序节点
 micro createProgram(statements, line, column) {
-    let node = Program
+    let node = {}
     node.statements = statements
     node.line = line
     node.column = column
@@ -149,7 +149,7 @@ micro createProgram(statements, line, column) {
 
 # 创建变量声明节点
 micro createVariableDeclaration(name, initializer, line, column) {
-    let node = VariableDeclaration
+    let node = {}
     node.name = name
     node.initializer = initializer
     node.line = line
@@ -159,7 +159,7 @@ micro createVariableDeclaration(name, initializer, line, column) {
 
 # 创建函数声明节点
 micro createFunctionDeclaration(name, parameters, body, line, column) {
-    let node = FunctionDeclaration
+    let node = {}
     node.name = name
     node.parameters = parameters
     node.body = body
@@ -170,7 +170,7 @@ micro createFunctionDeclaration(name, parameters, body, line, column) {
 
 # 创建参数节点
 micro createParameter(name, line, column) {
-    let node = Parameter
+    let node = {}
     node.name = name
     node.line = line
     node.column = column
@@ -179,7 +179,7 @@ micro createParameter(name, line, column) {
 
 # 创建块语句节点
 micro createBlockStatement(statements, line, column) {
-    let node = BlockStatement
+    let node = {}
     node.statements = statements
     node.line = line
     node.column = column
@@ -188,7 +188,7 @@ micro createBlockStatement(statements, line, column) {
 
 # 创建 If 语句节点
 micro createIfStatement(condition, thenBranch, elseBranch, line, column) {
-    let node = IfStatement
+    let node = {}
     node.condition = condition
     node.thenBranch = thenBranch
     node.elseBranch = elseBranch
@@ -199,7 +199,7 @@ micro createIfStatement(condition, thenBranch, elseBranch, line, column) {
 
 # 创建表达式语句节点
 micro createExpressionStatement(expression, line, column) {
-    let node = ExpressionStatement
+    let node = {}
     node.expression = expression
     node.line = line
     node.column = column
@@ -208,7 +208,7 @@ micro createExpressionStatement(expression, line, column) {
 
 # 创建赋值表达式节点
 micro createAssignmentExpression(left, right, line, column) {
-    let node = AssignmentExpression
+    let node = {}
     node.left = left
     node.right = right
     node.line = line
@@ -218,7 +218,7 @@ micro createAssignmentExpression(left, right, line, column) {
 
 # 创建二元表达式节点
 micro createBinaryExpression(left, operator, right, line, column) {
-    let node = BinaryExpression
+    let node = {}
     node.left = left
     node.operator = operator
     node.right = right
@@ -229,7 +229,7 @@ micro createBinaryExpression(left, operator, right, line, column) {
 
 # 创建一元表达式节点
 micro createUnaryExpression(operator, operand, line, column) {
-    let node = UnaryExpression
+    let node = {}
     node.operator = operator
     node.operand = operand
     node.line = line
@@ -239,7 +239,7 @@ micro createUnaryExpression(operator, operand, line, column) {
 
 # 创建函数调用表达式节点
 micro createCallExpression(callee, arguments, line, column) {
-    let node = CallExpression
+    let node = {}
     node.callee = callee
     node.arguments = arguments
     node.line = line
@@ -249,7 +249,7 @@ micro createCallExpression(callee, arguments, line, column) {
 
 # 创建标识符节点
 micro createIdentifier(name, line, column) {
-    let node = Identifier
+    let node = {}
     node.name = name
     node.line = line
     node.column = column
@@ -258,7 +258,7 @@ micro createIdentifier(name, line, column) {
 
 # 创建数字字面量节点
 micro createNumberLiteral(value, line, column) {
-    let node = NumberLiteral
+    let node = {}
     node.value = value
     node.line = line
     node.column = column
@@ -267,7 +267,7 @@ micro createNumberLiteral(value, line, column) {
 
 # 创建字符串字面量节点
 micro createStringLiteral(value, line, column) {
-    let node = StringLiteral
+    let node = {}
     node.value = value
     node.line = line
     node.column = column
@@ -276,7 +276,7 @@ micro createStringLiteral(value, line, column) {
 
 # 创建布尔字面量节点
 micro createBooleanLiteral(value, line, column) {
-    let node = BooleanLiteral
+    let node = {}
     node.value = value
     node.line = line
     node.column = column

@@ -352,24 +352,40 @@ export class Parser {
     parseCall() {
         let expr = this.parsePrimary();
         
-        while (this.match(TokenType.LPAREN)) {
-            const lparen = this.current();
-            this.advance();
-            
-            const args = [];
-            if (!this.match(TokenType.RPAREN)) {
-                do {
-                    args.push(this.parseExpression());
-                    if (this.match(TokenType.COMMA)) {
-                        this.advance();
-                    } else {
-                        break;
-                    }
-                } while (!this.match(TokenType.RPAREN));
+        while (this.match(TokenType.LPAREN, TokenType.DOT, TokenType.LBRACKET)) {
+            if (this.match(TokenType.LPAREN)) {
+                // 函数调用
+                const lparen = this.current();
+                this.advance();
+                
+                const args = [];
+                if (!this.match(TokenType.RPAREN)) {
+                    do {
+                        args.push(this.parseExpression());
+                        if (this.match(TokenType.COMMA)) {
+                            this.advance();
+                        } else {
+                            break;
+                        }
+                    } while (!this.match(TokenType.RPAREN));
+                }
+                
+                this.consume(TokenType.RPAREN, "Expected ')' after arguments");
+                expr = new AST.CallExpression(expr, args, lparen.line, lparen.column);
+            } else if (this.match(TokenType.DOT)) {
+                // 点号访问 obj.prop
+                const dot = this.current();
+                this.advance();
+                const property = this.consume(TokenType.IDENTIFIER, "Expected property name after '.'");
+                expr = new AST.MemberExpression(expr, new AST.Identifier(property.value, property.line, property.column), false, dot.line, dot.column);
+            } else if (this.match(TokenType.LBRACKET)) {
+                // 方括号访问 obj[prop]
+                const bracket = this.current();
+                this.advance();
+                const property = this.parseExpression();
+                this.consume(TokenType.RBRACKET, "Expected ']' after computed property");
+                expr = new AST.MemberExpression(expr, property, true, bracket.line, bracket.column);
             }
-            
-            this.consume(TokenType.RPAREN, "Expected ')' after arguments");
-            expr = new AST.CallExpression(expr, args, lparen.line, lparen.column);
         }
         
         return expr;
@@ -404,6 +420,15 @@ export class Parser {
         if (this.match(TokenType.MICRO)) {
             return this.parseAnonymousFunction();
         }
+       // 数组字面量
+        if (this.match(TokenType.LBRACKET)) {
+            return this.parseArrayLiteral();
+        }
+        
+        // 对象字面量
+        if (this.match(TokenType.LBRACE)) {
+            return this.parseObjectLiteral();
+        }
         
         if (this.match(TokenType.LPAREN)) {
             this.advance();
@@ -413,5 +438,64 @@ export class Parser {
         }
         
         throw new Error(`Unexpected token ${this.current().type} at line ${this.current().line}`);
+    }
+    
+    // 解析数组字面量
+    parseArrayLiteral() {
+        const startToken = this.current();
+        this.consume(TokenType.LBRACKET, "Expected '['");
+        
+        const elements = [];
+        
+        if (!this.match(TokenType.RBRACKET)) {
+            do {
+                elements.push(this.parseExpression());
+            } while (this.match(TokenType.COMMA) && this.advance());
+        }
+        
+        this.consume(TokenType.RBRACKET, "Expected ']' after array elements");
+        
+        return new AST.ArrayLiteral(elements, startToken.line, startToken.column);
+    }
+    
+    // 解析对象字面量
+    parseObjectLiteral() {
+        const startToken = this.current();
+        this.advance(); // 消耗 '{'
+        
+        const properties = [];
+        
+        while (!this.match(TokenType.RBRACE) && !this.match(TokenType.EOF)) {
+            // 解析属性键
+            let key;
+            if (this.match(TokenType.IDENTIFIER)) {
+                const keyToken = this.current();
+                this.advance();
+                key = new AST.Identifier(keyToken.value, keyToken.line, keyToken.column);
+            } else if (this.match(TokenType.STRING)) {
+                const keyToken = this.current();
+                this.advance();
+                key = new AST.StringLiteral(keyToken.value, keyToken.line, keyToken.column);
+            } else {
+                throw new Error(`Expected property key at line ${this.current().line}`);
+            }
+            
+            this.consume(TokenType.COLON, "Expected ':' after property key");
+            
+            // 解析属性值
+            const value = this.parseExpression();
+            
+            properties.push(new AST.Property(key, value, key.line, key.column));
+            
+            if (this.match(TokenType.COMMA)) {
+                this.advance();
+            } else {
+                break;
+            }
+        }
+        
+        this.consume(TokenType.RBRACE, "Expected '}' after object literal");
+        
+        return new AST.ObjectLiteral(properties, startToken.line, startToken.column);
     }
 }

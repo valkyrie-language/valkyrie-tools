@@ -32,12 +32,18 @@ export const TokenType = {
     NOT_EQUAL: 'NOT_EQUAL',  // !=
     LESS: 'LESS',            // <
     GREATER: 'GREATER',      // >
+    NOT: 'NOT',              // !
+    OR: 'OR',                // ||
+    AND: 'AND',              // &&
+    DOT: 'DOT',              // .
     
     // 符号
     LPAREN: 'LPAREN',        // (
     RPAREN: 'RPAREN',        // )
     LBRACE: 'LBRACE',        // {
     RBRACE: 'RBRACE',        // }
+    LBRACKET: 'LBRACKET',    // [
+    RBRACKET: 'RBRACKET',    // ]
     COMMA: 'COMMA',          // ,
     SEMICOLON: 'SEMICOLON',  // ;
     COLON: 'COLON',          // :
@@ -240,6 +246,20 @@ export class Lexer {
                 continue;
             }
             
+            if (char === '|' && this.peek() === '|') {
+                this.tokens.push(new Token(TokenType.OR, '||', line, column));
+                this.advance();
+                this.advance();
+                continue;
+            }
+            
+            if (char === '&' && this.peek() === '&') {
+                this.tokens.push(new Token(TokenType.AND, '&&', line, column));
+                this.advance();
+                this.advance();
+                continue;
+            }
+            
             // 单字符操作符和分隔符
             switch (char) {
                 case '=': this.tokens.push(new Token(TokenType.ASSIGN, '=', line, column)); break;
@@ -249,10 +269,14 @@ export class Lexer {
                 case '/': this.tokens.push(new Token(TokenType.DIVIDE, '/', line, column)); break;
                 case '<': this.tokens.push(new Token(TokenType.LESS, '<', line, column)); break;
                 case '>': this.tokens.push(new Token(TokenType.GREATER, '>', line, column)); break;
+                case '!': this.tokens.push(new Token(TokenType.NOT, '!', line, column)); break;
+                case '.': this.tokens.push(new Token(TokenType.DOT, '.', line, column)); break;
                 case '(': this.tokens.push(new Token(TokenType.LPAREN, '(', line, column)); break;
                 case ')': this.tokens.push(new Token(TokenType.RPAREN, ')', line, column)); break;
                 case '{': this.tokens.push(new Token(TokenType.LBRACE, '{', line, column)); break;
                 case '}': this.tokens.push(new Token(TokenType.RBRACE, '}', line, column)); break;
+                case '[': this.tokens.push(new Token(TokenType.LBRACKET, '[', line, column)); break;
+                case ']': this.tokens.push(new Token(TokenType.RBRACKET, ']', line, column)); break;
                 case ',': this.tokens.push(new Token(TokenType.COMMA, ',', line, column)); break;
                 case ';': this.tokens.push(new Token(TokenType.SEMICOLON, ';', line, column)); break;
                 case ':': this.tokens.push(new Token(TokenType.COLON, ':', line, column)); break;

@@ -176,3 +176,38 @@ export class AssignmentExpression extends ASTNode {
         this.right = right;
     }
 }
+
+// 数组字面量
+export class ArrayLiteral extends ASTNode {
+    constructor(elements, line, column) {
+        super('ArrayLiteral', line, column);
+        this.elements = elements;
+    }
+}
+
+// 成员访问表达式
+export class MemberExpression extends ASTNode {
+    constructor(object, property, computed = false, line, column) {
+        super('MemberExpression', line, column);
+        this.object = object;
+        this.property = property;
+        this.computed = computed; // true for obj[prop], false for obj.prop
+    }
+}
+
+// 对象字面量
+export class ObjectLiteral extends ASTNode {
+    constructor(properties, line, column) {
+        super('ObjectLiteral', line, column);
+        this.properties = properties;
+    }
+}
+
+// 对象属性
+export class Property extends ASTNode {
+    constructor(key, value, line, column) {
+        super('Property', line, column);
+        this.key = key;
+        this.value = value;
+    }
+}

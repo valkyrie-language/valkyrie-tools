@@ -133,6 +133,7 @@ function compareDirectories(dir1, dir2) {
 
 // 执行自举过程
 async function bootstrap() {
+    console.log("DEBUG: bootstrap() function called");
     log("Starting Valkyrie language bootstrap process...");
     
     try {
@@ -225,6 +226,7 @@ Examples:
 
 // 主函数
 async function main() {
+    console.log("DEBUG: main() function called with args:", process.argv.slice(2));
     const args = process.argv.slice(2);
     
     if (args.length === 0 || args[0] === 'help' || args[0] === '-h' || args[0] === '--help') {
@@ -233,11 +235,14 @@ async function main() {
     }
     
     const command = args[0];
+    console.log("DEBUG: command is:", command);
     
     switch (command) {
         case 'bootstrap':
         case 'boot':
+            console.log("DEBUG: calling bootstrap()");
             const success = await bootstrap();
+            console.log("DEBUG: bootstrap() returned:", success);
             process.exit(success ? 0 : 1);
             break;
             
@@ -281,10 +286,23 @@ async function main() {
 }
 
 // 运行主函数
-if (import.meta.url === `file://${process.argv[1]}`) {
+console.log("DEBUG: Module loaded, checking execution condition");
+console.log("DEBUG: import.meta.url =", import.meta.url);
+console.log("DEBUG: process.argv[1] =", process.argv[1]);
+
+// 修复 Windows 路径问题：将反斜杠转换为正斜杠
+const normalizedArgv1 = process.argv[1].replace(/\\/g, '/');
+const expectedUrl = `file:///${normalizedArgv1}`;
+console.log("DEBUG: normalized argv[1] =", normalizedArgv1);
+console.log("DEBUG: expected URL =", expectedUrl);
+
+if (import.meta.url === expectedUrl) {
+    console.log("DEBUG: Condition matched, calling main()");
     main().catch(err => {
-        error(`Unhandled error: ${err.message}`);
-        console.error(err.stack);
+        console.error("DEBUG: Error in main():", err);
+        error(`Bootstrap failed: ${err.message}`);
         process.exit(1);
     });
+} else {
+    console.log("DEBUG: Condition not matched, not calling main()");
 }

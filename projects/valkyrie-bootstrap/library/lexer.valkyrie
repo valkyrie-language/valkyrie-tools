@@ -61,7 +61,7 @@ let Lexer = {
 
 # 初始化 Lexer
 micro initLexer(source) {
-    let lexer = Lexer
+    let lexer = {}
     lexer.source = source
     lexer.position = 0
     lexer.line = 1
@@ -154,7 +154,7 @@ micro readString(lexer) {
     
     advance(lexer) # 跳过结束的引号
     
-    let token = Token
+    let token = {}
     token.type = TokenType.STRING
     token.value = value
     token.line = startLine
@@ -189,7 +189,7 @@ micro readNumber(lexer) {
         }
     }
     
-    let token = Token
+    let token = {}
     token.type = TokenType.NUMBER
     token.value = value
     token.line = startLine
@@ -225,7 +225,7 @@ micro readIdentifier(lexer) {
         }
     }
     
-    let token = Token
+    let token = {}
     token.type = tokenType
     token.value = tokenValue
     token.line = startLine
@@ -248,7 +248,7 @@ micro readComment(lexer) {
         value = value + nextValue.value
     }
     
-    let token = Token
+    let token = {}
     token.type = TokenType.COMMENT
     token.value = value
     token.line = startLine
@@ -258,7 +258,7 @@ micro readComment(lexer) {
 
 # 创建 Token
 micro createToken(type, value, line, column) {
-    let token = Token
+    let token = {}
     token.type = type
     token.value = value
     token.line = line
