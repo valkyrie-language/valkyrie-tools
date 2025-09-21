@@ -6,22 +6,22 @@ const ValkyrieRuntime = {
   }
 };
 
-const ASTNode = {type: "", line: 0, column: 0};
-const Program = {type: "Program", statements: [], line: 0, column: 0};
-const VariableDeclaration = {type: "VariableDeclaration", name: "", initializer: {}, line: 0, column: 0};
-const FunctionDeclaration = {type: "FunctionDeclaration", name: "", parameters: [], body: {}, line: 0, column: 0};
-const Parameter = {type: "Parameter", name: "", line: 0, column: 0};
-const BlockStatement = {type: "BlockStatement", statements: [], line: 0, column: 0};
-const IfStatement = {type: "IfStatement", condition: {}, thenBranch: {}, elseBranch: {}, line: 0, column: 0};
-const ExpressionStatement = {type: "ExpressionStatement", expression: {}, line: 0, column: 0};
-const AssignmentExpression = {type: "AssignmentExpression", left: {}, right: {}, line: 0, column: 0};
-const BinaryExpression = {type: "BinaryExpression", left: {}, operator: "", right: {}, line: 0, column: 0};
-const UnaryExpression = {type: "UnaryExpression", operator: "", operand: {}, line: 0, column: 0};
-const CallExpression = {type: "CallExpression", callee: {}, arguments: [], line: 0, column: 0};
-const Identifier = {type: "Identifier", name: "", line: 0, column: 0};
-const NumberLiteral = {type: "NumberLiteral", value: 0, line: 0, column: 0};
-const StringLiteral = {type: "StringLiteral", value: "", line: 0, column: 0};
-const BooleanLiteral = {type: "BooleanLiteral", value: false, line: 0, column: 0};
+const ASTNode = {type = "", line = 0, column = 0};
+const Program = {type = "Program", statements = [], line = 0, column = 0};
+const VariableDeclaration = {type = "VariableDeclaration", name = "", initializer = {}, line = 0, column = 0};
+const FunctionDeclaration = {type = "FunctionDeclaration", name = "", parameters = [], body = {}, line = 0, column = 0};
+const Parameter = {type = "Parameter", name = "", line = 0, column = 0};
+const BlockStatement = {type = "BlockStatement", statements = [], line = 0, column = 0};
+const IfStatement = {type = "IfStatement", condition = {}, thenBranch = {}, elseBranch = {}, line = 0, column = 0};
+const ExpressionStatement = {type = "ExpressionStatement", expression = {}, line = 0, column = 0};
+const AssignmentExpression = {type = "AssignmentExpression", left = {}, right = {}, line = 0, column = 0};
+const BinaryExpression = {type = "BinaryExpression", left = {}, operator = "", right = {}, line = 0, column = 0};
+const UnaryExpression = {type = "UnaryExpression", operator = "", operand = {}, line = 0, column = 0};
+const CallExpression = {type = "CallExpression", callee = {}, arguments = [], line = 0, column = 0};
+const Identifier = {type = "Identifier", name = "", line = 0, column = 0};
+const NumberLiteral = {type = "NumberLiteral", value = 0, line = 0, column = 0};
+const StringLiteral = {type = "StringLiteral", value = "", line = 0, column = 0};
+const BooleanLiteral = {type = "BooleanLiteral", value = false, line = 0, column = 0};
 function createProgram(statements, line, column) {
   const node = {};
   node.statements = statements;

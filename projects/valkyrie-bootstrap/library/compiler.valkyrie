@@ -8,10 +8,10 @@
 
 # 编译器类
 let Compiler = {
-    source: "",
-    tokens: [],
-    ast: {},
-    output: ""
+    source = "",
+    tokens = [],
+    ast = {},
+    output = ""
 }
 
 # 初始化编译器
@@ -50,12 +50,12 @@ micro compile(compiler) {
     }
 }
 
-# 编译错误处理
+# 编译器错误类型
 let CompilerError = {
-    type: "CompilerError",
-    message: "",
-    line: 0,
-    column: 0
+    type = "CompilerError",
+    message = "",
+    line = 0,
+    column = 0
 }
 
 # 创建编译错误
@@ -73,11 +73,11 @@ micro reportError(error) {
     errorMessage
 }
 
-# 编译器选项
+# 编译选项
 let CompilerOptions = {
-    outputFormat: "javascript",  # 输出格式：javascript, wasm 等
-    optimize: false,             # 是否优化
-    debug: false                 # 是否包含调试信息
+    outputFormat = "javascript",  # 输出格式：javascript, wasm 等
+    optimize = false,             # 是否优化
+    debug = false                 # 是否包含调试信息
 }
 
 # 创建编译器选项
@@ -130,10 +130,10 @@ micro compileWithOptions(compiler, options) {
 
 # 编译统计信息
 let CompilerStats = {
-    tokensCount: 0,
-    astNodesCount: 0,
-    outputSize: 0,
-    compileTime: 0
+    tokensCount = 0,
+    astNodesCount = 0,
+    outputSize = 0,
+    compileTime = 0
 }
 
 # 创建编译统计信息

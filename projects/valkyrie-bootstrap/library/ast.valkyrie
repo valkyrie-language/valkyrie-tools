@@ -3,139 +3,139 @@
 
 # 基础 AST 节点
 let ASTNode = {
-    type: "",
-    line: 0,
-    column: 0
+    type = "",
+    line = 0,
+    column = 0
 }
 
 # 程序根节点
 let Program = {
-    type: "Program",
-    statements: [],
-    line: 0,
-    column: 0
+    type = "Program",
+    statements = [],
+    line = 0,
+    column = 0
 }
 
 # 变量声明节点
 let VariableDeclaration = {
-    type: "VariableDeclaration",
-    name: "",
-    initializer: {},
-    line: 0,
-    column: 0
+    type = "VariableDeclaration",
+    name = "",
+    initializer = {},
+    line = 0,
+    column = 0
 }
 
 # 函数声明节点
 let FunctionDeclaration = {
-    type: "FunctionDeclaration", 
-    name: "",
-    parameters: [],
-    body: {},
-    line: 0,
-    column: 0
+    type = "FunctionDeclaration", 
+    name = "",
+    parameters = [],
+    body = {},
+    line = 0,
+    column = 0
 }
 
 # 参数节点
 let Parameter = {
-    type: "Parameter",
-    name: "",
-    line: 0,
-    column: 0
+    type = "Parameter",
+    name = "",
+    line = 0,
+    column = 0
 }
 
 # 块语句节点
 let BlockStatement = {
-    type: "BlockStatement",
-    statements: [],
-    line: 0,
-    column: 0
+    type = "BlockStatement",
+    statements = [],
+    line = 0,
+    column = 0
 }
 
 # If 语句节点
 let IfStatement = {
-    type: "IfStatement",
-    condition: {},
-    thenBranch: {},
-    elseBranch: {},
-    line: 0,
-    column: 0
+    type = "IfStatement",
+    condition = {},
+    thenBranch = {},
+    elseBranch = {},
+    line = 0,
+    column = 0
 }
 
 # 表达式语句节点
 let ExpressionStatement = {
-    type: "ExpressionStatement",
-    expression: {},
-    line: 0,
-    column: 0
+    type = "ExpressionStatement",
+    expression = {},
+    line = 0,
+    column = 0
 }
 
 # 赋值表达式节点
 let AssignmentExpression = {
-    type: "AssignmentExpression",
-    left: {},
-    right: {},
-    line: 0,
-    column: 0
+    type = "AssignmentExpression",
+    left = {},
+    right = {},
+    line = 0,
+    column = 0
 }
 
 # 二元表达式节点
 let BinaryExpression = {
-    type: "BinaryExpression",
-    left: {},
-    operator: "",
-    right: {},
-    line: 0,
-    column: 0
+    type = "BinaryExpression",
+    left = {},
+    operator = "",
+    right = {},
+    line = 0,
+    column = 0
 }
 
 # 一元表达式节点
 let UnaryExpression = {
-    type: "UnaryExpression",
-    operator: "",
-    operand: {},
-    line: 0,
-    column: 0
+    type = "UnaryExpression",
+    operator = "",
+    operand = {},
+    line = 0,
+    column = 0
 }
 
 # 函数调用表达式节点
 let CallExpression = {
-    type: "CallExpression",
-    callee: {},
-    arguments: [],
-    line: 0,
-    column: 0
+    type = "CallExpression",
+    callee = {},
+    arguments = [],
+    line = 0,
+    column = 0
 }
 
 # 标识符节点
 let Identifier = {
-    type: "Identifier",
-    name: "",
-    line: 0,
-    column: 0
+    type = "Identifier",
+    name = "",
+    line = 0,
+    column = 0
 }
 
 # 数字字面量节点
 let NumberLiteral = {
-    type: "NumberLiteral",
-    value: 0,
-    line: 0,
-    column: 0
+    type = "NumberLiteral",
+    value = 0,
+    line = 0,
+    column = 0
 }
 
 # 字符串字面量节点
 let StringLiteral = {
-    type: "StringLiteral",
-    value: "",
-    line: 0,
-    column: 0
+    type = "StringLiteral",
+    value = "",
+    line = 0,
+    column = 0
 }
 
 # 布尔字面量节点
 let BooleanLiteral = {
-    type: "BooleanLiteral",
-    value: false,
-    line: 0,
-    column: 0
+    type = "BooleanLiteral",
+    value = false,
+    line = 0,
+    column = 0
 }
 
 # 创建程序节点

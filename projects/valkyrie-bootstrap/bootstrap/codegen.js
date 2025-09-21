@@ -301,6 +301,6 @@ export class CodeGenerator {
     generateProperty(node) {
         const key = this.generate(node.key);
         const value = this.generate(node.value);
-        return `${key}: ${value}`;
+        return `${key} = ${value}`;
     }
 }

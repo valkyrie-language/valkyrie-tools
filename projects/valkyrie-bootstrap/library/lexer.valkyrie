@@ -1,62 +1,62 @@
 # Valkyrie 词法分析器
 # 使用 Valkyrie 语言实现
 
-# Token 类
+# Token 类型
 let Token = {
-    type: "",
-    value: "",
-    line: 0,
-    column: 0
+    type = "",
+    value = "",
+    line = 0,
+    column = 0
 }
 
 # TokenType 枚举
 let TokenType = {
     # 关键字
-    LET: "LET",
-    MICRO: "MICRO", 
-    IF: "IF",
-    ELSE: "ELSE",
+    LET = "LET",
+    MICRO = "MICRO", 
+    IF = "IF",
+    ELSE = "ELSE",
     
     # 标识符和字面量
-    IDENTIFIER: "IDENTIFIER",
-    NUMBER: "NUMBER", 
-    STRING: "STRING",
-    BOOLEAN: "BOOLEAN",
+    IDENTIFIER = "IDENTIFIER",
+    NUMBER = "NUMBER", 
+    STRING = "STRING",
+    BOOLEAN = "BOOLEAN",
     
     # 操作符
-    ASSIGN: "ASSIGN",        # =
-    PLUS: "PLUS",            # +
-    MINUS: "MINUS",          # -
-    MULTIPLY: "MULTIPLY",    # *
-    DIVIDE: "DIVIDE",        # /
-    EQUAL: "EQUAL",          # ==
-    NOT_EQUAL: "NOT_EQUAL",  # !=
-    LESS: "LESS",            # <
-    GREATER: "GREATER",      # >
+    ASSIGN = "ASSIGN",        # =
+    PLUS = "PLUS",            # +
+    MINUS = "MINUS",          # -
+    MULTIPLY = "MULTIPLY",    # *
+    DIVIDE = "DIVIDE",        # /
+    EQUAL = "EQUAL",          # ==
+    NOT_EQUAL = "NOT_EQUAL",  # !=
+    LESS = "LESS",            # <
+    GREATER = "GREATER",      # >
     
     # 符号
-    LPAREN: "LPAREN",        # (
-    RPAREN: "RPAREN",        # )
-    LBRACE: "LBRACE",        # {
-    RBRACE: "RBRACE",        # }
-    COMMA: "COMMA",          # ,
-    SEMICOLON: "SEMICOLON",  # ;
-    COLON: "COLON",          # :
-    ARROW: "ARROW",          # ->
+    LPAREN = "LPAREN",        # (
+    RPAREN = "RPAREN",        # )
+    LBRACE = "LBRACE",        # {
+    RBRACE = "RBRACE",        # }
+    COMMA = "COMMA",          # ,
+    SEMICOLON = "SEMICOLON",  # ;
+    COLON = "COLON",          # :
+    ARROW = "ARROW",          # ->
     
     # 特殊
-    EOF: "EOF",
-    COMMENT: "COMMENT"
+    EOF = "EOF",
+    COMMENT = "COMMENT"
 }
 
-# Lexer 类
+# 词法分析器类
 let Lexer = {
-    source: "",
-    position: 0,
-    line: 1,
-    column: 1,
-    tokens: [],
-    keywords: {}
+    source = "",
+    position = 0,
+    line = 1,
+    column = 1,
+    tokens = [],
+    keywords = {}
 }
 
 # 初始化 Lexer
@@ -68,12 +68,12 @@ micro initLexer(source) {
     lexer.column = 1
     lexer.tokens = []
     lexer.keywords = {
-        "let": TokenType.LET,
-        "micro": TokenType.MICRO,
-        "if": TokenType.IF,
-        "else": TokenType.ELSE,
-        "true": TokenType.BOOLEAN,
-        "false": TokenType.BOOLEAN
+        "let" = TokenType.LET,
+        "micro" = TokenType.MICRO,
+        "if" = TokenType.IF,
+        "else" = TokenType.ELSE,
+        "true" = TokenType.BOOLEAN,
+        "false" = TokenType.BOOLEAN
     }
     lexer
 }

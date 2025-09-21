@@ -6,8 +6,8 @@
 
 # 代码生成器类
 let CodeGenerator = {
-    output: "",
-    indentLevel: 0
+    output = "",
+    indentLevel = 0
 }
 
 # 初始化代码生成器

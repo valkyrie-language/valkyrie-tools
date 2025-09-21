@@ -379,12 +379,12 @@ export class Parser {
                 const property = this.consume(TokenType.IDENTIFIER, "Expected property name after '.'");
                 expr = new AST.MemberExpression(expr, new AST.Identifier(property.value, property.line, property.column), false, dot.line, dot.column);
             } else if (this.match(TokenType.LBRACKET)) {
-                // 方括号访问 obj[prop]
-                const bracket = this.current();
+                // 数组访问 obj[index]
+                const lbracket = this.current();
                 this.advance();
-                const property = this.parseExpression();
-                this.consume(TokenType.RBRACKET, "Expected ']' after computed property");
-                expr = new AST.MemberExpression(expr, property, true, bracket.line, bracket.column);
+                const index = this.parseExpression();
+                this.consume(TokenType.RBRACKET, "Expected ']' after array index");
+                expr = new AST.MemberExpression(expr, index, true, lbracket.line, lbracket.column);
             }
         }
         
@@ -480,7 +480,7 @@ export class Parser {
                 throw new Error(`Expected property key at line ${this.current().line}`);
             }
             
-            this.consume(TokenType.COLON, "Expected ':' after property key");
+            this.consume(TokenType.ASSIGN, "Expected '=' after property key");
             
             // 解析属性值
             const value = this.parseExpression();

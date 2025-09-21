@@ -7,8 +7,8 @@
 
 # 语法分析器类
 let Parser = {
-    tokens: [],
-    current: 0
+    tokens = [],
+    current = 0
 }
 
 # 初始化语法分析器
