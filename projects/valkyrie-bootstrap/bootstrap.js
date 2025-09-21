@@ -148,6 +148,11 @@ async function bootstrap() {
             throw new Error("Stage-0 compilation failed");
         }
         
+        // 步骤 2.5: 创建合并的编译器文件
+        log("Step 2.5: Creating merged compiler from stage-0 files");
+        const mergedCompilerPath = path.join(PATHS.stage0, 'merged-compiler.js');
+        await createMergedCompiler(PATHS.stage0, mergedCompilerPath);
+        
         // 步骤 3: 使用 stage-0 编译器编译 library 到 stage-1
         log("Step 3: Compiling library with stage-0 compiler to stage-1");
         
@@ -162,7 +167,6 @@ async function bootstrap() {
         }
         
         // 使用合并的编译器文件
-        const mergedCompilerPath = path.join(PATHS.stage0, 'merged-compiler.js');
         if (!fs.existsSync(mergedCompilerPath)) {
             throw new Error(`Merged compiler not found at: ${mergedCompilerPath}`);
         }
@@ -205,6 +209,31 @@ async function bootstrap() {
         error(`Bootstrap failed: ${err.message}`);
         return false;
     }
+}
+
+// 创建合并的编译器文件
+async function createMergedCompiler(sourceDir, outputPath) {
+    const files = ['lexer.js', 'ast.js', 'parser.js', 'codegen.js', 'compiler.js'];
+    let mergedContent = '';
+    
+    for (const file of files) {
+        const filePath = path.join(sourceDir, file);
+        if (fs.existsSync(filePath)) {
+            const content = fs.readFileSync(filePath, 'utf8');
+            // 移除 import/export 语句，保留类和函数定义
+            const cleanContent = content
+                .replace(/^import\s+.*$/gm, '')
+                .replace(/^export\s+/gm, '')
+                .trim();
+            mergedContent += cleanContent + '\n\n';
+        }
+    }
+    
+    // 添加导出语句
+    mergedContent += 'export { ValkyrieCompiler };\n';
+    
+    fs.writeFileSync(outputPath, mergedContent);
+    log(`Created merged compiler at: ${outputPath}`);
 }
 
 // 命令行接口

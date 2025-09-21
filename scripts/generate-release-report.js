@@ -133,22 +133,21 @@ class ReleaseReportGenerator {
 
         const [, hash, message] = commitMatch;
         
-        // 提取 emoji 和消息内容（支持没有 emoji 的提交）
-        const emojiMatch = message.match(/^([✨🔧📝🎨☢️🧪🔨⚡️🚀🔖🚦📦⏪💡🧨✅🔀🔮])\s+(.+)$/);
+        // 提取 emoji 和消息内容（只处理有 emoji 的提交）
+        const emojiMatch = message.match(/^(✨|🔧|📝|🎨|☢️|🧪|🔨|⚡️|🚀|🔖|🚦|📦|⏪|💡|🧨|✅|🔀|🔮)(?:\s+(.+))?$/);
         
-        let emoji, msgContent, type;
-        
-        if (emojiMatch) {
-            // 有 emoji 的提交
-            emoji = emojiMatch[1];
-            msgContent = emojiMatch[2];
-            type = EMOJI_TYPES[emoji] || {name: 'other', priority: 5, label: '其他'};
-        } else {
-            // 没有 emoji 的提交，使用默认类型
-            emoji = '📝';
-            msgContent = message;
-            type = {name: 'other', priority: 5, label: '其他变更'};
+        if (!emojiMatch) {
+            // 没有 emoji 的提交，直接过滤掉
+            console.log(`调试 - 无emoji匹配: "${message}"`);
+            return null;
         }
+        
+        console.log(`调试 - emoji匹配成功: emoji="${emojiMatch[1]}", message="${emojiMatch[2] || ''}"`);
+        
+        // 有 emoji 的提交
+        const emoji = emojiMatch[1];
+        const msgContent = emojiMatch[2] || '';  // 如果没有消息内容，使用空字符串
+        const type = EMOJI_TYPES[emoji] || {name: 'other', priority: 5, label: '其他'};
 
         return {
             hash: hash.slice(0, 7), // 只取前7位
@@ -256,37 +255,55 @@ class ReleaseReportGenerator {
      */
     generateCompleteChangelog() {
         const commitLines = this.getAllCommits();
-        console.log(`获取到 ${commitLines.length} 条提交记录`);
+        console.log(`获取到 ${commitLines.length} 条原始提交记录`);
         
-        const parsedCommits = commitLines.map(line => this.parseCommit(line)).filter(Boolean);
-        console.log(`解析成功 ${parsedCommits.length} 条提交记录`);
+        const parsedCommits = commitLines.map(line => {
+            const parsed = this.parseCommit(line);
+            if (parsed) {
+                console.log(`解析成功: ${parsed.emoji} ${parsed.message} (${parsed.type})`);
+            } else {
+                console.log(`过滤掉: ${line}`);
+            }
+            return parsed;
+        }).filter(Boolean);
 
         if (parsedCommits.length === 0) {
             return '## Unreleased\n\n没有找到符合规范的提交记录。\n';
         }
 
         const groupedCommits = this.groupCommitsByType(parsedCommits);
-        console.log('分组结果:', Object.keys(groupedCommits));
 
         // 按优先级排序的类型，过滤掉 priority < 0 的类型
         const sortedTypes = Object.keys(groupedCommits)
             .filter(type => {
+                // 获取类型的优先级信息
                 const typeInfo = Object.values(EMOJI_TYPES).find(t => t.name === type);
-                return typeInfo && typeInfo.priority >= 0;
+                
+                if (type === 'other') {
+                    // other 类型默认优先级为 5，应该包含
+                    return true;
+                }
+                
+                if (!typeInfo) {
+                    // 未知类型，排除
+                    return false;
+                }
+                
+                return typeInfo.priority >= 0;
             })
             .sort((a, b) => {
-                const priorityA = EMOJI_TYPES[Object.values(EMOJI_TYPES).find(t => t.name === a)?.name] || {priority: 5};
-                const priorityB = EMOJI_TYPES[Object.values(EMOJI_TYPES).find(t => t.name === b)?.name] || {priority: 5};
-                return priorityA.priority - priorityB.priority;
+                // 获取类型的优先级用于排序
+                const typeInfoA = Object.values(EMOJI_TYPES).find(t => t.name === a);
+                const typeInfoB = Object.values(EMOJI_TYPES).find(t => t.name === b);
+                const priorityA = a === 'other' ? 5 : (typeInfoA ? typeInfoA.priority : 5);
+                const priorityB = b === 'other' ? 5 : (typeInfoB ? typeInfoB.priority : 5);
+                return priorityA - priorityB;
             });
-
-        console.log('排序后的类型:', sortedTypes);
 
         let report = '## Unreleased\n\n';
 
         sortedTypes.forEach(type => {
             const commits = groupedCommits[type];
-            console.log(`处理类型 ${type}: ${commits.length} 条提交`);
             if (commits.length === 0) return;
 
             const emoji = commits[0].emoji;
