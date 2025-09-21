@@ -65,7 +65,7 @@ micro match(parser, tokenType) {
 # 期望特定类型的 token
 micro expect(parser, tokenType) {
     let token = match(parser, tokenType)
-    if token.type == "" {
+    if token == {} {
         # 错误处理：期望的 token 类型不匹配
         let current = currentToken(parser)
         # 这里应该抛出错误，但暂时返回空对象
