@@ -17,12 +17,12 @@
 
 #### 功能相关
 - ✨ `feat`: 新功能
-- 🐛 `fix`: 修复bug
+- 🔧 `fix`: 修复bug
 - 📝 `docs`: 文档更新
 - 🎨 `style`: 代码格式调整
-- ♻️ `refactor`: 重构代码
+- 🔁 `refactor`: 重构代码
 - 🧪 `test`: 测试相关
-- 🔧 `config`: 配置文件修改
+- 🔨 `config`: 配置文件修改
 - ⚡️ `perf`: 性能优化
 
 #### 流程相关
@@ -30,7 +30,6 @@
 - 🔖 `tag`: 标签相关
 - 🚦 `ci`: CI/CD相关
 - 📦 `build`: 构建相关
-- 🔄 `merge`: 合并分支
 - ⏪ `revert`: 回滚操作
 
 #### 其他
@@ -43,12 +42,12 @@
 ### 示例
 ```
 ✨ 添加用户登录功能
-🐛 修复首页加载缓慢的问题
+🔧 修复首页加载缓慢的问题
 📝 更新API文档
 🎨 格式化代码风格
-♻️ 重构用户模块
+🔁 重构用户模块
 🧪 添加单元测试
-🔧 修改数据库配置
+🔨 修改数据库配置
 ⚡️ 优化查询性能
 ```
 
@@ -60,9 +59,16 @@ npm install
 ```
 
 ### 2. 配置 commit 工具
+运行自动化设置脚本：
+
+**Linux/macOS:**
 ```bash
-npm install -g commitizen
-npm install -g @commitlint/cli
+./scripts/setup-emoji-commit.sh
+```
+
+**Windows:**
+```bash
+scripts\setup-emoji-commit.bat
 ```
 
 ### 3. 提交代码
@@ -76,6 +82,18 @@ git-cz
 或直接提交（确保遵循emoji规范）：
 ```bash
 git commit -m "✨ 添加新功能"
+```
+
+### 4. 分支管理
+**禁止使用 merge，必须使用 rebase：**
+```bash
+# 拉取最新代码并 rebase
+git pull --rebase origin main
+
+# 合并特性分支
+git checkout main
+git pull --rebase origin main
+git rebase feature-branch
 ```
 
 ## 代码审查

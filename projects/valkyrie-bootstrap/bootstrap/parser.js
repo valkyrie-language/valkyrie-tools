@@ -83,6 +83,10 @@ export class Parser {
             return this.parseIfStatement();
         }
         
+        if (this.match(TokenType.LBRACE)) {
+            return this.parseBlockStatement();
+        }
+        
         // 检查是否是赋值语句 - 支持简单标识符和成员表达式
         if (this.isAssignmentStatement()) {
             const expr = this.parseExpression();

@@ -5,12 +5,12 @@
 | Emoji | 类型       | 描述     | 示例            |
 |-------|----------|--------|---------------|
 | ✨     | feat     | 新功能    | ✨ 添加用户登录功能    |
-| 🐛    | fix      | 修复bug  | 🐛 修复首页加载缓慢问题 |
+ | 🔧    | fix      | 修复bug  | 🔧 修复首页加载缓慢问题 |
 | 📝    | docs     | 文档更新   | 📝 更新API文档    |
 | 🎨    | style    | 代码格式调整 | 🎨 格式化代码风格    |
-| ♻️    | refactor | 重构代码   | ♻️ 重构用户模块     |
+| 🔁    | refactor | 重构代码   | 🔁 重构用户模块     |
 | 🧪    | test     | 测试相关   | 🧪 添加单元测试     |
-| 🔧    | config   | 配置文件修改 | 🔧 修改数据库配置    |
+| 🔨    | config   | 配置文件修改 | 🔨 修改数据库配置    |
 | ⚡️    | perf     | 性能优化   | ⚡️ 优化查询性能     |
 
 ## 流程相关
@@ -21,7 +21,7 @@
 | 🔖    | tag     | 标签相关    | 🔖 添加版本标签           |
 | 🚦    | ci      | CI/CD相关 | 🚦 配置GitHub Actions |
 | 📦    | build   | 构建相关    | 📦 更新构建脚本           |
-| 🔄    | merge   | 合并分支    | 🔄 合并feature分支      |
+
 | ⏪     | revert  | 回滚操作    | ⏪ 回滚上一个提交           |
 
 ## 其他
@@ -67,9 +67,9 @@ git commit -m "🎨 格式化代码
 ### 1. 选择合适的emoji
 
 - **新功能**: 使用 ✨
-- **Bug修复**: 使用 🐛
+- **Bug修复**: 使用 🔧
 - **文档更新**: 使用 📝
-- **重构**: 使用 ♻️
+- **重构**: 使用 🔁
 - **性能优化**: 使用 ⚡️
 
 ### 2. 消息格式
@@ -90,7 +90,7 @@ git commit -m "🎨 格式化代码
 - 添加密码加密
 - 集成第三方登录
 
-🐛 修复首页加载缓慢问题
+🔧 修复首页加载缓慢问题
 
 - 优化数据库查询
 - 添加缓存机制
@@ -124,7 +124,7 @@ git commit -m "🎨 格式化代码
 
 # 正确
 ✨ 添加新功能
-🐛 修复bug
+🔧 修复bug
 ```
 
 ### 3. 消息过长
@@ -146,12 +146,12 @@ git commit -m "🎨 格式化代码
 复制下面的emoji到剪贴板：
 
 ```
-✨ 🐛 📝 🎨 ♻️ 🧪 🔧 ⚡️ 🚀 🔖 🚦 📦 🔄 ⏪ 💡 🗑️ 📦 ✅ 🔀
+✨ 🔧 📝 🎨 🔁 🧪 🔨 ⚡️ 🚀 🔖 🚦 📦 ⏪ 💡 🗑️ 📦 ✅ 🔀
 ```
 
 ## 相关链接
 
 - [贡献指南](CONTRIBUTING.md)
-- [设置脚本](setup-emoji-commit.sh) / [setup-emoji-commit.bat](setup-emoji-commit.bat)
-- [Commit配置](commitlint.config.js)
+- [设置脚本](scripts/setup-emoji-commit.sh) / [scripts/setup-emoji-commit.bat](scripts/setup-emoji-commit.bat)
+- [Commit配置](commit-lint.config.js)
 - [Package配置](package.json)
