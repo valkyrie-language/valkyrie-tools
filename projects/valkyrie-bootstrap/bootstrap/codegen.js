@@ -110,7 +110,9 @@ export class CodeGenerator {
         this.increaseIndent();
         this.emitLine('compile(source, options = {}) {');
         this.increaseIndent();
-        this.emitLine('return compileSourceWithOptions(source, options);');
+        this.emitLine('const compiler = initCompiler(source);');
+        this.emitLine('const result = compile(compiler);');
+        this.emitLine('return { success: true, code: result, ast: compiler.ast, tokens: compiler.tokens };');
         this.decreaseIndent();
         this.emitLine('}');
         this.emitLine();

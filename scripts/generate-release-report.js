@@ -17,16 +17,16 @@ const path = require('path');
 
 // Emoji 类型映射和优先级
 const EMOJI_TYPES = {
-    '✨': {name: 'feature', priority: 1, label: '新特性'},
-    '🔮': {name: 'experiment', priority: 2, label: '实验特性'},
-    '🔧': {name: 'fix', priority: 3, label: 'Bug 修复'},
-    '⚡️': {name: 'perf', priority: 4, label: '性能优化'},
-    '📝': {name: 'docs', priority: 5, label: '文档更新'},
-    '🎨': {name: 'style', priority: 9, label: '样式优化'},
-    '☢️': {name: 'breaking', priority: 1, label: '破坏性变更'},
-    '🧪': {name: 'test', priority: 9, label: '测试相关'},
-    '🔨': {name: 'refactor', priority: 2, label: '重构'},
-    '🚦': {name: 'ci', priority: 9, label: 'CI/CD'},
+    '✨': {name: 'feature', priority: 1, label: 'Stable Features'},
+    '🔮': {name: 'experiment', priority: 2, label: 'Experimental Features'},
+    '☢️': {name: 'breaking', priority: 3, label: 'Breaking Changes'},
+    '🔧': {name: 'fix', priority: 4, label: 'Bug Fixes'},
+    '⚡️': {name: 'perf', priority: 5, label: 'Performance Improvements'},
+    '📝': {name: 'docs', priority: 6, label: 'Documentation Updates'},
+    '🎨': {name: 'style', priority: 9, label: 'Style Improvements'},
+    '🧪': {name: 'test', priority: 7, label: 'Tests'},
+    '🔨': {name: 'refactor', priority: 2, label: 'Refactoring'},
+    '🚦': {name: 'ci', priority: 8, label: 'CI/CD'},
     '📦': {name: 'deps', priority: 3, label: '依赖更新'},
     '⏪': {name: 'revert', priority: 3, label: '回滚'},
     '💡': {name: 'idea', priority: 9, label: '想法'},
@@ -48,14 +48,24 @@ class ReleaseReportGenerator {
      */
     getCommitsBetweenTags(fromTag, toTag = 'HEAD') {
         try {
-            // 使用 --pretty=format 获取 hash, emoji, message, author
-            const format = '%h|%s|%an';
-            const command = fromTag
-                ? `git log ${fromTag}..${toTag} --pretty=format:${format}`
-                : `git log --pretty=format:${format} -20`; // 如果没有 fromTag，获取最近20条
+            // 先获取基本的提交信息
+            const logCommand = fromTag
+                ? `git log ${fromTag}..${toTag} --oneline`
+                : `git log --oneline -20`;
+            
+            const logOutput = execSync(logCommand, {encoding: 'utf8'});
+            const commits = logOutput.trim().split('\n').filter(line => line.length > 0);
 
-            const output = execSync(command, {encoding: 'utf8'});
-            return output.trim().split('\n').filter(line => line.length > 0);
+            // 为每个提交获取作者信息
+            return commits.map(line => {
+                const hash = line.split(' ')[0];
+                try {
+                    const author = execSync(`git log -1 --format=%an ${hash}`, {encoding: 'utf8'}).trim();
+                    return `${line}|${author}`;
+                } catch (error) {
+                    return `${line}|Unknown`;
+                }
+            });
         } catch (error) {
             console.error('获取提交记录失败:', error.message);
             return [];
@@ -82,17 +92,28 @@ class ReleaseReportGenerator {
      * 解析提交记录
      */
     parseCommit(line) {
-        // 格式: hash|message|author
+        // 格式: hash emoji message | author
         const parts = line.split('|');
-        if (parts.length !== 3) {
+        if (parts.length !== 2) {
+            console.log(`解析失败 - 格式不正确: ${line}`);
             return null;
         }
 
-        const [hash, message, author] = parts;
+        const [commitInfo, author] = parts;
+        
+        // 提取 hash 和消息部分
+        const commitMatch = commitInfo.match(/^([a-f0-9]+)\s+(.+)$/);
+        if (!commitMatch) {
+            console.log(`解析失败 - 无法提取 hash 和消息: ${commitInfo}`);
+            return null;
+        }
+
+        const [, hash, message] = commitMatch;
         
         // 提取 emoji 和消息内容
         const emojiMatch = message.match(/^([✨🔧📝🎨☢️🧪🔨⚡️🚀🔖🚦📦⏪💡🧨✅🔀🔮])\s+(.+)$/);
         if (!emojiMatch) {
+            console.log(`解析失败 - 无法提取 emoji: ${message}`);
             return null;
         }
 
