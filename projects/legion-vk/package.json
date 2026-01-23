@@ -1,0 +1,30 @@
+{
+    "name": "legion",
+    "author": "Valkyrie Legion Team",
+    "version": "0.1.0",
+    "description": "Legion - A build system for Valkyrie projects",
+    "type": "module",
+    "main": "dist/index.js",
+    "scripts": {
+        "build": "node ../valkyrie-bootstrap/bootstrap.js compile main.vk && node ../valkyrie-bootstrap/bootstrap.js compile library/workspace.valkyrie && node ../valkyrie-bootstrap/bootstrap.js compile library/compiler.valkyrie && node ../valkyrie-bootstrap/bootstrap.js compile library/filesystem.valkyrie && node ../valkyrie-bootstrap/bootstrap.js compile library/builder.valkyrie",
+        "test": "node ../valkyrie-bootstrap/bootstrap.js compile test_compile.vk && node test_compile.js",
+        "clean": "node -e \"const fs = require('fs'); if(fs.existsSync('build')) { fs.rmSync('build', {recursive: true}); console.log('Build directory cleaned'); } else { console.log('No build directory to clean'); }\"",
+        "compile:main": "node ../valkyrie-bootstrap/bootstrap.js compile main.vk && mkdir -p build && mv main.js build/",
+        "compile:library": "node ../valkyrie-bootstrap/bootstrap.js compile library/workspace.valkyrie && node ../valkyrie-bootstrap/bootstrap.js compile library/compiler.valkyrie && node ../valkyrie-bootstrap/bootstrap.js compile library/filesystem.valkyrie && node ../valkyrie-bootstrap/bootstrap.js compile library/builder.valkyrie && mkdir -p build/library && mv library/*.js build/library/",
+        "legion": "node build/main.js",
+        "legion:build": "node build/main.js build",
+        "legion:clean": "node build/main.js clean",
+        "legion:watch": "node build/main.js watch",
+        "legion:init": "node build/main.js init",
+        "dev": "npm run build && npm run legion:build"
+    },
+    "keywords": [
+        "valkyrie",
+        "build",
+        "compiler"
+    ],
+    "license": "MIT",
+    "dev-dependencies": {
+        "@valkyrie-language/valkyrie-bootstrap": "^0.0.3"
+    }
+}

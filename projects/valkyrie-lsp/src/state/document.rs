@@ -1,0 +1,76 @@
+use tower_lsp::lsp_types::*;
+use valkyrie_ast::ProgramRoot;
+use valkyrie_error::{SourceID, ValkyrieError};
+use valkyrie_types::hir::HirProgram;
+
+/// 文档编译结果
+#[derive(Debug, Clone)]
+pub struct DocumentState {
+    pub uri: String,
+    pub version: i32,
+    pub text: String,
+    pub hash: u64,
+    pub file_id: Option<SourceID>,
+    pub ast: Option<ProgramRoot>,
+    pub hir: Option<HirProgram>,
+    pub diagnostics: Vec<ValkyrieError>,
+    pub line_offsets: Vec<usize>,
+}
+
+impl DocumentState {
+    pub fn new(uri: String, version: i32, text: String) -> Self {
+        let line_offsets = Self::compute_line_offsets(&text);
+        let hash = Self::compute_hash(&text);
+        Self { uri, version, text, hash, file_id: None, ast: None, hir: None, diagnostics: Vec::new(), line_offsets }
+    }
+
+    pub fn compute_hash(text: &str) -> u64 {
+        use std::collections::hash_map::DefaultHasher;
+        use std::hash::{Hash, Hasher};
+        let mut hasher = DefaultHasher::new();
+        text.hash(&mut hasher);
+        hasher.finish()
+    }
+
+    pub fn compute_line_offsets(text: &str) -> Vec<usize> {
+        let mut offsets = vec![0];
+        for (i, c) in text.char_indices() {
+            if c == '\n' {
+                offsets.push(i + 1);
+            }
+        }
+        offsets
+    }
+
+    pub fn offset_to_position(&self, offset: usize) -> Position {
+        let line = match self.line_offsets.binary_search(&offset) {
+            Ok(line) => line,
+            Err(line) => line - 1,
+        };
+        let line_start = self.line_offsets[line];
+        let character_offset = offset - line_start;
+        let line_text = &self.text[line_start..line_start + character_offset];
+        let character = line_text.chars().count();
+        Position::new(line as u32, character as u32)
+    }
+
+    pub fn position_to_offset(&self, position: Position) -> usize {
+        let line = position.line as usize;
+        if line >= self.line_offsets.len() {
+            return self.text.len();
+        }
+        let line_start = self.line_offsets[line];
+        let line_text = &self.text[line_start..];
+
+        let mut char_count = 0;
+        for (i, _) in line_text.char_indices() {
+            if char_count == position.character as usize {
+                return line_start + i;
+            }
+            char_count += 1;
+        }
+
+        // If character position is beyond line length, return end of line
+        line_start + line_text.len()
+    }
+}

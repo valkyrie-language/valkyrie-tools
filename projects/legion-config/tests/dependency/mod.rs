@@ -1,6 +1,6 @@
 use valkyrie_errors::ValkyrieResult;
 
-use legion_config::ValorConfig;
+use valor_config::ValorConfig;
 
 #[test]
 fn test() -> ValkyrieResult {

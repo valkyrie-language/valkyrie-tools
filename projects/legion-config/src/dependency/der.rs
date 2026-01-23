@@ -17,7 +17,6 @@ impl Default for DependencyItem {
             branch: "".to_string(),
             tag: "".to_string(),
             registry: "".to_string(),
-            features: vec![],
         }
     }
 }
@@ -104,11 +103,8 @@ impl<'i, 'de> Visitor<'de> for DependencyWriter<'i> {
                 "registry" => {
                     self.ptr.registry = map.next_value()?;
                 }
-                "features" => {
-                    self.ptr.features = map.next_value()?;
-                }
                 _ => {
-                    continue;
+                    return Err(A::Error::custom(format!("Unknown key: {}", key)));
                 }
             }
         }

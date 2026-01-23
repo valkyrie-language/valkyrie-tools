@@ -1,0 +1,184 @@
+namespace! legion::builder;
+
+using legion::workspace;
+using legion::compiler;
+using legion::filesystem;
+
+micro create_builder(config) {
+    return {
+        "config": config,
+        "compiler": create_valkyrie_compiler(),
+        "library_files": [],
+        "binary_files": []
+    };
+}
+
+micro discover_project_structure(project_path) {
+    let structure = {
+        "library_path": join_path(project_path, "library"),
+        "binary_path": join_path(project_path, "binary"),
+        "has_library": false,
+        "has_binary": false,
+        "library_files": [],
+        "binary_entries": []
+    };
+    
+    if (file_exists(structure.library_path)) {
+        structure.has_library = true;
+        structure.library_files = find_files_with_extension(structure.library_path, ".valkyrie");
+    }
+    
+    if (file_exists(structure.binary_path)) {
+        structure.has_binary = true;
+        let binary_dirs = list_directories(structure.binary_path);
+        let i = 0;
+        while (i < binary_dirs.length) {
+            let dir = binary_dirs[i];
+            let main_file = join_path(dir, "main.vk");
+            if (file_exists(main_file)) {
+                structure.binary_entries[structure.binary_entries.length] = {
+                    "name": get_directory_name(dir),
+                    "path": dir,
+                    "main_file": main_file
+                };
+            }
+            i = i + 1;
+        }
+    }
+    
+    let standalone_files = find_files_with_extension(project_path, ".vk");
+    let j = 0;
+    while (j < standalone_files.length) {
+        let file = standalone_files[j];
+        if (get_file_name(file) != "main.vk") {
+            structure.binary_entries[structure.binary_entries.length] = {
+                "name": get_file_name(file).replace(".vk", ""),
+                "path": project_path,
+                "main_file": file,
+                "is_standalone": true
+            };
+        }
+        j = j + 1;
+    }
+    
+    return structure;
+}
+
+micro compile_library_files(builder, structure, output_dir) {
+    if (!structure.has_library) {
+        return true;
+    }
+    
+    let library_output = join_path(output_dir, "library");
+    create_directory(library_output);
+    
+    let index_content = "// Generated library index\n";
+    let i = 0;
+    while (i < structure.library_files.length) {
+        let file = structure.library_files[i];
+        let file_name = get_file_name(file).replace(".valkyrie", "");
+        
+        let result = compile_source(builder.compiler, read_file(file));
+        if (!result.success) {
+            console.log("ERROR: Failed to compile library file: " + file);
+            return false;
+        }
+        
+        let output_file = join_path(library_output, file_name + ".js");
+        write_file(output_file, result.code);
+        
+        index_content = index_content + "export * from './" + file_name + ".js';\n";
+        i = i + 1;
+    }
+    
+    let index_file = join_path(output_dir, "index.js");
+    write_file(index_file, index_content);
+    
+    return true;
+}
+
+micro compile_binary_entries(builder, structure, output_dir) {
+    let i = 0;
+    while (i < structure.binary_entries.length) {
+        let entry = structure.binary_entries[i];
+        let result = compile_source(builder.compiler, read_file(entry.main_file));
+        if (!result.success) {
+            console.log("ERROR: Failed to compile binary entry: " + entry.name);
+            return false;
+        }
+        
+        let output_file = join_path(output_dir, entry.name + ".js");
+        let content = result.code;
+        
+        if (structure.has_library) {
+            content = "import * as library from './index.js';\n" + content;
+        }
+        
+        write_file(output_file, content);
+        i = i + 1;
+    }
+    return true;
+}
+
+micro build_project(builder, project_path) {
+    console.log("Building project: " + project_path);
+    
+    let structure = discover_project_structure(project_path);
+    let output_dir = builder.config.build_dir || "dist";
+    
+    create_directory(output_dir);
+    
+    if (!compile_library_files(builder, structure, output_dir)) {
+        console.log("ERROR: Failed to compile library files");
+        return false;
+    }
+    
+    if (!compile_binary_entries(builder, structure, output_dir)) {
+        console.log("ERROR: Failed to compile binary entries");
+        return false;
+    }
+    
+    console.log("Build completed successfully!");
+    console.log("Output directory: " + output_dir);
+    
+    if (structure.has_library) {
+        console.log("- index.js (library exports)");
+    }
+    
+    let i = 0;
+    while (i < structure.binary_entries.length) {
+        console.log("- " + structure.binary_entries[i].name + ".js");
+        i = i + 1;
+    }
+    
+    return true;
+}
+
+micro clean_project(builder, project_path) {
+    let output_dir = builder.config.build_dir || "dist";
+    console.log("Cleaning build directory: " + output_dir);
+    delete_directory(output_dir);
+    console.log("Clean completed!");
+    return true;
+}
+
+micro watch_project(builder, project_path) {
+    console.log("Watching project for changes...");
+    let chokidar = require("chokidar");
+    let watcher = chokidar.watch(["library/**/*.valkyrie", "binary/**/main.vk", "*.vk"], {
+        "cwd": project_path,
+        "ignoreInitial": true
+    });
+    
+    watcher.on("change", micro(path) {
+        console.log("File changed: " + path);
+        build_project(builder, project_path);
+    });
+    
+    watcher.on("add", micro(path) {
+        console.log("File added: " + path);
+        build_project(builder, project_path);
+    });
+    
+    return watcher;
+}

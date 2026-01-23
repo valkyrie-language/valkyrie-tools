@@ -1,0 +1,24 @@
+{
+    "name": "create-legion",
+    "version": "0.0.0",
+    "description": "Create the valkyrie legion",
+    "type": "module",
+    "main": "index.js",
+    "bin": {
+        "create-legion": "create.js"
+    },
+    "keywords": [
+        "rollup",
+        "rollup-template",
+        "library"
+    ],
+    "author": "192608617@qq.com",
+    "homepage": "https://github.com/valkyrie-language/legion-npx-create",
+    "license": "MIT",
+    "dependencies": {
+        "chalk": "2.4.2",
+        "fs-extra": "^10.1.0",
+        "prompts": "^2.4.2",
+        "validate-npm-package-name": "^5.0.1"
+    }
+}

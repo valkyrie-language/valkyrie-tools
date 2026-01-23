@@ -1,0 +1,24 @@
+{
+    "workspace": {
+        "name": "legion-workspace",
+        "version": "1.0.0",
+        "description": "Legion 工具工作空间",
+        "packages": [
+            "./"
+        ],
+        "sharedDependencies": {
+            "@valkyrie-language/valkyrie-bootstrap": "latest"
+        },
+        "buildSettings": {
+            "target": "javascript",
+            "outputDir": "dist",
+            "sourceDir": "src"
+        },
+        "tools": {
+            "legion": {
+                "path": "./",
+                "main": "binary/legion/main.vk"
+            }
+        }
+    }
+}

@@ -1,0 +1,22 @@
+{
+    "type": "workspace",
+    "authors": [],
+    "commanders": [],
+    "version": "0.0.0",
+    "members": ["projects/"],
+    "include": [],
+    "exclude": [],
+    "dependencies": {
+
+    },
+    "tests-dependencies": {
+
+    },
+    "build-dependencies": {
+
+    },
+    "benchmark-dependencies": {
+
+    },
+    "description": ""
+}

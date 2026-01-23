@@ -1,0 +1,383 @@
+{
+    "$schema": "https://spec.openapis.org/oas/3.0/schema/2021-09-28#/definitions/Schema",
+    "title": "LegionConfig",
+    "description": "The legion configuration",
+    "components": {
+        "schemas": {
+            "DependencySystem": {
+                "type": "object",
+                "properties": {
+                    "benchmark-dependencies": {
+                        "description": "The dependencies for the bench\n\n - Override same name dependencies when benching",
+                        "type": "object",
+                        "additionalProperties": {
+                            "$ref": "#/components/schemas/LegionDependency"
+                        },
+                        "default": {}
+                    },
+                    "build-dependencies": {
+                        "description": "The dependencies for the build\n\n - Override same name dependencies when building",
+                        "type": "object",
+                        "additionalProperties": {
+                            "$ref": "#/components/schemas/LegionDependency"
+                        },
+                        "default": {}
+                    },
+                    "supports": {
+                        "type": "object",
+                        "additionalProperties": {
+                            "$ref": "#/components/schemas/LegionDependency"
+                        },
+                        "default": {}
+                    },
+                    "tests-dependencies": {
+                        "description": "The dependencies for the test\n\n - Override same name dependencies when testing",
+                        "type": "object",
+                        "additionalProperties": {
+                            "$ref": "#/components/schemas/LegionDependency"
+                        },
+                        "default": {}
+                    }
+                }
+            },
+            "LegionAuthors": {
+                "anyOf": [
+                    {
+                        "type": "string"
+                    },
+                    {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    }
+                ]
+            },
+            "LegionDependency": {
+                "type": "object",
+                "properties": {
+                    "branch": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "nullable": true
+                    },
+                    "git": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "nullable": true
+                    },
+                    "hash": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "nullable": true
+                    },
+                    "version": {
+                        "$ref": "#/components/schemas/SemVer"
+                    }
+                },
+                "required": [
+                    "version"
+                ]
+            },
+            "LegionPackage": {
+                "type": "object",
+                "properties": {
+                    "description": {
+                        "description": "The description of the package",
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "nullable": true
+                    },
+                    "benchmark-dependencies": {
+                        "description": "The dependencies for the bench\n\n - Override same name dependencies when benching",
+                        "type": "object",
+                        "additionalProperties": {
+                            "$ref": "#/components/schemas/LegionDependency"
+                        },
+                        "default": {}
+                    },
+                    "build-dependencies": {
+                        "description": "The dependencies for the build\n\n - Override same name dependencies when building",
+                        "type": "object",
+                        "additionalProperties": {
+                            "$ref": "#/components/schemas/LegionDependency"
+                        },
+                        "default": {}
+                    },
+                    "commanders": {
+                        "description": "The author of the package",
+                        "$ref": "#/components/schemas/LegionAuthors",
+                        "default": null
+                    },
+                    "documentation": {
+                        "type": "string",
+                        "default": ""
+                    },
+                    "homepage": {
+                        "type": "string",
+                        "default": ""
+                    },
+                    "keywords": {
+                        "description": "The keywords of the package",
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    },
+                    "license": {
+                        "type": "string",
+                        "default": ""
+                    },
+                    "name": {
+                        "description": "The name of the package",
+                        "type": "string"
+                    },
+                    "peers": {
+                        "$ref": "#/components/schemas/DependencySystem",
+                        "default": {
+                            "benchmark-dependencies": {},
+                            "build-dependencies": {},
+                            "supports": {},
+                            "tests-dependencies": {}
+                        }
+                    },
+                    "publish": {
+                        "type": [
+                            "boolean",
+                            "null"
+                        ],
+                        "default": null,
+                        "nullable": true
+                    },
+                    "readme": {
+                        "type": "string",
+                        "default": ""
+                    },
+                    "repository": {
+                        "type": "string",
+                        "default": ""
+                    },
+                    "scripts": {
+                        "description": "Package level scripts\n\n The running directory is the package directory",
+                        "type": "object",
+                        "additionalProperties": {
+                            "type": "string"
+                        },
+                        "default": {}
+                    },
+                    "supports": {
+                        "type": "object",
+                        "additionalProperties": {
+                            "$ref": "#/components/schemas/LegionDependency"
+                        },
+                        "default": {}
+                    },
+                    "tests-dependencies": {
+                        "description": "The dependencies for the test\n\n - Override same name dependencies when testing",
+                        "type": "object",
+                        "additionalProperties": {
+                            "$ref": "#/components/schemas/LegionDependency"
+                        },
+                        "default": {}
+                    },
+                    "version": {
+                        "description": "The version of the package",
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/SemVer"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "default": null,
+                        "nullable": true
+                    }
+                },
+                "required": [
+                    "name",
+                    "keywords"
+                ]
+            },
+            "LegionWorkspace": {
+                "type": "object",
+                "properties": {
+                    "benchmark-dependencies": {
+                        "description": "The dependencies for the bench\n\n - Override same name dependencies when benching",
+                        "type": "object",
+                        "additionalProperties": {
+                            "$ref": "#/components/schemas/LegionDependency"
+                        },
+                        "default": {}
+                    },
+                    "build-dependencies": {
+                        "description": "The dependencies for the build\n\n - Override same name dependencies when building",
+                        "type": "object",
+                        "additionalProperties": {
+                            "$ref": "#/components/schemas/LegionDependency"
+                        },
+                        "default": {}
+                    },
+                    "commanders": {
+                        "description": "Co-owner of all modules",
+                        "$ref": "#/components/schemas/LegionAuthors",
+                        "default": null
+                    },
+                    "exclude": {
+                        "description": "Exclude module in `exclude` paths",
+                        "type": "array",
+                        "default": [],
+                        "items": {
+                            "type": "string"
+                        }
+                    },
+                    "include": {
+                        "description": "Add module in `include` paths",
+                        "type": "array",
+                        "default": [],
+                        "items": {
+                            "type": "string"
+                        }
+                    },
+                    "keywords": {
+                        "description": "The keywords shared in all modules",
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    },
+                    "members": {
+                        "description": "Search `legion.toml` under `members` path",
+                        "type": "array",
+                        "default": [],
+                        "items": {
+                            "type": "string"
+                        }
+                    },
+                    "publish": {
+                        "description": "Whether the modules in workspace can be published",
+                        "type": [
+                            "boolean",
+                            "null"
+                        ],
+                        "default": null,
+                        "nullable": true
+                    },
+                    "scripts": {
+                        "description": "Workspace level scripts\n\n The running directory is the workspace directory",
+                        "type": "object",
+                        "additionalProperties": {
+                            "type": "string"
+                        },
+                        "default": {}
+                    },
+                    "supports": {
+                        "type": "object",
+                        "additionalProperties": {
+                            "$ref": "#/components/schemas/LegionDependency"
+                        },
+                        "default": {}
+                    },
+                    "tests-dependencies": {
+                        "description": "The dependencies for the test\n\n - Override same name dependencies when testing",
+                        "type": "object",
+                        "additionalProperties": {
+                            "$ref": "#/components/schemas/LegionDependency"
+                        },
+                        "default": {}
+                    },
+                    "version": {
+                        "description": "The unified version of the workspace across all modules",
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/SemVer"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "default": null,
+                        "nullable": true
+                    }
+                },
+                "required": [
+                    "keywords"
+                ]
+            },
+            "SemVer": {
+                "type": "string",
+                "pattern": "^(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)(?:-((?:0|[1-9]\\d*|\\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\\.(?:0|[1-9]\\d*|\\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\\+([0-9a-zA-Z-]+(?:\\.[0-9a-zA-Z-]+)*))?$"
+            }
+        }
+    },
+    "oneOf": [
+        {
+            "description": "The workspace with multiple modules",
+            "type": "object",
+            "properties": {
+                "type": {
+                    "type": "string",
+                    "enum": [
+                        "workspace"
+                    ]
+                }
+            },
+            "allOf": [
+                {
+                    "$ref": "#/components/schemas/LegionWorkspace"
+                }
+            ],
+            "required": [
+                "type"
+            ]
+        },
+        {
+            "description": "The package in workspace",
+            "type": "object",
+            "properties": {
+                "type": {
+                    "type": "string",
+                    "enum": [
+                        "module"
+                    ]
+                }
+            },
+            "allOf": [
+                {
+                    "$ref": "#/components/schemas/LegionPackage"
+                }
+            ],
+            "required": [
+                "type"
+            ]
+        },
+        {
+            "description": "The package standalone",
+            "type": "object",
+            "properties": {
+                "type": {
+                    "type": "string",
+                    "enum": [
+                        "package"
+                    ]
+                }
+            },
+            "allOf": [
+                {
+                    "$ref": "#/components/schemas/LegionPackage"
+                }
+            ],
+            "required": [
+                "type"
+            ]
+        }
+    ]
+}

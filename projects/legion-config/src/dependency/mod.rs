@@ -31,7 +31,6 @@ pub struct DependencyItem {
     branch: String,
     tag: String,
     registry: String,
-    features: Vec<String>,
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]

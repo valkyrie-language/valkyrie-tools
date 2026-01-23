@@ -10,7 +10,6 @@ use serde_types::OneOrMany;
 #[derive(Debug, Clone, Serialize)]
 pub struct ValorWorkspace {
     pub root: PathBuf,
-    pub include: Vec<String>,
     pub packages: Vec<String>,
     pub template: ValorPackage,
 }
@@ -19,7 +18,7 @@ impl ValorWorkspace {}
 
 impl Default for ValorWorkspace {
     fn default() -> Self {
-        Self { root: PathBuf::from("<<MISSING>>"), include: vec![], packages: vec![], template: Default::default() }
+        Self { root: PathBuf::from("<<MISSING>>"), packages: vec![], template: Default::default() }
     }
 }
 
@@ -54,12 +53,12 @@ impl<'de, 'body> Visitor<'de> for WorkspaceVisitor<'body> {
     where
         A: MapAccess<'de>,
     {
-        while let Some(key) = map.next_key::<String>()? {
-            match key.as_str() {
+        while let Some(key) = map.next_key::<&str>()? {
+            match key {
                 "include" => {
-                    self.body.include = map.next_value::<OneOrMany<String>>()?.unwrap();
+                    // self.body.include = map.next_value::<OneOrMany<String>>()?.unwrap();
                 }
-                "packages" => {
+                "exclude" => {
                     self.body.packages = map.next_value::<OneOrMany<String>>()?.unwrap();
                 }
                 _ => {}

@@ -1,0 +1,31 @@
+{
+    "name": "@valkyrie-language/legion",
+    "version": "0.1.2",
+    "description": "Legion package manager CLI",
+    "license": "MIT",
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/valkyrie-language/legion.js",
+        "directory": "packages/legion-cli"
+    },
+    "type": "module",
+    "bin": {
+        "legion": "legion.js"
+    },
+    "publishConfig": {
+        "access": "public",
+        "registry": "https://registry.npmjs.org/"
+    },
+    "scripts": {
+        "lint": "eslint --fix",
+        "r": "node --experimental-wasm-stack-switching legion.js run",
+        "r:generator": "node --experimental-wasm-stack-switching legion.js run ../../tests/run/generator.wat",
+        "r:print": "node --experimental-wasm-stack-switching legion.js run ../../tests/run/print.wat",
+        "prepublishOnly": "npm run lint"
+    },
+    "dependencies": {
+        "@valkyrie-language/legion-wasm32-wasi": "0.1.*"
+    },
+    "devDependencies": {
+    }
+}

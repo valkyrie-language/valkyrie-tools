@@ -14,7 +14,7 @@ mod display;
 // description = "..."
 // repository = "https://github.com/oovm/sub_projects"
 // documentation = "https://docs.rs/sub_projects"
-// readme = "Readme.md"
+// readme = "readme.md"
 // license = "MPL-2.0"
 // edition = "2021"
 #[derive(Clone, Serialize, Deserialize)]

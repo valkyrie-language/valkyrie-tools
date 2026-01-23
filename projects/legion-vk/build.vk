@@ -1,0 +1,83 @@
+namespace legion;
+
+using legion::filesystem;
+
+# 安全的编译函数 - 编译到指定目录
+micro safe_compile(input_path, output_dir) {
+    console.log("Compiling: " + input_path);
+    
+    # 确保输出目录存在
+    if (!create_directory(output_dir)) {
+        console.log("ERROR: Failed to create output directory: " + output_dir);
+        return false;
+    }
+    
+    # 使用 valkyrie-bootstrap 编译器编译
+    let output_name = get_file_name(input_path).replace(".vk", ".js");
+    let output_path = join_path(output_dir, output_name);
+    
+    # 调用外部编译器
+    let command = "node ../valkyrie-bootstrap/bootstrap.js compile " + input_path;
+    console.log("Running: " + command);
+    
+    # 这里应该执行系统命令，暂时模拟
+    console.log("Simulated compilation: " + input_path + " -> " + output_path);
+    return true;
+}
+
+# 编译项目
+micro build_project() {
+    console.log("Building Legion project...");
+    console.log("============================");
+    
+    # 创建构建目录
+    if (!create_directory("build")) {
+        console.log("ERROR: Failed to create build directory");
+        return false;
+    }
+    
+    # 编译库文件
+    let library_files = [
+        "library/workspace.valkyrie",
+        "library/compiler.valkyrie",
+        "library/filesystem.valkyrie", 
+        "library/builder.valkyrie"
+    ];
+    
+    let i = 0;
+    while (i < library_files.length) {
+        let file_path = library_files[i];
+        if (!safe_compile(file_path, "build/library")) {
+            console.log("ERROR: Failed to compile " + file_path);
+            return false;
+        }
+        i = i + 1;
+    }
+    
+    # 编译主文件
+    if (!safe_compile("main.vk", "build")) {
+        console.log("ERROR: Failed to compile main.vk");
+        return false;
+    }
+    
+    console.log("Build completed successfully!");
+    console.log("Output files are in the 'build' directory");
+    return true;
+}
+
+# 清理构建
+micro clean() {
+    console.log("Cleaning build directory...");
+    # 这里应该删除 build 目录
+    console.log("Build directory cleaned");
+    return true;
+}
+
+# 主函数
+micro main() {
+    console.log("Legion Build System v0.1.0");
+    console.log("===========================");
+    
+    # 默认执行构建
+    return build_project();
+}

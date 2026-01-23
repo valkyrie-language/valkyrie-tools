@@ -1,0 +1,132 @@
+namespace! legion::workspace;
+
+micro create_workspace_config(name, version) {
+    return {
+        "name": name,
+        "version": version,
+        "source_dir": "src",
+        "build_dir": "dist",
+        "main_entry": "main.vk",
+        "target": "node",
+        "dependencies": []
+    };
+}
+
+micro add_dependency(config, dependency) {
+    let new_deps = [];
+    let i = 0;
+    while (i < config.dependencies.length) {
+        new_deps[i] = config.dependencies[i];
+        i = i + 1;
+    }
+    new_deps[config.dependencies.length] = dependency;
+    config.dependencies = new_deps;
+    return config;
+}
+
+micro validate_config(config) {
+    if (config.name == "") {
+        return false;
+    }
+    if (config.version == "") {
+        return false;
+    }
+    return true;
+}
+
+micro create_config_manager(config_path) {
+    return {"config_path": config_path};
+}
+
+micro load_config(manager) {
+    return create_workspace_config("default", "0.1.0");
+}
+
+micro save_config(manager, config) {
+    return true;
+}
+
+micro parse_yaml_config(content) {
+    let config = create_workspace_config("", "");
+    let lines = content.split("\n");
+    let i = 0;
+    while (i < lines.length) {
+        let line = lines[i].trim();
+        if (line == "" || line.startsWith("#")) {
+            i = i + 1;
+            continue;
+        }
+        let colon_pos = line.indexOf(":");
+        if (colon_pos != -1) {
+            let key = line.substring(0, colon_pos).trim();
+            let value = line.substring(colon_pos + 1).trim();
+            if (value.startsWith("\"") && value.endsWith("\"")) {
+                value = value.substring(1, value.length - 1);
+            }
+            if (value.startsWith("'") && value.endsWith("'")) {
+                value = value.substring(1, value.length - 1);
+            }
+            if (key == "name") {
+                config.name = value;
+            } else if (key == "version") {
+                config.version = value;
+            } else if (key == "source_dir") {
+                config.source_dir = value;
+            } else if (key == "build_dir") {
+                config.build_dir = value;
+            } else if (key == "main_entry") {
+                config.main_entry = value;
+            } else if (key == "target") {
+                config.target = value;
+            }
+        }
+        i = i + 1;
+    }
+    return config;
+}
+
+micro config_to_yaml(config) {
+    return "name: \"" + config.name + "\"\n" +
+           "version: \"" + config.version + "\"\n" +
+           "source_dir: \"" + config.source_dir + "\"\n" +
+           "build_dir: \"" + config.build_dir + "\"\n" +
+           "main_entry: \"" + config.main_entry + "\"\n" +
+           "target: \"" + config.target + "\"\n";
+}
+
+micro create_project_template(name) {
+    return {"name": name, "files": {}};
+}
+
+micro add_template_file(template, file_path, content) {
+    template.files[file_path] = content;
+    return template;
+}
+
+micro get_default_config_template() {
+    return "name: \"my-project\"\n" +
+           "version: \"0.1.0\"\n" +
+           "source_dir: \"src\"\n" +
+           "build_dir: \"dist\"\n" +
+           "main_entry: \"main.vk\"\n" +
+           "target: \"node\"\n" +
+           "dependencies: []\n";
+}
+
+micro get_default_main_template() {
+    return "namespace main;\n\n" +
+           "micro main() {\n" +
+           "    console.log(\"Hello, Valkyrie!\");\n" +
+           "}\n";
+}
+
+micro get_default_gitignore_template() {
+    return "dist/\n" +
+           "node_modules/\n" +
+           "*.log\n" +
+           ".DS_Store\n";
+}
+
+micro generate_project_template(template, project_path) {
+    return true;
+}

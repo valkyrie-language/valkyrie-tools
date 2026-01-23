@@ -1,0 +1,15 @@
+{
+    "name": "simple-repo",
+    "version": "0.1.0",
+    "description": "Simple project for valkyrie language",
+    "private": true,
+    "scripts": {
+
+    },
+    "dependencies": {
+        "@bytecodealliance/preview2-shim": "^0.17.1"
+    },
+    "devDependencies": {
+        "@valkyrie-language/legion": "^0.0.x"
+    }
+}

@@ -1,0 +1,22 @@
+{
+    "name": "v-wasm32-wasi",
+    "version": "0.1.0",
+    "license": "UNLICENSED",
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/valkyrie-language/legion.rs",
+        "directory": "projects/legion-wasm32-wasi"
+    },
+    "type": "module",
+    "main": "src/index.js",
+    "publishConfig": {
+        "access": "public",
+        "registry": "https://registry.npmjs.org/"
+    },
+    "scripts": {
+        "build": "build-wasi.sh"
+    },
+    "dependencies": {
+        "@bytecodealliance/preview2-shim": "^0.17.1"
+    }
+}

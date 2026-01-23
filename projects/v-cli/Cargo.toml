@@ -1,0 +1,22 @@
+[package]
+name = "v"
+version = "0.3.0"
+authors = ["Aster <192607617@qq.com>"]
+description = "Help organize your workspace scripts!"
+edition = "2021"
+license = "MPL-2.0"
+repository = "https://github.com/oovm/wee"
+
+[dependencies]
+colored = "3.0.0"
+serde_json = "1.0.138"
+subprocess = "0.2.9"
+toml = "0.8.19"
+clap = { version = "4.5.27", features = ["derive"] }
+
+[package.metadata.v]
+f = "cargo fmt"
+i = "cargo install --path ."
+ir = "cargo install --path . --release"
+p = "cargo publish --allow-dirty"
+u = "cargo upgrade"

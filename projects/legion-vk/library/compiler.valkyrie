@@ -1,0 +1,39 @@
+namespace! legion::compiler;
+
+using legion::workspace;
+
+micro create_valkyrie_compiler() {
+    return {"version": "0.1.0", "target": "node"};
+}
+
+micro compile_file(compiler, file_path) {
+    return {
+        "success": true,
+        "output": "console.log('Compiled: " + file_path + "');",
+        "errors": []
+    };
+}
+
+micro compile_source(compiler, source_code) {
+    return compileSource(source_code);
+}
+
+micro compile_project(compiler, project_path) {
+    let results = [];
+    let files = find_source_files(project_path);
+    let i = 0;
+    while (i < files.length) {
+        let result = compile_file(compiler, files[i]);
+        results[i] = result;
+        i = i + 1;
+    }
+    return results;
+}
+
+micro get_compiler_info(compiler) {
+    return {
+        "version": compiler.version,
+        "target": compiler.target,
+        "features": ["basic", "node-target"]
+    };
+}

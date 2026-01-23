@@ -1,12 +1,21 @@
 [workspace]
 resolver = "2"
-members = [
-    "projects/legion-app",
-    "projects/legion-config",
-    "projects/valkyrie-rs",
-    "projects/wasi-runner",
+members = ["projects/*"]
+exclude = [
+    "projects/v-wasm32-wasi",
+    "projects/legion-wasm32-wasi",
 ]
 
 [profile.release]
 lto = true
 panic = "abort"
+
+[workspace.dependencies.tokio]
+version = "1.43.0"
+default-features = true
+features = ["macros", "rt"]
+
+[workspace.dependencies.reqwest]
+version = "0.12.12"
+default-features = false
+features = ["rustls-tls", "json", "socks"]

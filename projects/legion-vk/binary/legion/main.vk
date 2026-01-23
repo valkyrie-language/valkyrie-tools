@@ -1,0 +1,36 @@
+namespace legion_binary;
+
+using legion::example;
+
+micro main() {
+    console.log("=== Legion Binary Example ===");
+    console.log("");
+    
+    console.log("Testing greet function:");
+    console.log(greet("World"));
+    console.log(greet("Valkyrie"));
+    console.log("");
+    
+    console.log("Testing math functions:");
+    console.log("5 + 3 = " + add(5, 3));
+    console.log("4 * 7 = " + multiply(4, 7));
+    console.log("");
+    
+    console.log("Testing factorial:");
+    console.log("5! = " + factorial(5));
+    console.log("7! = " + factorial(7));
+    console.log("");
+    
+    console.log("Testing fibonacci:");
+    console.log("fib(10) = " + fibonacci(10));
+    console.log("fib(15) = " + fibonacci(15));
+    console.log("");
+    
+    console.log("Testing prime numbers:");
+    console.log("Is 17 prime? " + is_prime(17));
+    console.log("Is 25 prime? " + is_prime(25));
+    console.log("Is 29 prime? " + is_prime(29));
+    console.log("");
+    
+    console.log("=== Example completed ===");
+}
