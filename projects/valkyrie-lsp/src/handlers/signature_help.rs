@@ -1,4 +1,4 @@
-use tower_lsp::lsp_types::*;
+use oak_lsp::types::*;
 use valkyrie_ast::helper::ValkyrieNode;
 use crate::state::ServerState;
 
@@ -6,10 +6,8 @@ use crate::state::ServerState;
 pub struct SignatureHelpHandler;
 
 impl SignatureHelpHandler {
-    pub async fn handle(state: &ServerState, params: SignatureHelpParams) -> Option<SignatureHelp> {
-        let uri = params.text_document_position_params.text_document.uri.to_string();
-        let position = params.text_document_position_params.position;
-        let doc = state.get_document(&uri)?;
+    pub async fn handle(state: &ServerState, uri: &str, position: Position) -> Option<SignatureHelp> {
+        let doc = state.get_document(uri)?;
         let offset = doc.position_to_offset(position) as u32;
         let ast = doc.ast.as_ref()?;
 
@@ -26,7 +24,7 @@ impl SignatureHelpHandler {
             // 尝试从索引中获取真实的参数名称
             let caller_pos = doc.offset_to_position(call.caller.get_range().start as usize);
             let mut param_names = Vec::new();
-            if let Some(info) = state.query_symbol_at_position(&uri, caller_pos).await {
+            if let Some(info) = state.query_symbol_at_position(uri, caller_pos).await {
                 if let Some(ty) = info.type_info {
                     if let Some(start) = ty.find('(') {
                         if let Some(end) = ty.rfind(')') {
@@ -45,7 +43,7 @@ impl SignatureHelpHandler {
             let mut parameters = Vec::new();
             for (i, _) in call.arguments.terms.iter().enumerate() {
                 let name = if i < param_names.len() { param_names[i].clone() } else { format!("arg{}", i) };
-                parameters.push(ParameterInformation { label: ParameterLabel::Simple(name), documentation: None });
+                parameters.push(ParameterInformation { label: name, documentation: None });
             }
 
             let active_parameter = call.arguments.terms.iter().position(|t| t.span.get_range().contains(&offset)).map(|p| p as u32);
@@ -57,18 +55,11 @@ impl SignatureHelpHandler {
                         caller_name,
                         parameters
                             .iter()
-                            .map(|p| {
-                                if let ParameterLabel::Simple(s) = &p.label {
-                                    s.as_str()
-                                }
-                                else {
-                                    ""
-                                }
-                            })
+                            .map(|p| p.label.as_str())
                             .collect::<Vec<_>>()
                             .join(", ")
                     ),
-                    documentation: Some(Documentation::String(format!("Signature help for {}", caller_name))),
+                    documentation: Some(format!("Signature help for {}", caller_name)),
                     parameters: Some(parameters),
                     active_parameter,
                 }],
