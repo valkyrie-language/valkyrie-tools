@@ -10,6 +10,7 @@ use serde_types::OneOrMany;
 #[derive(Debug, Clone, Serialize)]
 pub struct ValorWorkspace {
     pub root: PathBuf,
+    pub include: Vec<String>,
     pub packages: Vec<String>,
     pub template: ValorPackage,
 }

@@ -10,12 +10,12 @@ license = "MPL-2.0"
 edition = "2021"
 
 [dependencies]
-serde = "=1.0.210"
-serde_derive = "=1.0.210"
+serde = "=1.0.217"
+serde_derive = "=1.0.217"
 #config = "0.13.3"
 semver = { version = "1.0.16", features = ["serde"] }
 json5 = "0.4.1"
-toml = "0.8.19"
+toml = "0.7.8"
 globset = "0.4.8"
 
 [dependencies.serde-types]

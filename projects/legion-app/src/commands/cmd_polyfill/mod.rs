@@ -39,6 +39,7 @@ impl CommandPolyfill {
             no_namespaced_exports: true,
             multi_memory: true,
             guest: self.guest,
+            async_mode: None,
         };
         let result = js_component_bindgen::transpile(&input, cfg)?;
         result.files;
