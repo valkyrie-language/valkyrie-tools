@@ -1,4 +1,4 @@
-use tower_lsp::lsp_types::*;
+use oak_lsp::types::{CompletionItem, CompletionItemKind, Position};
 use crate::state::ServerState;
 
 /// 补全处理器
@@ -7,11 +7,9 @@ pub struct CompletionHandler;
 impl CompletionHandler {
     pub async fn handle(
         state: &ServerState,
-        params: CompletionParams,
-    ) -> Result<Option<CompletionResponse>, Box<dyn std::error::Error + Send + Sync>> {
-        let _uri = params.text_document_position.text_document.uri.to_string();
-        let _position = params.text_document_position.position;
-
+        _uri: &str,
+        _position: Position,
+    ) -> anyhow::Result<Vec<CompletionItem>> {
         let mut items = Vec::new();
 
         // 1. 添加关键字补全
@@ -23,9 +21,10 @@ impl CompletionHandler {
         for kw in keywords {
             items.push(CompletionItem {
                 label: kw.to_string(),
-                kind: Some(CompletionItemKind::KEYWORD),
+                kind: Some(CompletionItemKind::Keyword),
                 detail: Some("keyword".to_string()),
-                ..Default::default()
+                documentation: None,
+                insert_text: None,
             });
         }
 
@@ -38,17 +37,19 @@ impl CompletionHandler {
                         valkyrie_ast::StatementKind::Function(f) => {
                             items.push(CompletionItem {
                                 label: f.name.to_string(),
-                                kind: Some(CompletionItemKind::FUNCTION),
+                                kind: Some(CompletionItemKind::Function),
                                 detail: Some(format!("fn {}", f.name)),
-                                ..Default::default()
+                                documentation: None,
+                                insert_text: None,
                             });
                         }
                         valkyrie_ast::StatementKind::Class(c) => {
                             items.push(CompletionItem {
                                 label: c.name.to_string(),
-                                kind: Some(CompletionItemKind::CLASS),
+                                kind: Some(CompletionItemKind::Class),
                                 detail: Some(format!("class {}", c.name)),
-                                ..Default::default()
+                                documentation: None,
+                                insert_text: None,
                             });
                             // 同时也添加类成员
                             for term in &c.terms {
@@ -56,17 +57,19 @@ impl CompletionHandler {
                                     valkyrie_ast::ClassTerm::Field(f) => {
                                         items.push(CompletionItem {
                                             label: f.name.to_string(),
-                                            kind: Some(CompletionItemKind::FIELD),
+                                            kind: Some(CompletionItemKind::Field),
                                             detail: Some(format!("field {}.{}", c.name, f.name)),
-                                            ..Default::default()
+                                            documentation: None,
+                                            insert_text: None,
                                         });
                                     }
                                     valkyrie_ast::ClassTerm::Method(m) => {
                                         items.push(CompletionItem {
                                             label: m.name.to_string(),
-                                            kind: Some(CompletionItemKind::METHOD),
+                                            kind: Some(CompletionItemKind::Method),
                                             detail: Some(format!("method {}.{}", c.name, m.name)),
-                                            ..Default::default()
+                                            documentation: None,
+                                            insert_text: None,
                                         });
                                     }
                                     _ => {}
@@ -76,17 +79,19 @@ impl CompletionHandler {
                         valkyrie_ast::StatementKind::Namespace(n) => {
                             items.push(CompletionItem {
                                 label: n.path.to_string(),
-                                kind: Some(CompletionItemKind::MODULE),
+                                kind: Some(CompletionItemKind::Module),
                                 detail: Some("namespace".to_string()),
-                                ..Default::default()
+                                documentation: None,
+                                insert_text: None,
                             });
                         }
                         valkyrie_ast::StatementKind::Trait(t) => {
                             items.push(CompletionItem {
                                 label: t.name.to_string(),
-                                kind: Some(CompletionItemKind::INTERFACE),
+                                kind: Some(CompletionItemKind::Interface),
                                 detail: Some("trait".to_string()),
-                                ..Default::default()
+                                documentation: None,
+                                insert_text: None,
                             });
                         }
                         valkyrie_ast::StatementKind::Variable(v) => {
@@ -95,9 +100,10 @@ impl CompletionHandler {
                                 if let valkyrie_ast::ArgumentKey::Symbol(node) = &**id {
                                     items.push(CompletionItem {
                                         label: node.name.to_string(),
-                                        kind: Some(CompletionItemKind::VARIABLE),
+                                        kind: Some(CompletionItemKind::Variable),
                                         detail: Some("variable".to_string()),
-                                        ..Default::default()
+                                        documentation: None,
+                                        insert_text: None,
                                     });
                                 }
                             }
@@ -108,10 +114,10 @@ impl CompletionHandler {
             }
         }
 
-        // 去重
+        // 3. 去重
         items.sort_by(|a, b| a.label.cmp(&b.label));
-        items.dedup_by(|a, b| a.label == b.label && a.kind == b.kind);
+        items.dedup_by(|a, b| a.label == b.label);
 
-        Ok(Some(CompletionResponse::Array(items)))
+        Ok(items)
     }
 }

@@ -1,4 +1,4 @@
-use tower_lsp::lsp_types::*;
+use oak_lsp::types::Position;
 use valkyrie_ast::ProgramRoot;
 use valkyrie_error::{SourceID, ValkyrieError};
 use valkyrie_types::hir::HirProgram;
@@ -51,7 +51,7 @@ impl DocumentState {
         let character_offset = offset - line_start;
         let line_text = &self.text[line_start..line_start + character_offset];
         let character = line_text.chars().count();
-        Position::new(line as u32, character as u32)
+        Position { line: line as u32, character: character as u32 }
     }
 
     pub fn position_to_offset(&self, position: Position) -> usize {

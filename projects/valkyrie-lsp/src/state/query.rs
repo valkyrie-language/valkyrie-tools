@@ -1,10 +1,10 @@
 use dashmap::DashMap;
 use std::sync::Arc;
-use tower_lsp::lsp_types::*;
+use oak_lsp::types::{Position, LocationRange};
 use valkyrie_ast::ExpressionKind;
 use valkyrie_ast::helper::ValkyrieNode;
 use super::{ServerState, DocumentState, GlobalSymbol, SymbolInfo};
-use crate::handlers::utils::range_to_lsp_range;
+use crate::handlers::utils::range_to_lsp_range_usize;
 
 impl ServerState {
     /// 查找符号定义，并记录依赖关系
@@ -193,9 +193,9 @@ impl ServerState {
                                 kind: "function".to_string(),
                                 type_info: Some(format!("fn {}", f.name)),
                                 documentation: None,
-                                location: Location {
-                                    uri: Url::parse(uri).ok()?,
-                                    range: range_to_lsp_range(&f.get_range(), doc),
+                                location: LocationRange {
+                                    uri: uri.to_string(),
+                                    range: range_to_lsp_range_usize(&f.get_range()),
                                 },
                             });
                         }
@@ -211,9 +211,9 @@ impl ServerState {
                                 kind: "class".to_string(),
                                 type_info: Some(format!("class {}", c.name)),
                                 documentation: None,
-                                location: Location {
-                                    uri: Url::parse(uri).ok()?,
-                                    range: range_to_lsp_range(&c.get_range(), doc),
+                                location: LocationRange {
+                                    uri: uri.to_string(),
+                                    range: range_to_lsp_range_usize(&c.get_range()),
                                 },
                             });
                         }
@@ -258,7 +258,7 @@ impl ServerState {
                                 kind: format!("{:?}", global.kind),
                                 type_info: None,
                                 documentation: global.documentation.clone(),
-                                location: Location { uri: Url::parse(&global.uri).ok()?, range: global.range },
+                                location: LocationRange { uri: global.uri.clone(), range: global.range },
                             });
                         }
                     }
@@ -300,12 +300,9 @@ impl ServerState {
                                     kind: "member".to_string(),
                                     type_info: Some(format!("member {}", last.name)),
                                     documentation: None,
-                                    location: Location {
-                                        uri: Url::parse(uri).ok()?,
-                                        range: range_to_lsp_range(
-                                            &(last.span.start..last.span.end),
-                                            doc,
-                                        ),
+                                    location: LocationRange {
+                                        uri: uri.to_string(),
+                                        range: range_to_lsp_range_usize(&(last.span.start..last.span.end)),
                                     },
                                 });
                             }
@@ -335,7 +332,7 @@ impl ServerState {
     /// 在指定类型中查找成员
     fn find_member_in_type(&self, type_info: &GlobalSymbol, member_name: &str, _uri: &str) -> Option<SymbolInfo> {
         // 只有类、接口等才有成员
-        if type_info.kind != SymbolKind::CLASS && type_info.kind != SymbolKind::INTERFACE {
+        if type_info.kind != SymbolKind::Class && type_info.kind != SymbolKind::Interface {
             return None;
         }
 
@@ -357,12 +354,9 @@ impl ServerState {
                                     kind: "field".to_string(),
                                     type_info: f.typing.as_ref().map(|t| format!("field {}: {:?}", f.name, t)),
                                     documentation: None,
-                                    location: Location {
-                                        uri: Url::parse(&type_info.uri).ok()?,
-                                        range: range_to_lsp_range(
-                                            &(f.span.start..f.span.end),
-                                            &doc,
-                                        ),
+                                    location: LocationRange {
+                                        uri: type_info.uri.clone(),
+                                        range: range_to_lsp_range_usize(&(f.span.start..f.span.end)),
                                     },
                                 });
                             }
@@ -373,12 +367,9 @@ impl ServerState {
                                     kind: "method".to_string(),
                                     type_info: Some(format!("method {}", m.name)),
                                     documentation: None,
-                                    location: Location {
-                                        uri: Url::parse(&type_info.uri).ok()?,
-                                        range: range_to_lsp_range(
-                                            &(m.name.span().start..m.name.span().end),
-                                            &doc,
-                                        ),
+                                    location: LocationRange {
+                                        uri: type_info.uri.clone(),
+                                        range: range_to_lsp_range_usize(&(m.name.span().start..m.name.span().end)),
                                     },
                                 });
                             }
@@ -389,7 +380,6 @@ impl ServerState {
                 _ => {}
             }
         }
-
         None
     }
 

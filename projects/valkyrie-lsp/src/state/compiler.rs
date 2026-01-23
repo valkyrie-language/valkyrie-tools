@@ -1,13 +1,13 @@
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
-use tower_lsp::lsp_types::*;
+use oak_lsp::types::SymbolKind;
 use tracing::{debug, error, info};
 use valkyrie_ast::ProgramRoot;
 use valkyrie_ast::helper::ValkyrieNode;
 use valkyrie_compiler::pipeline::ValkyrieCompiler;
 use valkyrie_error::{SourceID, ValkyrieError};
 use super::{ServerState, DocumentState, GlobalSymbol};
-use crate::handlers::utils::range_to_lsp_range;
+use crate::handlers::utils::range_to_lsp_range_usize;
 
 impl ServerState {
     /// 设置工作区根目录
@@ -151,9 +151,9 @@ impl ServerState {
                     symbols.push(GlobalSymbol {
                         name: f.name.to_string(),
                         namespace: current_namespace.clone(),
-                        kind: SymbolKind::FUNCTION,
+                        kind: SymbolKind::Function,
                         uri: uri.to_string(),
-                        range: range_to_lsp_range(&f.get_range(), &doc),
+                        range: range_to_lsp_range_usize(&f.get_range()),
                         documentation: None, // TODO: 提取文档注释
                         hash: 0,             // TODO: 计算内容的哈希
                     });
@@ -162,9 +162,9 @@ impl ServerState {
                     symbols.push(GlobalSymbol {
                         name: c.name.to_string(),
                         namespace: current_namespace.clone(),
-                        kind: SymbolKind::CLASS,
+                        kind: SymbolKind::Class,
                         uri: uri.to_string(),
-                        range: range_to_lsp_range(&c.get_range(), &doc),
+                        range: range_to_lsp_range_usize(&c.get_range()),
                         documentation: None,
                         hash: 0,
                     });
@@ -173,9 +173,9 @@ impl ServerState {
                     symbols.push(GlobalSymbol {
                         name: t.name.to_string(),
                         namespace: current_namespace.clone(),
-                        kind: SymbolKind::INTERFACE,
+                        kind: SymbolKind::Interface,
                         uri: uri.to_string(),
-                        range: range_to_lsp_range(&t.get_range(), &doc),
+                        range: range_to_lsp_range_usize(&t.get_range()),
                         documentation: None,
                         hash: 0,
                     });

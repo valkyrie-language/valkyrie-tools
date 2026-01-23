@@ -9,7 +9,10 @@ repository = "https://github.com/nyar-lang/nyar-vm"
 
 [dependencies]
 # LSP 核心依赖
-tower-lsp = "0.20"
+oak-lsp = { path = "../../../oaks/projects/oak-lsp" }
+oak-core = { path = "../../../oaks/projects/oak-core" }
+oak-vfs = { path = "../../../oaks/projects/oak-vfs" }
+oak-valkyrie = { path = "../../../oaks/examples/oak-valkyrie" }
 tokio = { version = "1.0", features = ["full"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"

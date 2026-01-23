@@ -1,7 +1,8 @@
 use dashmap::DashMap;
 use parking_lot::RwLock;
 use std::sync::Arc;
-use tower_lsp::lsp_types::*;
+use oak_lsp::types::{LocationRange, Position};
+use serde_json::Value;
 
 pub mod document;
 pub mod symbol;
@@ -28,7 +29,7 @@ pub struct ServerState {
     pub(crate) semantic_cache: Arc<SemanticCache>,
 
     /// 客户端能力
-    pub(crate) client_capabilities: Arc<RwLock<Option<TextDocumentClientCapabilities>>>,
+    pub(crate) client_capabilities: Arc<RwLock<Option<Value>>>,
 
     /// 工作区根目录
     pub(crate) workspace_root: Arc<RwLock<Option<String>>>,
@@ -60,7 +61,7 @@ impl ServerState {
     }
 
     /// 设置客户端能力
-    pub async fn set_client_capabilities(&self, capabilities: TextDocumentClientCapabilities) {
+    pub async fn set_client_capabilities(&self, capabilities: Value) {
         *self.client_capabilities.write() = Some(capabilities);
     }
 
@@ -76,7 +77,7 @@ impl ServerState {
             kind: format!("{:?}", symbol.kind),
             type_info: None,
             documentation: symbol.documentation.clone(),
-            location: Location { uri: Url::parse(&symbol.uri).unwrap(), range: symbol.range },
+            location: LocationRange { uri: symbol.uri.clone(), range: symbol.range },
         };
         self.semantic_cache.cache.entry(namespace.to_string()).or_insert_with(DashMap::new).insert(name.to_string(), Arc::new(info));
     }

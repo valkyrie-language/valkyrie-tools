@@ -5,7 +5,7 @@
 
 use std::sync::Arc;
 use tokio::net::{TcpListener, TcpStream};
-use tower_lsp::{LspService, Server};
+use oak_lsp::LspServer;
 use tracing::{info, warn};
 use tracing_subscriber;
 
@@ -50,14 +50,11 @@ async fn start_stdio_server() -> Result<(), Box<dyn std::error::Error>> {
     let stdin = tokio::io::stdin();
     let stdout = tokio::io::stdout();
 
-    let (service, socket) = LspService::build(|client| ValkyrieBackend::new(client))
-        .custom_method("valkyrie/getAst", ValkyrieBackend::get_ast)
-        .custom_method("valkyrie/getHir", ValkyrieBackend::get_hir)
-        .custom_method("valkyrie/querySymbol", ValkyrieBackend::query_symbol)
-        .finish();
+    let backend = Arc::new(ValkyrieBackend::new());
+    let server = LspServer::new(backend);
 
     info!("Valkyrie LSP Server started on stdio");
-    Server::new(stdin, stdout, socket).serve(service).await;
+    server.run(stdin, stdout).await?;
 
     Ok(())
 }
@@ -79,13 +76,10 @@ async fn start_tcp_server(port: u16) -> Result<(), Box<dyn std::error::Error>> {
 async fn handle_connection(stream: TcpStream) {
     let (read, write) = tokio::io::split(stream);
 
-    let (service, socket) = LspService::build(|client| ValkyrieBackend::new(client))
-        .custom_method("valkyrie/getAst", ValkyrieBackend::get_ast)
-        .custom_method("valkyrie/getHir", ValkyrieBackend::get_hir)
-        .custom_method("valkyrie/querySymbol", ValkyrieBackend::query_symbol)
-        .finish();
+    let backend = Arc::new(ValkyrieBackend::new());
+    let server = LspServer::new(backend);
 
-    let server = Server::new(read, write, socket);
-
-    server.serve(service).await;
+    if let Err(e) = server.run(read, write).await {
+        warn!("Error handling connection: {}", e);
+    }
 }

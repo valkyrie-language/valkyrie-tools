@@ -1,4 +1,4 @@
-use tower_lsp::lsp_types::*;
+use oak_lsp::types::{Hover, Position};
 use crate::state::ServerState;
 
 pub struct HoverHandler;
@@ -6,12 +6,10 @@ pub struct HoverHandler;
 impl HoverHandler {
     pub async fn handle(
         state: &ServerState,
-        params: HoverParams,
-    ) -> Result<Option<Hover>, Box<dyn std::error::Error + Send + Sync>> {
-        let uri = params.text_document_position_params.text_document.uri.to_string();
-        let position = params.text_document_position_params.position;
-
-        if let Some(symbol) = state.query_symbol_at_position(&uri, position).await {
+        uri: &str,
+        position: Position,
+    ) -> anyhow::Result<Option<Hover>> {
+        if let Some(symbol) = state.query_symbol_at_position(uri, position).await {
             let mut markdown = String::new();
 
             // 添加名称和类型
@@ -27,7 +25,7 @@ impl HoverHandler {
             }
 
             return Ok(Some(Hover {
-                contents: HoverContents::Markup(MarkupContent { kind: MarkupKind::Markdown, value: markdown }),
+                contents: markdown,
                 range: Some(symbol.location.range),
             }));
         }

@@ -1,4 +1,4 @@
-use tower_lsp::lsp_types::*;
+use oak_lsp::types::{WorkspaceSymbol, LocationRange};
 use tracing::debug;
 use crate::state::ServerState;
 
@@ -7,8 +7,8 @@ pub struct WorkspaceSymbolHandler;
 
 impl WorkspaceSymbolHandler {
     /// 处理工作区符号查询
-    pub async fn handle(state: &ServerState, params: WorkspaceSymbolParams) -> Option<Vec<SymbolInformation>> {
-        let query = params.query.to_lowercase();
+    pub async fn handle(state: &ServerState, query: &str) -> Vec<WorkspaceSymbol> {
+        let query_lower = query.to_lowercase();
         debug!("Workspace symbol query: {}", query);
 
         let mut result = Vec::new();
@@ -17,24 +17,17 @@ impl WorkspaceSymbolHandler {
         for ns_map_ref in state.index.symbols.iter() {
             for symbol_ref in ns_map_ref.value().iter() {
                 let symbol = symbol_ref.value();
-                if query.is_empty() || symbol.name.to_lowercase().contains(&query) {
-                    result.push(SymbolInformation {
+                if query.is_empty() || symbol.name.to_lowercase().contains(&query_lower) {
+                    result.push(WorkspaceSymbol {
                         name: symbol.name.clone(),
                         kind: symbol.kind,
-                        tags: None,
-                        deprecated: None,
-                        location: Location { uri: Url::parse(&symbol.uri).unwrap(), range: symbol.range },
+                        location: LocationRange { uri: symbol.uri.clone(), range: symbol.range },
                         container_name: Some(ns_map_ref.key().clone()),
                     });
                 }
             }
         }
 
-        if result.is_empty() {
-            None
-        }
-        else {
-            Some(result)
-        }
+        result
     }
 }

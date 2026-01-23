@@ -1,6 +1,6 @@
 use dashmap::DashMap;
 use std::sync::Arc;
-use tower_lsp::lsp_types::*;
+use oak_lsp::types::{LocationRange, SymbolKind, Range};
 
 /// 符号查询结果
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -10,7 +10,7 @@ pub struct SymbolInfo {
     pub kind: String,
     pub type_info: Option<String>,
     pub documentation: Option<String>,
-    pub location: Location,
+    pub location: LocationRange,
 }
 
 /// 全局符号信息
@@ -20,7 +20,7 @@ pub struct GlobalSymbol {
     pub namespace: String,
     pub kind: SymbolKind,
     pub uri: String,
-    pub range: Range,
+    pub range: Range<usize>,
     pub documentation: Option<String>,
     /// 符号定义的哈希，用于细粒度失效检查
     pub hash: u64,

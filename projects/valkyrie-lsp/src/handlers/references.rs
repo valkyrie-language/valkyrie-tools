@@ -1,17 +1,17 @@
-use tower_lsp::lsp_types::*;
+use oak_lsp::types::{LocationRange, Position};
 use crate::state::{ServerState, DocumentState};
-use super::utils::{span_to_range, range_to_lsp_range};
+use super::utils::span_to_range_usize;
 
 /// 引用处理器
 pub struct ReferencesHandler;
 
 impl ReferencesHandler {
-    pub async fn handle(state: &ServerState, params: ReferenceParams) -> Option<Vec<Location>> {
-        let uri = params.text_document_position.text_document.uri.to_string();
-        let position = params.text_document_position.position;
-
+    pub async fn handle(state: &ServerState, uri: &str, position: Position) -> Vec<LocationRange> {
         // 1. 找到当前位置的符号
-        let symbol = state.query_symbol_at_position(&uri, position).await?;
+        let symbol = match state.query_symbol_at_position(uri, position).await {
+            Some(s) => s,
+            None => return vec![],
+        };
         let name = symbol.name;
 
         let mut locations = Vec::new();
@@ -25,12 +25,7 @@ impl ReferencesHandler {
             }
         }
 
-        if locations.is_empty() {
-            None
-        }
-        else {
-            Some(locations)
-        }
+        locations
     }
 
     fn collect_references(
@@ -38,41 +33,41 @@ impl ReferencesHandler {
         name: &str,
         uri: &str,
         doc: &DocumentState,
-        locations: &mut Vec<Location>,
+        locations: &mut Vec<LocationRange>,
     ) {
         for stmt in statements {
             match stmt {
                 valkyrie_ast::StatementKind::Function(f) => {
                     if f.name.to_string() == name {
-                        locations.push(Location {
-                            uri: Url::parse(uri).unwrap(),
-                            range: span_to_range(f.name.span(), doc),
+                        locations.push(LocationRange {
+                            uri: uri.to_string(),
+                            range: span_to_range_usize(f.name.span()),
                         });
                     }
                     Self::collect_references(&f.body.terms, name, uri, doc, locations);
                 }
                 valkyrie_ast::StatementKind::Class(c) => {
                     if c.name.to_string() == name {
-                        locations.push(Location {
-                            uri: Url::parse(uri).unwrap(),
-                            range: span_to_range(c.name.span, doc),
+                        locations.push(LocationRange {
+                            uri: uri.to_string(),
+                            range: span_to_range_usize(c.name.span),
                         });
                     }
                     for term in &c.terms {
                         match term {
                             valkyrie_ast::ClassTerm::Field(f) => {
                                 if f.name.to_string() == name {
-                                    locations.push(Location {
-                                        uri: Url::parse(uri).unwrap(),
-                                        range: span_to_range(f.name.span, doc),
+                                    locations.push(LocationRange {
+                                        uri: uri.to_string(),
+                                        range: span_to_range_usize(f.name.span),
                                     });
                                 }
                             }
                             valkyrie_ast::ClassTerm::Method(m) => {
                                 if m.name.to_string() == name {
-                                    locations.push(Location {
-                                        uri: Url::parse(uri).unwrap(),
-                                        range: span_to_range(m.name.span(), doc),
+                                    locations.push(LocationRange {
+                                        uri: uri.to_string(),
+                                        range: span_to_range_usize(m.name.span()),
                                     });
                                 }
                                 if let Some(body) = &m.body {
@@ -107,15 +102,15 @@ impl ReferencesHandler {
         name: &str,
         uri: &str,
         doc: &DocumentState,
-        locations: &mut Vec<Location>,
+        locations: &mut Vec<LocationRange>,
     ) {
         match pattern {
             valkyrie_ast::CasePattern::Symbol(s) => {
                 if let valkyrie_ast::ArgumentKey::Symbol(node) = &**s {
                     if node.name.to_string() == name {
-                        locations.push(Location {
-                            uri: Url::parse(uri).unwrap(),
-                            range: span_to_range(node.span.clone(), doc),
+                        locations.push(LocationRange {
+                            uri: uri.to_string(),
+                            range: span_to_range_usize(node.span.clone()),
                         });
                     }
                 }
@@ -144,14 +139,14 @@ impl ReferencesHandler {
         name: &str,
         uri: &str,
         doc: &DocumentState,
-        locations: &mut Vec<Location>,
+        locations: &mut Vec<LocationRange>,
     ) {
         match expr {
             valkyrie_ast::ExpressionKind::Symbol(s) => {
                 if s.to_string() == name {
-                    locations.push(Location {
-                        uri: Url::parse(uri).unwrap(),
-                        range: range_to_lsp_range(&s.get_range(), doc),
+                    locations.push(LocationRange {
+                        uri: uri.to_string(),
+                        range: range_to_lsp_range_usize(&s.get_range()),
                     });
                 }
             }
@@ -168,9 +163,9 @@ impl ReferencesHandler {
                 Self::collect_references_in_expr(&call.base, name, uri, doc, locations);
                 if let valkyrie_ast::DotCallTerm::Symbol(p) = &call.term {
                     if p.to_string() == name {
-                        locations.push(Location {
-                            uri: Url::parse(uri).unwrap(),
-                            range: span_to_range(p.span.clone(), doc),
+                        locations.push(LocationRange {
+                            uri: uri.to_string(),
+                            range: span_to_range_usize(p.span.clone()),
                         });
                     }
                 }
@@ -182,9 +177,9 @@ impl ReferencesHandler {
             valkyrie_ast::ExpressionKind::Lambda(lambda) => {
                 for param in lambda.parameters.terms() {
                     if param.key.to_string() == name {
-                        locations.push(Location {
-                            uri: Url::parse(uri).unwrap(),
-                            range: span_to_range(param.key.span.clone(), doc),
+                        locations.push(LocationRange {
+                            uri: uri.to_string(),
+                            range: span_to_range_usize(param.key.span.clone()),
                         });
                     }
                 }
