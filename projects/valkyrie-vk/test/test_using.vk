@@ -1,0 +1,7 @@
+namespace bootstrap::test_using;
+
+using std::os::{args, get_env};
+using std::os::{*, self};
+using std::os::getcwd;
+
+println("Using syntax test passed");

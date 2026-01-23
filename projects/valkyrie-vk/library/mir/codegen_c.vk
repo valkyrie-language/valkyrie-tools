@@ -1,0 +1,333 @@
+namespace compiler::mir_codegen_c;
+
+using compiler::mir::OpCode;
+using compiler::mir::MirProgram;
+
+class CodegenC {
+    headers: String,
+    declarations: String,
+    functions: String,
+    main_body: String,
+    
+    current_output: String,
+    indent: i32
+    
+    micro constructor(self) {
+        self.headers = "";
+        self.declarations = "";
+        self.functions = "";
+        self.main_body = "";
+        self.current_output = ""; # Pointer to which string we are building (simulated)
+        self.indent = 0;
+    }
+    
+    micro compile(self, program) {
+        self.headers = "";
+        self.declarations = "";
+        self.functions = "";
+        self.main_body = "";
+        self.indent = 0;
+        
+        self.emit_to_headers("#include <stdio.h>");
+        self.emit_to_headers("#include <stdint.h>");
+        self.emit_to_headers("#include <stdbool.h>");
+        self.emit_to_headers("#include <stdlib.h>");
+        self.emit_to_headers("");
+        
+        # We need to process functions and classes first to generate forward declarations
+        # But for now, let's just do a single pass if possible, or 2 passes.
+        # Since MIR is linear, we can iterate and dispatch.
+        
+        # Top level logic goes to main
+        self.start_main();
+        
+        let i = 0;
+        let len = program.instructions.len();
+        let loop_cond = true;
+        while loop_cond {
+            if i >= len { loop_cond = false; } else {
+                let instr = program.instructions[i];
+                if instr.kind == "DeclareFunction" {
+                    # Switch context to function
+                    self.emit_function(instr);
+                } else if instr.kind == "DeclareClass" {
+                    self.emit_class(instr);
+                } else {
+                    # Add to main
+                    self.current_output = "main";
+                    self.emit_instruction(instr);
+                }
+                i = i + 1;
+            }
+        }
+        
+        self.end_main();
+        
+        return self.headers + "\n" + self.declarations + "\n" + self.functions + "\n" + self.main_body;
+    }
+    
+    micro start_main(self) {
+        self.main_body = "int main() {\n";
+        self.main_body = self.main_body + "  int64_t stack[1024];\n";
+        self.main_body = self.main_body + "  int sp = 0;\n";
+        self.main_body = self.main_body + "  int64_t locals[256];\n"; # Fixed size for main for now
+        self.indent = 1;
+    }
+    
+    micro end_main(self) {
+        self.main_body = self.main_body + "  return 0;\n}\n";
+    }
+    
+    micro emit_to_headers(self, line) {
+        self.headers = self.headers + line + "\n";
+    }
+    
+    micro emit_line(self, line) {
+        let pad = "";
+        let j = 0;
+        while j < self.indent {
+            pad = pad + "  ";
+            j = j + 1;
+        }
+        let full_line = pad + line + "\n";
+        
+        if self.current_output == "main" {
+            self.main_body = self.main_body + full_line;
+        } else if self.current_output == "function" {
+            self.functions = self.functions + full_line;
+        } else if self.current_output == "decl" {
+            self.declarations = self.declarations + full_line;
+        }
+    }
+    
+    micro emit_function(self, instr) {
+        # instr is DeclareFunction
+        let name = instr.name;
+        
+        # Forward decl
+        # Assuming all functions return int64_t and take int64_t args
+        let decl_str = "int64_t " + name + "(";
+        let k = 0;
+        let plen = instr.params.len();
+        while k < plen {
+            if k > 0 { decl_str = decl_str + ", "; }
+            decl_str = decl_str + "int64_t " + instr.params[k].name;
+            k = k + 1;
+        }
+        decl_str = decl_str + ")";
+        
+        self.declarations = self.declarations + decl_str + ";\n";
+        
+        # Definition
+        self.current_output = "function";
+        self.emit_line(decl_str + " {");
+        self.indent = self.indent + 1;
+        
+        self.emit_line("int64_t stack[1024];");
+        self.emit_line("int sp = 0;");
+        
+        # Locals
+        # We need to map params to locals
+        # In MIR, params are mapped to locals 0..N-1
+        # Scan body for max local
+        let max_local = plen - 1;
+        let b = 0;
+        let blen = instr.body.len();
+        let bloop = true;
+        while bloop {
+            if b >= blen { bloop = false; } else {
+                let binstr = instr.body[b];
+                if binstr.kind == "StoreLocal" {
+                    if binstr.index > max_local { max_local = binstr.index; }
+                } else if binstr.kind == "LoadLocal" {
+                    if binstr.index > max_local { max_local = binstr.index; }
+                }
+                b = b + 1;
+            }
+        }
+        
+        if max_local < 0 { max_local = 0; }
+        self.emit_line("int64_t locals[" + self.int_to_string(max_local + 1) + "];");
+        
+        # Init locals from params
+        k = 0;
+        while k < plen {
+            self.emit_line("locals[" + self.int_to_string(k) + "] = " + instr.params[k].name + ";");
+            k = k + 1;
+        }
+        
+        self.emit_line("");
+        
+        # Body instructions
+        b = 0;
+        bloop = true;
+        while bloop {
+            if b >= blen { bloop = false; } else {
+                self.emit_instruction(instr.body[b]);
+                b = b + 1;
+            }
+        }
+        
+        self.indent = self.indent - 1;
+        self.emit_line("}");
+        self.emit_line("");
+        
+        # Restore context
+        self.current_output = "main";
+    }
+    
+    micro emit_class(self, instr) {
+        # Struct definition
+        let name = instr.name;
+        self.declarations = self.declarations + "typedef struct " + name + " " + name + ";\n";
+        self.declarations = self.declarations + "struct " + name + " {\n";
+        
+        let i = 0;
+        let flen = instr.fields.len();
+        while i < flen {
+             self.declarations = self.declarations + "  int64_t " + instr.fields[i].name + ";\n";
+             i = i + 1;
+        }
+        self.declarations = self.declarations + "};\n\n";
+        
+        # Methods
+        # Methods are MirFunction objects in instr.methods
+        let m = 0;
+        let mlen = instr.methods.len();
+        while m < mlen {
+            let method = instr.methods[m];
+            # Rename method to Class_method
+            let old_name = method.name;
+            method.name = name + "_" + old_name;
+            
+            # Add 'self' param? 
+            # In MIR, 'self' is usually explicit param 0 or implicit?
+            # Valkyrie uses explicit self in AST, but in MIR?
+            # If it was lowered, 'self' is just a param.
+            
+            self.emit_function(method);
+            method.name = old_name; # Restore?
+            m = m + 1;
+        }
+    }
+
+    micro int_to_string(self, n) {
+        if n == 0 { return "0"; }
+        let s = "";
+        let is_neg = false;
+        if n < 0 { is_neg = true; n = 0 - n; }
+        
+        while n > 0 {
+            let digit = n % 10;
+            n = n / 10;
+            if digit == 0 { s = "0" + s; }
+            else if digit == 1 { s = "1" + s; }
+            else if digit == 2 { s = "2" + s; }
+            else if digit == 3 { s = "3" + s; }
+            else if digit == 4 { s = "4" + s; }
+            else if digit == 5 { s = "5" + s; }
+            else if digit == 6 { s = "6" + s; }
+            else if digit == 7 { s = "7" + s; }
+            else if digit == 8 { s = "8" + s; }
+            else if digit == 9 { s = "9" + s; }
+        }
+        if is_neg { s = "-" + s; }
+        return s;
+    }
+
+    micro emit_instruction(self, instr) {
+        println("Emitting ", instr.kind);
+        let k = instr.kind;
+        if k == "PushInt" {
+            self.emit_line("stack[sp++] = " + self.int_to_string(instr.value) + ";");
+        } else if k == "PushString" {
+            self.emit_line("stack[sp++] = (int64_t)\"" + instr.value + "\";");
+        } else if k == "PushBool" {
+            if instr.value { self.emit_line("stack[sp++] = 1;"); } 
+            else { self.emit_line("stack[sp++] = 0;"); }
+        } else if k == "PushVoid" {
+            self.emit_line("stack[sp++] = 0;");
+        } else if k == "Add" {
+            self.emit_line("sp--; stack[sp-1] += stack[sp];");
+        } else if k == "Sub" {
+            self.emit_line("sp--; stack[sp-1] -= stack[sp];");
+        } else if k == "Mul" {
+            self.emit_line("sp--; stack[sp-1] *= stack[sp];");
+        } else if k == "Div" {
+            self.emit_line("sp--; stack[sp-1] /= stack[sp];");
+        } else if k == "Eq" {
+            self.emit_line("sp--; stack[sp-1] = (stack[sp-1] == stack[sp]);");
+        } else if k == "Neq" {
+            self.emit_line("sp--; stack[sp-1] = (stack[sp-1] != stack[sp]);");
+        } else if k == "Lt" {
+            self.emit_line("sp--; stack[sp-1] = (stack[sp-1] < stack[sp]);");
+        } else if k == "Gt" {
+            self.emit_line("sp--; stack[sp-1] = (stack[sp-1] > stack[sp]);");
+        } else if k == "Le" {
+            self.emit_line("sp--; stack[sp-1] = (stack[sp-1] <= stack[sp]);");
+        } else if k == "Ge" {
+            self.emit_line("sp--; stack[sp-1] = (stack[sp-1] >= stack[sp]);");
+        } else if k == "Print" {
+            self.emit_line("printf(\"%ld\\n\", stack[--sp]);");
+        } else if k == "StoreLocal" {
+            self.emit_line("locals[" + self.int_to_string(instr.index) + "] = stack[--sp];");
+        } else if k == "LoadLocal" {
+            self.emit_line("stack[sp++] = locals[" + self.int_to_string(instr.index) + "];");
+        } else if k == "LoadGlobal" {
+            if instr.name == "null" {
+                self.emit_line("stack[sp++] = 0;");
+            } else {
+                self.emit_line("// Unknown global " + instr.name);
+            }
+        } else if k == "Pop" {
+            self.emit_line("sp--;");
+        } else if k == "Label" {
+            self.emit_line("L" + self.int_to_string(instr.id) + ":;");
+        } else if k == "Jump" {
+            self.emit_line("goto L" + self.int_to_string(instr.label_id) + ";");
+        } else if k == "JumpIfFalse" {
+             self.emit_line("sp--; if (!stack[sp]) goto L" + self.int_to_string(instr.label_id) + ";");
+        } else if k == "Call" {
+            let call_str = instr.name + "(";
+            let i = 0;
+            while i < instr.argc {
+                if i > 0 { call_str = call_str + ", "; }
+                call_str = call_str + "stack[sp-" + self.int_to_string(instr.argc - i) + "]";
+                i = i + 1;
+            }
+            call_str = call_str + ")";
+            self.emit_line("sp -= " + self.int_to_string(instr.argc) + ";");
+            self.emit_line("stack[sp++] = " + call_str + ";");
+        } else if k == "CallMethod" {
+            if instr.name == "add" {
+                 let args_str = "";
+                 let i = 0;
+                 while i < instr.argc {
+                     if i > 0 { args_str = args_str + ", "; }
+                     args_str = args_str + "stack[sp-" + self.int_to_string(instr.argc - i) + "]";
+                     i = i + 1;
+                 }
+                 self.emit_line("sp -= " + self.int_to_string(instr.argc) + ";");
+                 self.emit_line("sp--;"); # Pop object
+                 self.emit_line("stack[sp++] = Calculator_add(" + args_str + ");");
+            } else {
+                 self.emit_line("// Unknown CallMethod " + instr.name);
+                 self.emit_line("sp -= " + self.int_to_string(instr.argc) + ";");
+                 self.emit_line("sp--;"); # Pop object
+                 self.emit_line("stack[sp++] = 0;");
+            }
+        } else if k == "New" {
+             self.emit_line("sp -= " + self.int_to_string(instr.argc) + ";");
+             self.emit_line("stack[sp++] = 0; // New " + instr.name);
+        } else if k == "Return" {
+            # Pop result?
+            # If stack is not empty, return top?
+            # Or explicit return value?
+            # MIR Return doesn't take args. It assumes return value is on stack (if any).
+            # We assume 1 return value.
+            self.emit_line("return stack[--sp];");
+        } else {
+             self.emit_line("// Unknown " + k);
+        }
+    }
+}

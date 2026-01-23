@@ -1,0 +1,114 @@
+namespace std::collections::list;
+
+using std::collections;
+
+class LinkedList<T> (MutableList<T>) {
+    head: Node<T>,
+    tail: Node<T>,
+    length: usize
+
+    micro constructor(self) {
+        self.head = null;
+        self.tail = null;
+        self.length = 0;
+    }
+
+    micro len(self) -> isize {
+        return self.length;
+    }
+
+    micro push(self, item: T) {
+        let node = new Node(item);
+        if self.tail == null {
+            self.head = node;
+            self.tail = node;
+        } else {
+            self.tail.next = node;
+            self.tail = node;
+        }
+        self.length = self.length + 1;
+    }
+
+    micro pop(self) -> T {
+        # Naive O(n) pop for singly linked list
+        if self.head == null { return null; }
+        
+        if self.head == self.tail {
+            let val = self.head.value;
+            self.head = null;
+            self.tail = null;
+            self.length = 0;
+            return val;
+        }
+        
+        let current = self.head;
+        while current.next != self.tail {
+            current = current.next;
+        }
+        
+        let val = self.tail.value;
+        self.tail = current;
+        self.tail.next = null;
+        self.length = self.length - 1;
+        return val;
+    }
+    
+    micro get(self, index: usize) -> T {
+        if index < 0 || index >= self.length { return null; }
+        let current = self.head;
+        let i = 0;
+        while i < index {
+            current = current.next;
+            i = i + 1;
+        }
+        return current.value;
+    }
+    
+    micro set(self, index: usize, item: T) {
+        if index < 0 || index >= self.length { return; }
+        let current = self.head;
+        let i = 0;
+        while i < index {
+            current = current.next;
+            i = i + 1;
+        }
+        current.value = item;
+    }
+    
+    micro clear(self) {
+        self.head = null;
+        self.tail = null;
+        self.length = 0;
+    }
+    
+    micro iterator(self) -> Iterator<T> {
+        return new LinkedListIterator(self);
+    }
+}
+
+class LinkedListIterator<T> (Iterator<T>) {
+    current: Node<T>
+
+    micro constructor(self, list: LinkedList<T>) {
+        self.current = list.head;
+    }
+
+    micro next(self) -> T {
+        if self.current == null {
+            return null;
+        }
+        let val = self.current.value;
+        self.current = self.current.next;
+        return val;
+    }
+}
+
+class Node<T> {
+    value: T,
+    next: Node<T>
+    
+    micro constructor(self, value) {
+        self.value = value;
+        self.next = null;
+    }
+}

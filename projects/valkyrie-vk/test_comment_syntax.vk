@@ -1,0 +1,9 @@
+# This is a comment
+namespace test;
+
+class Test {
+    micro main() {
+        # Another comment
+        let x = 1; # Inline comment
+    }
+}

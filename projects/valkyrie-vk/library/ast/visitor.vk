@@ -1,0 +1,173 @@
+namespace compiler::visitor;
+
+using compiler::ast::Program;
+using compiler::ast::Statement;
+using compiler::ast::Expression;
+using compiler::ast::BlockStatement;
+using compiler::ast::LetStatement;
+using compiler::ast::ReturnStatement;
+using compiler::ast::IfStatement;
+using compiler::ast::MatchStatement;
+using compiler::ast::WhileStatement;
+using compiler::ast::FunctionStatement;
+using compiler::ast::ClassStatement;
+using compiler::ast::NamespaceStatement;
+using compiler::ast::UsingStatement;
+using compiler::ast::ExpressionStatement;
+using compiler::ast::Literal;
+using compiler::ast::Identifier;
+
+class Visitor {
+    micro constructor(self) {}
+
+    micro visit_program(self, node) {
+        let i = 0;
+        let len = node.statements.len();
+        let loop_cond = true;
+        while loop_cond {
+            if i >= len { loop_cond = false; } else {
+                self.visit_statement(node.statements[i]);
+                i = i + 1;
+            }
+        }
+    }
+
+    micro visit_statement(self, stmt) {
+        # We don't have pattern matching on types in Valkyrie yet?
+        # Or we do? We have `match`.
+        # But `match` in Parser.vk uses Token kind string.
+        # Here we have AST objects.
+        # We can use `instanceof` if it exists, or check properties?
+        # Valkyrie host (valkyrie-rs) doesn't seem to expose `instanceof` or type checking easily in RuntimeValue yet.
+        # But we can check for fields or use a `kind` field if we added one.
+        # AST nodes in `ast.vk` don't have a `kind` field explicitly.
+        # But they are different classes.
+        # `valkyrie-rs` might print class name in debug.
+        # Let's assume we can't easily dispatch without helper.
+        # But wait, `valkyrie-rs` supports method dispatch.
+        # So we can add `accept` to AST nodes!
+        
+        # For now, let's just try to access fields and infer, or use `match` if we can match on type names?
+        # `match stmt { Case LetStatement { ... } }`? No, valkyrie-rs match is not that advanced yet (basic values).
+        
+        # So Visitor pattern via `accept` method in AST is best.
+        # But I don't want to edit `ast.vk` too much if I can avoid it.
+        # Actually, editing `ast.vk` to add `accept` is the cleanest way.
+        
+        # However, since this is a dynamic language, I can just call `stmt.accept(self)`.
+        # If `stmt` has `accept`, it works.
+        stmt.accept(self);
+    }
+    
+    # Default implementations
+    micro visit_block(self, node) {
+        let i = 0;
+        let len = node.statements.len();
+        let loop_cond = true;
+        while loop_cond {
+            if i >= len { loop_cond = false; } else {
+                self.visit_statement(node.statements[i]);
+                i = i + 1;
+            }
+        }
+    }
+    
+    micro visit_let(self, node) {
+        self.visit_expression(node.initializer);
+    }
+    
+    micro visit_return(self, node) {
+        if node.result != null {
+            self.visit_expression(node.result);
+        }
+    }
+    
+    micro visit_if(self, node) {
+        self.visit_expression(node.condition);
+        self.visit_block(node.then_branch);
+        if node.else_branch != null {
+            self.visit_statement(node.else_branch);
+        }
+    }
+    
+    micro visit_match(self, node) {
+        self.visit_expression(node.condition);
+        let i = 0;
+        let len = node.cases.len();
+        let loop_cond = true;
+        while loop_cond {
+            if i >= len { loop_cond = false; } else {
+                let c = node.cases[i];
+                self.visit_expression(c.pattern);
+                self.visit_statement(c.body);
+                i = i + 1;
+            }
+        }
+    }
+    
+    micro visit_while(self, node) {
+        self.visit_expression(node.condition);
+        self.visit_block(node.body);
+    }
+    
+    micro visit_function(self, node) {
+        self.visit_block(node.body);
+    }
+    
+    micro visit_class(self, node) {
+        let i = 0;
+        let len = node.methods.len();
+        let loop_cond = true;
+        while loop_cond {
+            if i >= len { loop_cond = false; } else {
+                self.visit_statement(node.methods[i]);
+                i = i + 1;
+            }
+        }
+    }
+    
+    micro visit_namespace(self, node) {}
+    micro visit_using(self, node) {}
+    
+    micro visit_expression_statement(self, node) {
+        self.visit_expression(node.expression);
+    }
+    
+    micro visit_call(self, expr) {
+        self.visit_expression(expr.callee);
+        let i = 0;
+        let len = expr.args.len();
+        let loop_cond = true;
+        while loop_cond {
+            if i >= len { loop_cond = false; } else {
+                self.visit_expression(expr.args[i]);
+                i = i + 1;
+            }
+        }
+    }
+    
+    micro visit_macro_call(self, node) {
+        let i = 0;
+        let len = node.args.len();
+        let loop_cond = true;
+        while loop_cond {
+            if i >= len { loop_cond = false; } else {
+                self.visit_expression(node.args[i]);
+                i = i + 1;
+            }
+        }
+    }
+    
+    micro visit_binary(self, expr) {
+        self.visit_expression(expr.left);
+        self.visit_expression(expr.right);
+    }
+    
+    micro visit_unary(self, expr) {
+        self.visit_expression(expr.operand);
+    }
+    
+    micro visit_expression(self, expr) {
+        # Base case for literals or identifiers, do nothing by default
+    }
+}

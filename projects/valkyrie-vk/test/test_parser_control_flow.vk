@@ -1,0 +1,47 @@
+@include("../library/compiler/lexer.vk");
+@include("../library/compiler/ast.vk");
+@include("../library/compiler/parser.vk");
+
+using compiler::lexer::Lexer;
+using compiler::parser::Parser;
+
+let src = "
+micro foo(a b) {
+    let x = 1;
+    return x;
+}
+
+if 1 {
+    let y = 2;
+} else {
+    let z = 3;
+}
+
+while 1 {
+    let w = 4;
+}
+";
+
+let lexer = new Lexer(src);
+let loop_cond = true;
+while loop_cond {
+   let t = lexer.next_token();
+   println("Token:", t.kind, t.value);
+   if t.kind == "EOF" { loop_cond = false; }
+}
+
+let lexer2 = new Lexer(src);
+let parser = new Parser(lexer2);
+
+let program = parser.parse_program();
+println("Parsed statements count:", program.statements.len());
+
+let func_stmt = program.statements[0];
+println("First stmt is function:", func_stmt.name.name);
+println("Params count:", func_stmt.params.len());
+
+let if_stmt = program.statements[1];
+println("Second stmt is if");
+
+let while_stmt = program.statements[2];
+println("Third stmt is while");

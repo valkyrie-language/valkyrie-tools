@@ -1,0 +1,9 @@
+class Box<T> {
+    value: T
+    micro constructor(self, value: T) {
+        self.value = value;
+    }
+}
+
+let b: Box<i32> = new Box(10);
+println(b.value);

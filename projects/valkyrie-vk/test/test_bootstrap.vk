@@ -1,0 +1,8 @@
+namespace foo;
+
+class Bar {
+    x: i32
+    micro run() {
+        let y = 1;
+    }
+}

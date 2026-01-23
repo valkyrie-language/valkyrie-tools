@@ -1,0 +1,29 @@
+
+class Calculator {
+    micro add(a, b) {
+        return a + b;
+    }
+    micro sub(a, b) {
+        return a - b;
+    }
+}
+
+micro main() {
+    let calc = new Calculator();
+    let x = 10;
+    let y = 20;
+    let sum = calc.add(x, y);
+    print("Sum: " + sum);
+    
+    if sum > 20 {
+        print("Sum is greater than 20");
+    } else {
+        print("Sum is not greater than 20");
+    }
+    
+    let i = 0;
+    while i < 5 {
+        print("Loop: " + i);
+        i = i + 1;
+    }
+}

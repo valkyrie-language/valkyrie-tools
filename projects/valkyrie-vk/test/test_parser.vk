@@ -1,0 +1,16 @@
+@include("../library/compiler/lexer.vk");
+@include("../library/compiler/ast.vk");
+@include("../library/compiler/parser.vk");
+
+using compiler::lexer::Lexer;
+using compiler::parser::Parser;
+
+let src = "let x = 123;";
+let lexer = new Lexer(src);
+let parser = new Parser(lexer);
+
+let program = parser.parse_program();
+println("Parsed program with statements:", program.statements.len());
+
+let stmt = program.statements[0];
+println("First statement is let:", stmt.name.name);

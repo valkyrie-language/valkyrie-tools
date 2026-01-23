@@ -3,6 +3,8 @@ resolver = "2"
 members = [
     "projects/legion-app",
     "projects/legion-config",
+    "projects/valkyrie-rs",
+    "projects/wasi-runner",
 ]
 
 [profile.release]

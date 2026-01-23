@@ -1,0 +1,18 @@
+namespace tests::test_using;
+
+using std::io::{println, print};
+using std::math::{sin, cos, constants::{PI, E}};
+using std::fs::*;
+using std::os::{*, self};
+
+fn main() {
+    println("Testing nested using...");
+    # println("PI: " + PI); # Error: String + Float not supported yet
+    println("PI:", PI);
+    println("E:", E);
+    # Check wildcard import
+    # assuming read_file is in std::fs and imported via *
+    # read_file("test.txt"); 
+    
+    println("Test passed if no parse errors.");
+}

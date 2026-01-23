@@ -1,0 +1,8 @@
+micro main() {
+    let s = "Hello";
+    if s.starts_with("H") {
+        print("Yes");
+    } else {
+        print("No");
+    }
+}

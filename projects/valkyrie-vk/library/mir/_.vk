@@ -1,0 +1,275 @@
+namespace compiler::mir;
+
+using compiler::ast::Span;
+
+class OpCode {
+    kind: String
+    micro constructor(self) {}
+}
+
+class PushInt(OpCode) {
+    value: i32
+    micro constructor(self, value) {
+        self.kind = "PushInt";
+        self.value = value;
+    }
+}
+
+class PushString(OpCode) {
+    value: String
+    micro constructor(self, value) {
+        self.kind = "PushString";
+        self.value = value;
+    }
+}
+
+class PushBool(OpCode) {
+    value: bool # or boolean
+    micro constructor(self, value) {
+        self.kind = "PushBool";
+        self.value = value;
+    }
+}
+
+class PushVoid(OpCode) {
+    micro constructor(self) {
+        self.kind = "PushVoid";
+    }
+}
+
+class LoadLocal(OpCode) {
+    index: i32
+    micro constructor(self, index) {
+        self.kind = "LoadLocal";
+        self.index = index;
+    }
+}
+
+class StoreLocal(OpCode) {
+    index: i32
+    micro constructor(self, index) {
+        self.kind = "StoreLocal";
+        self.index = index;
+    }
+}
+
+class LoadGlobal(OpCode) {
+    name: String
+    micro constructor(self, name) {
+        self.kind = "LoadGlobal";
+        self.name = name;
+    }
+}
+
+class StoreGlobal(OpCode) {
+    name: String
+    micro constructor(self, name) {
+        self.kind = "StoreGlobal";
+        self.name = name;
+    }
+}
+
+class Print(OpCode) {
+    micro constructor(self) {
+        self.kind = "Print";
+    }
+}
+
+class Call(OpCode) {
+    name: String,
+    argc: i32
+    micro constructor(self, name, argc) {
+        self.kind = "Call";
+        self.name = name;
+        self.argc = argc;
+    }
+}
+
+class Return(OpCode) {
+    micro constructor(self) {
+        self.kind = "Return";
+    }
+}
+
+class Label(OpCode) {
+    id: i32
+    micro constructor(self, id) {
+        self.kind = "Label";
+        self.id = id;
+    }
+}
+
+class Jump(OpCode) {
+    label_id: i32
+    micro constructor(self, label_id) {
+        self.kind = "Jump";
+        self.label_id = label_id;
+    }
+}
+
+class JumpIfFalse(OpCode) {
+    label_id: i32
+    micro constructor(self, label_id) {
+        self.kind = "JumpIfFalse";
+        self.label_id = label_id;
+    }
+}
+
+class Add(OpCode) {
+    micro constructor(self) { self.kind = "Add"; }
+}
+class Sub(OpCode) {
+    micro constructor(self) { self.kind = "Sub"; }
+}
+class Mul(OpCode) {
+    micro constructor(self) { self.kind = "Mul"; }
+}
+class Div(OpCode) {
+    micro constructor(self) { self.kind = "Div"; }
+}
+class Eq(OpCode) {
+    micro constructor(self) { self.kind = "Eq"; }
+}
+class Neq(OpCode) {
+    micro constructor(self) { self.kind = "Neq"; }
+}
+class Lt(OpCode) {
+    micro constructor(self) { self.kind = "Lt"; }
+}
+class Le(OpCode) {
+    micro constructor(self) { self.kind = "Le"; }
+}
+class Gt(OpCode) {
+    micro constructor(self) { self.kind = "Gt"; }
+}
+class Ge(OpCode) {
+    micro constructor(self) { self.kind = "Ge"; }
+}
+
+class DeclareFunction(OpCode) {
+    name: String,
+    params: List,
+    body: List,
+    debug_info: Any,
+    is_async: bool,
+    is_generator: bool,
+    annotations: List
+    
+    micro constructor(self, name, params, body, debug_info, is_async, is_generator) {
+        self.kind = "DeclareFunction";
+        self.name = name;
+        self.params = params;
+        self.body = body;
+        self.debug_info = debug_info;
+        self.is_async = is_async;
+        self.is_generator = is_generator;
+        self.annotations = [];
+    }
+}
+
+class MirFunction {
+    name: String,
+    params: List,
+    body: List,
+    debug_info: Any,
+    is_async: bool,
+    is_generator: bool,
+    annotations: List
+    
+    micro constructor(self, name, params, body, debug_info, is_async, is_generator) {
+        self.name = name;
+        self.params = params;
+        self.body = body;
+        self.debug_info = debug_info;
+        self.is_async = is_async;
+        self.is_generator = is_generator;
+        self.annotations = [];
+    }
+}
+
+class DeclareClass(OpCode) {
+    name: String,
+    parents: List,
+    fields: List,
+    methods: List
+    
+    micro constructor(self, name, parents, fields, methods) {
+        self.kind = "DeclareClass";
+        self.name = name;
+        self.parents = parents;
+        self.fields = fields;
+        self.methods = methods;
+    }
+}
+
+class DebugInfo {
+    span: Span,
+    name: String
+    micro constructor(self, span, name) {
+        self.span = span;
+        self.name = name;
+    }
+}
+
+class CallMethod(OpCode) {
+    name: String,
+    argc: i32
+    micro constructor(self, name, argc) {
+        self.kind = "CallMethod";
+        self.name = name;
+        self.argc = argc;
+    }
+}
+
+class GetField(OpCode) {
+    name: String
+    micro constructor(self, name) {
+        self.kind = "GetField";
+        self.name = name;
+    }
+}
+
+class SetField(OpCode) {
+    name: String
+    micro constructor(self, name) {
+        self.kind = "SetField";
+        self.name = name;
+    }
+}
+
+class New(OpCode) {
+    class_name: String,
+    argc: i32
+    micro constructor(self, class_name, argc) {
+        self.kind = "New";
+        self.class_name = class_name;
+        self.argc = argc;
+    }
+}
+
+class NewList(OpCode) {
+    count: i32
+    micro constructor(self, count) {
+        self.kind = "NewList";
+        self.count = count;
+    }
+}
+
+class Pop(OpCode) {
+    micro constructor(self) {
+        self.kind = "Pop";
+    }
+}
+
+class GetIndex(OpCode) {
+    micro constructor(self) {
+        self.kind = "GetIndex";
+    }
+}
+
+class MirProgram {
+    instructions: List
+    micro constructor(self, instructions) {
+        self.instructions = instructions;
+    }
+}

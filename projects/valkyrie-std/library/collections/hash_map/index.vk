@@ -1,0 +1,93 @@
+namespace std::collections::hash_map;
+
+using std::collections::list::List;
+using std::collections::array_list::ArrayList;
+
+class HashMap<K, V> {
+    buckets: List, # Naive buckets: List of List of [key, value] pairs
+    size: usize
+
+    micro constructor(self) {
+        self.buckets = new ArrayList();
+        self.size = 0;
+    }
+
+    micro length(self) -> isize { return self.size; }
+
+    micro set(self, key: K, value: V) {
+        # Naive implementation: linear scan if no hash support
+        # TODO: Implement hash(key)
+        
+        # Check if buckets initialized
+        if self.buckets.len() == 0 {
+             # Initialize with some capacity
+             let i = 0;
+             while i < 16 {
+                 self.buckets.push(new ArrayList());
+                 i = i + 1;
+             }
+        }
+        
+        # Naive hash: just use 0 for now until we have hash()
+        let h = 0; 
+        let bucket = self.buckets.get(h);
+        
+        # Search for key
+        let i = 0;
+        let len = bucket.len();
+        while i < len {
+            let entry = bucket.get(i);
+            if entry.key == key {
+                let old = entry.value;
+                entry.value = value; # Update
+                return;
+            }
+            i = i + 1;
+        }
+        
+        # Add new
+        bucket.push(new Entry(key, value));
+        self.size = self.size + 1;
+    }
+    
+    micro get(self, key: K) -> V {
+        if self.buckets.len() == 0 { return null; }
+        
+        let h = 0;
+        let bucket = self.buckets.get(h);
+        
+        let i = 0;
+        let len = bucket.len();
+        while i < len {
+            let entry = bucket.get(i);
+            if entry.key == key {
+                return entry.value;
+            }
+            i = i + 1;
+        }
+        
+        return null;
+    }
+    
+    micro has(self, key: K) -> bool {
+        let v = self.get(key);
+        return v != null; # Naive check, won't distinguish null value
+    }
+
+    micro remove(self, key: K) -> V {
+        # TODO
+        return null;
+    }
+    
+    micro keys(self) { return null; }
+    micro values(self) { return null; }
+}
+
+class Entry<K, V> {
+    key: K,
+    value: V
+    micro constructor(self, key, value) {
+        self.key = key;
+        self.value = value;
+    }
+}

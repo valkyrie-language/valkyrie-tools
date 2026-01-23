@@ -1,0 +1,424 @@
+namespace compiler::hir;
+
+using compiler::ast::Span;
+
+class HirNode {
+    kind: String
+    span: Span
+}
+
+class HirProgram(HirNode) {
+    statements: List,
+    span: Span
+    
+    micro constructor(self, statements, span) {
+        self.statements = statements;
+        self.span = span;
+        self.kind = "HirProgram";
+    }
+    
+    micro accept(self, visitor) {
+        return visitor.visit_program(self);
+    }
+}
+
+class HirStatement(HirNode) {
+    kind: String
+    annotations: List
+    micro constructor(self) {
+        self.annotations = [];
+    }
+}
+
+class HirBlock(HirStatement) {
+    statements: List,
+    span: Span
+    
+    micro constructor(self, statements, span) {
+        self.statements = statements;
+        self.span = span;
+        self.kind = "HirBlock";
+        self.annotations = [];
+    }
+    
+    micro accept(self, visitor) {
+        return visitor.visit_block(self);
+    }
+}
+
+class HirLet(HirStatement) {
+    name: String,
+    binding_id: i32,
+    ty: HirType,
+    value: HirExpression,
+    span: Span
+    
+    micro constructor(self, name, binding_id, ty, value, span) {
+        self.name = name;
+        self.binding_id = binding_id;
+        self.ty = ty;
+        self.value = value;
+        self.span = span;
+        self.kind = "HirLet";
+        self.annotations = [];
+    }
+    
+    micro accept(self, visitor) {
+        return visitor.visit_let(self);
+    }
+}
+
+class HirParam {
+    name: String,
+    binding_id: i32,
+    ty: HirType,
+    span: Span
+    
+    micro constructor(self, name, binding_id, ty, span) {
+        self.name = name;
+        self.binding_id = binding_id;
+        self.ty = ty;
+        self.span = span;
+    }
+}
+
+class HirFunction(HirStatement) {
+    name: String,
+    binding_id: i32,
+    params: List,
+    body: HirBlock,
+    generic_params: List,
+    span: Span
+    
+    micro constructor(self, name, binding_id, params, body, span) {
+        self.name = name;
+        self.binding_id = binding_id;
+        self.params = params;
+        self.body = body;
+        self.generic_params = [];
+        self.span = span;
+        self.kind = "HirFunction";
+        self.annotations = [];
+    }
+    
+    micro accept(self, visitor) {
+        return visitor.visit_function(self);
+    }
+}
+
+class HirClass(HirStatement) {
+    name: String,
+    binding_id: i32,
+    fields: List,
+    methods: List,
+    generic_params: List,
+    span: Span
+    
+    micro constructor(self, name, binding_id, fields, methods, span) {
+        self.name = name;
+        self.binding_id = binding_id;
+        self.fields = fields;
+        self.methods = methods;
+        self.generic_params = [];
+        self.span = span;
+        self.kind = "HirClass";
+        self.annotations = [];
+    }
+
+    micro accept(self, visitor) {
+        return visitor.visit_class(self);
+    }
+}
+
+class HirExpressionStatement(HirStatement) {
+    expression: HirExpression,
+    span: Span
+    
+    micro constructor(self, expression, span) {
+        self.expression = expression;
+        self.span = span;
+        self.kind = "HirExpressionStatement";
+        self.annotations = [];
+    }
+    
+    micro accept(self, visitor) {
+        return visitor.visit_expression_statement(self);
+    }
+}
+
+class HirReturn(HirStatement) {
+    value: HirExpression,
+    span: Span
+    
+    micro constructor(self, value, span) {
+        self.value = value;
+        self.span = span;
+        self.kind = "HirReturn";
+        self.annotations = [];
+    }
+    
+    micro accept(self, visitor) {
+        return visitor.visit_return(self);
+    }
+}
+
+class HirIf(HirStatement) {
+    condition: HirExpression,
+    then_branch: HirBlock,
+    else_branch: HirStatement,
+    span: Span
+    
+    micro constructor(self, condition, then_branch, else_branch, span) {
+        self.condition = condition;
+        self.then_branch = then_branch;
+        self.else_branch = else_branch;
+        self.span = span;
+        self.kind = "HirIf";
+        self.annotations = [];
+    }
+    
+    micro accept(self, visitor) {
+        return visitor.visit_if(self);
+    }
+}
+
+class HirWhile(HirStatement) {
+    condition: HirExpression,
+    body: HirBlock,
+    span: Span
+    
+    micro constructor(self, condition, body, span) {
+        self.condition = condition;
+        self.body = body;
+        self.span = span;
+        self.kind = "HirWhile";
+        self.annotations = [];
+    }
+    
+    micro accept(self, visitor) {
+        return visitor.visit_while(self);
+    }
+}
+
+class HirExpression {
+    kind: String
+    micro constructor(self) {}
+}
+
+class HirLiteral(HirExpression) {
+    value: String,
+    lit_kind: String,
+    span: Span
+    
+    micro constructor(self, value, lit_kind, span) {
+        self.value = value;
+        self.lit_kind = lit_kind;
+        self.span = span;
+        self.kind = "HirLiteral";
+    }
+    
+    micro accept(self, visitor) {
+        return visitor.visit_literal(self);
+    }
+}
+
+class HirReference(HirExpression) {
+    name: String,
+    binding_id: i32,
+    span: Span
+    
+    micro constructor(self, name, binding_id, span) {
+        self.name = name;
+        self.binding_id = binding_id;
+        self.span = span;
+        self.kind = "HirReference";
+    }
+    
+    micro accept(self, visitor) {
+        return visitor.visit_reference(self);
+    }
+}
+
+class HirCall(HirExpression) {
+    callee: HirExpression,
+    args: List,
+    span: Span
+    
+    micro constructor(self, callee, args, span) {
+        self.callee = callee;
+        self.args = args;
+        self.span = span;
+        self.kind = "HirCall";
+    }
+    
+    micro accept(self, visitor) {
+        return visitor.visit_call(self);
+    }
+}
+
+class HirType {
+    kind: String,
+    name: String,
+    args: List
+    
+    micro constructor(self, kind, name) {
+        self.kind = kind;
+        self.name = name;
+        self.args = [];
+    }
+}
+
+class HirBinary(HirExpression) {
+    left: HirExpression,
+    op: String,
+    right: HirExpression,
+    span: Span
+    
+    micro constructor(self, left, op, right, span) {
+        self.left = left;
+        self.op = op;
+        self.right = right;
+        self.span = span;
+        self.kind = "HirBinary";
+    }
+
+    micro accept(self, visitor) {
+        return visitor.visit_binary(self);
+    }
+}
+
+class HirUnary(HirExpression) {
+    op: String,
+    operand: HirExpression,
+    span: Span
+    
+    micro constructor(self, op, operand, span) {
+        self.op = op;
+        self.operand = operand;
+        self.span = span;
+        self.kind = "HirUnary";
+    }
+    
+    micro accept(self, visitor) {
+        return visitor.visit_unary(self);
+    }
+}
+
+class HirNew(HirExpression) {
+    class_name: String,
+    args: List,
+    span: Span
+    
+    micro constructor(self, class_name, args, span) {
+        self.class_name = class_name;
+        self.args = args;
+        self.span = span;
+        self.kind = "HirNew";
+    }
+
+    micro accept(self, visitor) {
+        return visitor.visit_new(self);
+    }
+}
+
+class HirGet(HirExpression) {
+    object: HirExpression,
+    name: String,
+    span: Span
+    
+    micro constructor(self, object, name, span) {
+        self.object = object;
+        self.name = name;
+        self.span = span;
+        self.kind = "HirGet";
+    }
+    
+    micro accept(self, visitor) {
+        return visitor.visit_get(self);
+    }
+}
+
+class HirIndex(HirExpression) {
+    object: HirExpression,
+    index: HirExpression,
+    span: Span
+    
+    micro constructor(self, object, index, span) {
+        self.object = object;
+        self.index = index;
+        self.span = span;
+        self.kind = "HirIndex";
+    }
+
+    micro accept(self, visitor) {
+        return visitor.visit_index(self);
+    }
+}
+
+class HirSet(HirExpression) {
+    object: HirExpression,
+    name: String,
+    value: HirExpression,
+    span: Span
+    
+    micro constructor(self, object, name, value, span) {
+        self.object = object;
+        self.name = name;
+        self.value = value;
+        self.span = span;
+        self.kind = "HirSet";
+    }
+
+    micro accept(self, visitor) {
+        return visitor.visit_set(self);
+    }
+}
+
+class HirSetIndex(HirExpression) {
+    object: HirExpression,
+    index: HirExpression,
+    value: HirExpression,
+    span: Span
+    
+    micro constructor(self, object, index, value, span) {
+        self.object = object;
+        self.index = index;
+        self.value = value;
+        self.span = span;
+        self.kind = "HirSetIndex";
+    }
+    
+    micro accept(self, visitor) {
+        return visitor.visit_set_index(self);
+    }
+}
+
+class HirBlockExpression(HirExpression) {
+    block: HirBlock,
+    span: Span
+    
+    micro constructor(self, block, span) {
+        self.block = block;
+        self.span = span;
+        self.kind = "HirBlockExpression";
+    }
+
+    micro accept(self, visitor) {
+        return visitor.visit_block_expression(self);
+    }
+}
+
+class HirList(HirExpression) {
+    elements: List,
+    span: Span
+    
+    micro constructor(self, elements, span) {
+        self.elements = elements;
+        self.span = span;
+        self.kind = "HirList";
+    }
+    
+    micro accept(self, visitor) {
+        return visitor.visit_list(self);
+    }
+}

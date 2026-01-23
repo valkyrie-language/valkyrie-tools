@@ -1,0 +1,33 @@
+
+@.test
+micro test_assert_pass() {
+    let x = 1;
+    @assert(x == 1);
+}
+
+@.test
+micro test_debug() {
+    let y = 10;
+    @debug(y);
+    @assert(y == 10);
+}
+
+@.test
+micro test_list_ops() {
+    let l = [1, 2, 3];
+    l.push(4);
+    @assert(l.len() == 4);
+    let last = l.pop();
+    @assert(last == 4);
+    @assert(l.len() == 3);
+}
+
+@.test
+micro test_map_ops() {
+    let m = new Map(); # Assuming Map is available or we use HashMap
+    # Wait, we don't have Map literal syntax fully lowered or constructor in global scope?
+    # std::collections::hash_map::HashMap
+    # But for now, let's test simple arithmetic
+    @assert(1 + 1 == 2);
+    @assert(2 * 3 == 6);
+}

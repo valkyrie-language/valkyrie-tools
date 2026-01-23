@@ -1,0 +1,32 @@
+namespace std::collections::array;
+
+using std::collections;
+
+# Fixed-size array, implements List (Read-only) but has set (Mutable element)
+# Does NOT implement MutableList (no push/pop)
+class Array<T> {
+    length: usize,
+    data: Any # Intrinsic storage
+    
+    micro constructor(self, size: usize) {
+        self.length = size;
+        # self.data = ... intrinsic allocation
+    }
+
+    micro length(self) -> usize {
+        return self.length; 
+    }
+
+    micro get(self, index: usize) -> T {
+        # Intrinsic get
+        return null;
+    }
+
+    micro set(self, index: usize, item: T) {
+        # Intrinsic set
+    }
+    
+    micro iterator(self) {
+        return null;
+    }
+}

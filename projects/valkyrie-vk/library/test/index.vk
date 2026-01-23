@@ -1,0 +1,5 @@
+namespace compiler::test;
+
+using compiler::test::runner::TestRunner;
+
+# Export TestRunner

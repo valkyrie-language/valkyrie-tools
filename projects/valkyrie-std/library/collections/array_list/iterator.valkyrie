@@ -1,0 +1,20 @@
+
+
+class ArrayListIterator<T>: Iterator<T> {
+    list: ArrayList<T>,
+    index: usize
+
+    micro constructor(self, list) {
+        self.list = list;
+        self.index = 0;
+    }
+
+    micro next(self) -> T {
+        if self.index >= self.list.len() {
+            return null;
+        }
+        let item = self.list.get(self.index);
+        self.index = self.index + 1;
+        return item;
+    }
+}

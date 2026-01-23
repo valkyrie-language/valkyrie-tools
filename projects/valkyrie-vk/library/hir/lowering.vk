@@ -1,0 +1,649 @@
+namespace compiler::hir::lowering;
+
+using compiler::ast::Program;
+using compiler::ast::Statement;
+using compiler::ast::Expression;
+using compiler::ast::Identifier;
+using compiler::visitor::Visitor;
+using compiler::hir::symbol::SymbolTable;
+using compiler::hir::HirProgram;
+using compiler::hir::HirStatement;
+using compiler::hir::HirBlock;
+using compiler::hir::HirLet;
+using compiler::hir::HirIf;
+using compiler::hir::HirWhile;
+using compiler::hir::HirFunction;
+using compiler::hir::HirClass;
+using compiler::hir::HirExpressionStatement;
+using compiler::hir::HirExpression;
+using compiler::hir::HirLiteral;
+using compiler::hir::HirReference;
+using compiler::hir::HirCall;
+using compiler::hir::HirType;
+using compiler::hir::HirBinary;
+using compiler::hir::HirUnary;
+using compiler::hir::HirNew;
+using compiler::hir::HirGet;
+using compiler::hir::HirIndex;
+using compiler::hir::HirSet;
+using compiler::hir::HirSetIndex;
+using compiler::hir::HirBlockExpression;
+using compiler::hir::HirList;
+using compiler::hir::HirReturn;
+
+using compiler::hir::HirParam;
+
+class HirLowering(Visitor) {
+    symbols: SymbolTable,
+    binding_counter: i32,
+    current_namespace: String,
+    in_class: bool
+    
+    micro constructor(self) {
+        self.symbols = new SymbolTable();
+        self.binding_counter = 0;
+        self.current_namespace = "";
+        self.in_class = false;
+    }
+    
+    micro next_binding_id(self) {
+        let id = self.binding_counter;
+        self.binding_counter = self.binding_counter + 1;
+        return id;
+    }
+    
+    micro lower(self, program) {
+        # println("Lowering AST to HIR...");
+        self.stack = [];
+        
+        self.visit_program(program); # Direct call
+        
+        let res = self.stack.pop();
+        # println("Lowering done.");
+        return res;
+    }
+    
+    micro dispatch_statement(self, stmt) {
+        let k = stmt.kind;
+        if k == "LetStatement" { self.visit_let(stmt); }
+        else if k == "IfStatement" { self.visit_if(stmt); }
+        else if k == "WhileStatement" { self.visit_while(stmt); }
+        else if k == "BlockStatement" { self.visit_block(stmt); }
+        else if k == "ExpressionStatement" { self.visit_expression_statement(stmt); }
+        else if k == "ReturnStatement" { self.visit_return(stmt); }
+        else if k == "FunctionStatement" { self.visit_function(stmt); }
+        else if k == "ClassStatement" { self.visit_class(stmt); }
+        else if k == "NamespaceStatement" { self.visit_namespace(stmt); }
+        else if k == "UsingStatement" { self.visit_using(stmt); }
+        else if k == "MatchStatement" { self.visit_match(stmt); }
+        else {
+            println("Error: Unknown statement kind in Lowering: ", k);
+        }
+        
+        # Copy annotations if any
+        if stmt.annotations != null {
+            if stmt.annotations.len() > 0 {
+                let stack_len = self.stack.len();
+                if stack_len > 0 {
+                    let hir_node = self.stack[stack_len - 1];
+                    # Assuming hir_node has annotations field (HirStatement)
+                    hir_node.annotations = stmt.annotations;
+                }
+            }
+        }
+    }
+
+    micro dispatch_expression(self, expr) {
+        let k = expr.kind;
+        if k == "CallExpression" { self.visit_call(expr); }
+        else { self.visit_expression(expr); }
+    }
+    
+    micro visit_program(self, node) {
+        println("Visiting Program");
+        let stmts = [];
+        let i = 0;
+        let len = node.statements.len();
+        let loop_cond = true;
+        while loop_cond {
+            if i >= len { loop_cond = false; } else {
+                self.dispatch_statement(node.statements[i]);
+                stmts.push(self.pop());
+                i = i + 1;
+            }
+        }
+        self.push(new HirProgram(stmts, node.span));
+    }
+    
+    micro visit_block(self, node) {
+        self.symbols.enter_scope();
+        let stmts = [];
+        let i = 0;
+        let len = node.statements.len();
+        let loop_cond = true;
+        while loop_cond {
+            if i >= len { loop_cond = false; } else {
+                self.dispatch_statement(node.statements[i]);
+                stmts.push(self.pop());
+                i = i + 1;
+            }
+        }
+        self.symbols.exit_scope();
+        self.push(new HirBlock(stmts, node.span));
+    }
+    
+    micro visit_block_expression(self, expr) {
+        self.symbols.enter_scope();
+        let stmts = [];
+        let i = 0;
+        let len = expr.statements.len();
+        let loop_cond = true;
+        while loop_cond {
+            if i >= len { loop_cond = false; } else {
+                self.dispatch_statement(expr.statements[i]);
+                stmts.push(self.pop());
+                i = i + 1;
+            }
+        }
+        self.symbols.exit_scope();
+        let blk = new HirBlock(stmts, expr.span);
+        self.push(new HirBlockExpression(blk, expr.span));
+    }
+    
+    micro lower_type(self, ast_ty) {
+        if ast_ty == null { return new HirType("Unknown", "any"); }
+        
+        if ast_ty.kind == "Identifier" {
+            return new HirType("Name", ast_ty.name);
+        } else if ast_ty.kind == "GenericType" {
+            let ht = new HirType("Generic", ast_ty.base.name);
+            let i = 0;
+            let len = ast_ty.args.len();
+            let loop_cond = true;
+            while loop_cond {
+                if i >= len { loop_cond = false; } else {
+                    ht.args.push(self.lower_type(ast_ty.args[i]));
+                    i = i + 1;
+                }
+            }
+            return ht;
+        }
+        return new HirType("Unknown", "any");
+    }
+
+    micro visit_let(self, node) {
+        self.dispatch_expression(node.initializer);
+        let init = self.pop();
+        
+        let name = node.name.name;
+        let id = self.next_binding_id();
+        self.symbols.define(name, "variable", node.span); 
+        
+        let ty = self.lower_type(node.ty);
+        
+        self.push(new HirLet(name, id, ty, init, node.span));
+    }
+    
+    micro visit_expression_statement(self, node) {
+        self.dispatch_expression(node.expression);
+        let expr = self.pop();
+        self.push(new HirExpressionStatement(expr, node.span));
+    }
+    
+    micro visit_expression(self, expr) {
+        # println("Visiting expression:", expr.kind);
+        if expr.kind == "CallExpression" {
+            self.visit_call(expr);
+        } else if expr.kind == "BlockExpression" {
+            self.visit_block_expression(expr);
+        } else if expr.kind == "BinaryExpression" {
+            self.visit_binary(expr);
+        } else if expr.kind == "UnaryExpression" {
+            self.visit_unary(expr);
+        } else if expr.kind == "NewExpression" {
+            self.visit_new(expr);
+        } else if expr.kind == "GetExpression" {
+            self.visit_get(expr);
+        } else if expr.kind == "IndexExpression" {
+            self.visit_index(expr);
+        } else if expr.kind == "SetExpression" {
+            self.visit_set(expr);
+        } else if expr.kind == "SetIndexExpression" {
+            self.visit_set_index(expr);
+        } else if expr.kind == "ListExpression" {
+            self.visit_list(expr);
+        } else if expr.kind == "Identifier" {
+            let val = expr.name;
+            let first_char = val.chars()[0];
+            let is_num = false;
+            
+            if first_char == "0" { is_num = true; }
+            else if first_char == "1" { is_num = true; }
+            else if first_char == "2" { is_num = true; }
+            else if first_char == "3" { is_num = true; }
+            else if first_char == "4" { is_num = true; }
+            else if first_char == "5" { is_num = true; }
+            else if first_char == "6" { is_num = true; }
+            else if first_char == "7" { is_num = true; }
+            else if first_char == "8" { is_num = true; }
+            else if first_char == "9" { is_num = true; }
+            
+            if is_num {
+                 self.push(new HirLiteral(val, "Integer", expr.span));
+            } else {
+                let sym = self.symbols.resolve(val);
+                if sym != null {
+                    if sym.kind == "using" {
+                         self.push(new HirReference(sym.info, 0, expr.span));
+                    } else {
+                         let id = 0; 
+                         self.push(new HirReference(val, id, expr.span));
+                    }
+                } else {
+                    self.push(new HirReference(val, 0, expr.span));
+                }
+            }
+        } else if expr.kind == "IdentOrNum" {
+            # Check if number or identifier
+            let val = expr.value;
+            let first_char = val.chars()[0];
+            let is_num = false;
+            
+            # Simple digit check
+            if first_char == "0" { is_num = true; }
+            else if first_char == "1" { is_num = true; }
+            else if first_char == "2" { is_num = true; }
+            else if first_char == "3" { is_num = true; }
+            else if first_char == "4" { is_num = true; }
+            else if first_char == "5" { is_num = true; }
+            else if first_char == "6" { is_num = true; }
+            else if first_char == "7" { is_num = true; }
+            else if first_char == "8" { is_num = true; }
+            else if first_char == "9" { is_num = true; }
+            
+            if is_num {
+                 self.push(new HirLiteral(val, "Integer", expr.span));
+            } else {
+                let sym = self.symbols.resolve(val);
+                if sym != null {
+                    if sym.kind == "using" {
+                         self.push(new HirReference(sym.info, 0, expr.span));
+                    } else {
+                         let id = 0; 
+                         self.push(new HirReference(val, id, expr.span));
+                    }
+                } else {
+                    # Global reference (e.g. native function)
+                    self.push(new HirReference(val, 0, expr.span));
+                }
+            }
+        } else {
+             # Literal (String, etc)
+             self.push(new HirLiteral(expr.value, expr.kind, expr.span));
+        }
+    }
+    
+    micro visit_get(self, expr) {
+        self.dispatch_expression(expr.object);
+        let obj = self.pop();
+        self.push(new HirGet(obj, expr.name.name, expr.span));
+    }
+    
+    micro visit_index(self, expr) {
+        self.dispatch_expression(expr.object);
+        let obj = self.pop();
+        self.dispatch_expression(expr.index);
+        let idx = self.pop();
+        self.push(new HirIndex(obj, idx, expr.span));
+    }
+
+    micro visit_set(self, expr) {
+        self.dispatch_expression(expr.object);
+        let obj = self.pop();
+        self.dispatch_expression(expr.value);
+        let val = self.pop();
+        self.push(new HirSet(obj, expr.name.name, val, expr.span));
+    }
+
+    micro visit_set_index(self, expr) {
+        self.dispatch_expression(expr.object);
+        let obj = self.pop();
+        self.dispatch_expression(expr.index);
+        let idx = self.pop();
+        self.dispatch_expression(expr.value);
+        let val = self.pop();
+        self.push(new HirSetIndex(obj, idx, val, expr.span));
+    }
+
+    micro visit_list(self, expr) {
+        let elements = [];
+        let i = 0;
+        let len = expr.elements.len();
+        let loop_cond = true;
+        while loop_cond {
+            if i >= len { loop_cond = false; } else {
+                self.dispatch_expression(expr.elements[i]);
+                elements.push(self.pop());
+                i = i + 1;
+            }
+        }
+        self.push(new HirList(elements, expr.span));
+    }
+
+    micro visit_new(self, expr) {
+        let args = [];
+        let i = 0;
+        let len = expr.args.len();
+        let loop_cond = true;
+        while loop_cond {
+            if i >= len { loop_cond = false; } else {
+                self.dispatch_expression(expr.args[i]);
+                args.push(self.pop());
+                i = i + 1;
+            }
+        }
+        
+        # Helper to extract name from TypeExpression
+        # If it's Identifier (Name), return name
+        # If it's GenericType, construct "Base<T,U>" string or similar
+        # For now, let's just get the base name and ignore generics for symbol lookup
+        # But we want to preserve generics in HirNew for TypeChecker.
+        
+        # Current AST NewExpression uses `ty` (was `name` before my previous edit).
+        # But wait, my previous edit changed `Parser` but did I update `NewExpression` class in `library/ast/index.vk`?
+        # I need to check `library/ast/index.vk`. If I didn't update it, the Parser will fail to construct it if I pass an object where string was expected, or if I changed constructor signature.
+        # Let's assume I need to update `library/ast/index.vk` too.
+        
+        # Assuming `expr.class_name` is now a TypeExpression (Identifier or GenericType).
+        
+        let full_name = self.lower_type_to_string(expr.class_name);
+        # `lower_type_to_string` needs to be implemented or `lower_type` returns HirType which has `name`?
+        # `lower_type` returns `HirType`. `HirType` has `name` (string) and `kind`.
+        
+        let hir_ty = self.lower_type(expr.class_name);
+        let name = hir_ty.name; 
+        
+        # Resolve alias if it's just a simple name
+        # If it's generic, `name` might be "List<int>".
+        # We need to resolve "List".
+        # But `lower_type` handles `HirType`.
+        # Does `lower_type` resolve aliases?
+        # Let's check `lower_type` implementation.
+        
+        # If `lower_type` doesn't resolve aliases, we should do it here for the base name.
+        # But `HirNew` expects a string name.
+        
+        self.push(new HirNew(name, args, expr.span));
+    }
+
+    micro visit_call(self, expr) {
+        self.dispatch_expression(expr.callee);
+        let callee = self.pop();
+        
+        let args = [];
+        let i = 0;
+        let len = expr.args.len();
+        let loop_cond = true;
+        while loop_cond {
+            if i >= len { loop_cond = false; } else {
+                self.dispatch_expression(expr.args[i]);
+                args.push(self.pop());
+                i = i + 1;
+            }
+        }
+        
+        self.push(new HirCall(callee, args, expr.span));
+    }
+
+    micro visit_binary(self, expr) {
+        self.dispatch_expression(expr.left);
+        let left = self.pop();
+        self.dispatch_expression(expr.right);
+        let right = self.pop();
+        self.push(new HirBinary(left, expr.operator, right, expr.span));
+    }
+    
+    micro visit_unary(self, expr) {
+        self.dispatch_expression(expr.operand);
+        let operand = self.pop();
+        self.push(new HirUnary(expr.operator, operand, expr.span));
+    }
+    
+    # Fallbacks for other statements to avoid crash if not implemented
+    micro visit_function(self, node) {
+        let name = node.name.name;
+        let func_id = self.next_binding_id();
+        self.symbols.define(name, "function", node.span);
+        
+        self.symbols.enter_scope();
+        
+        let params = [];
+        let i = 0;
+        let len = node.params.len();
+        let loop_cond = true;
+        while loop_cond {
+            if i >= len { loop_cond = false; } else {
+                let p = node.params[i];
+                let p_name = p.name.name;
+                let p_id = self.next_binding_id();
+                self.symbols.define(p_name, "variable", p.span);
+                
+                let p_ty = self.lower_type(p.ty);
+                
+                params.push(new HirParam(p_name, p_id, p_ty, p.span));
+                i = i + 1;
+            }
+        }
+        
+        self.visit_block(node.body);
+        let body = self.pop();
+        
+        self.symbols.exit_scope();
+        
+        let func = new HirFunction(name, func_id, params, body, node.span);
+        
+        # Copy generic params
+        let g = 0;
+        let glen = node.generic_params.len();
+        let gloop = true;
+        while gloop {
+            if g >= glen { gloop = false; } else {
+                func.generic_params.push(node.generic_params[g].name);
+                g = g + 1;
+            }
+        }
+        
+        self.push(func);
+    }
+    
+    micro visit_class(self, node) {
+        let name = node.name.name;
+        if self.current_namespace != "" {
+            name = self.current_namespace + "::" + name;
+        }
+        let class_id = self.next_binding_id();
+        self.symbols.define(name, "class", node.span);
+        
+        self.in_class = true;
+        let methods = [];
+        let i = 0;
+        let len = node.methods.len();
+        let loop_cond = true;
+        while loop_cond {
+            if i >= len { loop_cond = false; } else {
+                let m = node.methods[i];
+                self.visit_function(m);
+                methods.push(self.pop());
+                i = i + 1;
+            }
+        }
+        
+        let fields = [];
+        let j = 0;
+        let flen = node.fields.len();
+        let floop = true;
+        while floop {
+            if j >= flen { floop = false; } else {
+                let f = node.fields[j];
+                # f is Parameter (field)
+                fields.push(f.name.name);
+                j = j + 1;
+            }
+        }
+        
+        self.push(new HirClass(name, class_id, fields, methods, node.span));
+        let hir_class = self.stack[self.stack.len() - 1]; # Peek
+        # Copy generic params
+        let g = 0;
+        let glen = node.generic_params.len();
+        let gloop = true;
+        while gloop {
+            if g >= glen { gloop = false; } else {
+                hir_class.generic_params.push(node.generic_params[g].name);
+                g = g + 1;
+            }
+        }
+    }
+    
+    micro visit_if(self, node) {
+        println("Visiting If");
+        self.dispatch_expression(node.condition);
+        let cond = self.pop();
+        
+        self.dispatch_statement(node.then_branch);
+        let then_branch = self.pop();
+        
+        let else_branch = null;
+        if node.else_branch != null {
+            self.dispatch_statement(node.else_branch);
+            else_branch = self.pop();
+        }
+        
+        self.push(new HirIf(cond, then_branch, else_branch, node.span));
+    }
+    
+    micro visit_while(self, node) {
+        self.dispatch_expression(node.condition);
+        let cond = self.pop();
+        
+        self.dispatch_statement(node.body);
+        let body = self.pop();
+        
+        self.push(new HirWhile(cond, body, node.span));
+    }
+    
+    micro visit_return(self, node) {
+        if node.result != null {
+            self.dispatch_expression(node.result);
+            let val = self.pop();
+            self.push(new HirReturn(val, node.span));
+        } else {
+            self.push(new HirReturn(null, node.span));
+        }
+    }
+    
+    micro visit_namespace(self, node) {
+        self.current_namespace = node.name;
+        self.push(new HirBlock([], node.span)); # Dummy
+    }
+    
+    micro visit_using(self, node) {
+        # node.paths is a List of Strings
+        let i = 0;
+        let len = node.paths.len();
+        let loop_cond = true;
+        while loop_cond {
+             if i >= len { loop_cond = false; } else {
+                 let path = node.paths[i];
+                 let local_name = self.get_last_segment(path);
+                 let sym = self.symbols.define(local_name, "using", node.span);
+                 sym.info = path;
+                 
+                 i = i + 1;
+             }
+        }
+        self.push(new HirBlock([], node.span)); # Dummy result for statement
+    }
+    
+    micro get_last_segment(self, path) {
+        let chars = path.chars();
+        let i = chars.len() - 1;
+        let found = false;
+        let start = 0;
+        
+        let loop_cond = true;
+        while loop_cond {
+            if i < 0 { loop_cond = false; } else {
+                if i >= 1 {
+                     let c = chars[i];
+                     let prev = chars[i-1];
+                     if c == ":" {
+                         if prev == ":" {
+                             start = i + 1;
+                             i = 0 - 1; # Break
+                             found = true;
+                         }
+                     }
+                }
+                
+                if i != (0 - 1) {
+                    i = i - 1;
+                } else {
+                    loop_cond = false;
+                }
+            }
+        }
+        
+        if found == false {
+             return path;
+        }
+        
+        let res = "";
+        let j = start;
+        let len = chars.len();
+        let loop_j = true;
+        while loop_j {
+            if j >= len { loop_j = false; } else {
+                res = res + chars[j];
+                j = j + 1;
+            }
+        }
+        return res;
+    }
+    
+    micro lower_type_to_string(self, ty) {
+        let k = ty.kind;
+        if k == "Identifier" {
+            return ty.name;
+        } else if k == "GenericType" {
+            let base = self.lower_type_to_string(ty.base);
+            let s = base + "<";
+            let i = 0;
+            let len = ty.args.len();
+            let loop_cond = true;
+            while loop_cond {
+                if i >= len { loop_cond = false; } else {
+                    if i > 0 { s = s + ", "; }
+                    s = s + self.lower_type_to_string(ty.args[i]);
+                    i = i + 1;
+                }
+            }
+            s = s + ">";
+            return s;
+        }
+        return "unknown";
+    }
+
+    micro visit_match(self, node) {
+        self.push(new HirBlock([], node.span)); # Dummy
+    }
+
+    micro push(self, node) {
+        # println("HirLowering.push called");
+        self.stack.push(node);
+    }
+
+    micro pop(self) {
+        return self.stack.pop();
+    }
+}

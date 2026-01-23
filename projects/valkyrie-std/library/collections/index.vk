@@ -1,0 +1,61 @@
+namespace std::collections;
+
+using std::iterator::Iterator;
+using std::iterator::IntoIterator;
+
+# Covariant (Read-only)
+trait Iterable<T> (IntoIterator<T>) {
+    micro iterator(self) -> Iterator<T>;
+}
+
+# Covariant (Read-only)
+trait Collection<T> (Iterable<T>) {
+    micro len(self) -> usize;
+    micro is_empty(self) -> bool;
+    micro iterator(self) -> Iterator<T>;
+}
+
+# Covariant (Read-only)
+trait List<T>(Collection<T>) {
+    micro len(self) -> usize;
+    micro get(self, index: usize) -> T;
+    micro iterator(self) -> Iterator<T>;
+}
+
+# Invariant (Mutable)
+trait MutableList<T> {
+    micro set(self, index: usize, item: T);
+    micro push(self, item: T);
+    micro pop(self) -> T;
+    micro clear(self);
+}
+
+# Covariant (Read-only)
+trait Set<T> {
+    micro len(self) -> usize;
+    micro contains(self, item: T) -> bool;
+    micro iterator(self) -> Iterator<T>;
+}
+
+# Invariant (Mutable)
+trait MutableSet<T> {
+    micro insert(self, item: T) -> bool;
+    micro remove(self, item: T) -> bool;
+    micro clear(self);
+}
+
+# Covariant in V (Read-only)
+trait Map<K, V> {
+    micro len(self) -> usize;
+    micro get(self, key: K) -> V;
+    micro has(self, key: K) -> bool;
+    micro keys(self) -> Iterator<K>;
+    micro values(self) -> Iterator<V>;
+}
+
+# Invariant (Mutable)
+trait MutableMap<K, V> {
+    micro set(self, key: K, value: V);
+    micro remove(self, key: K) -> V;
+    micro clear(self);
+}

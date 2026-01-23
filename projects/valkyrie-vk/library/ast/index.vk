@@ -1,0 +1,430 @@
+namespace compiler::ast;
+
+class Span {
+    start: i32,
+    end: i32
+    micro constructor(self, start, end) { 
+        self.start = start; 
+        self.end = end; 
+    }
+}
+
+class Identifier(Expression) {
+    name: String,
+    span: Span
+    kind: String
+    micro constructor(self, name, span) { 
+        self.name = name; 
+        self.span = span; 
+        self.kind = "Identifier";
+    }
+    micro accept(self, visitor) { return visitor.visit_identifier(self); }
+}
+
+class GenericType {
+    base: Identifier,
+    args: List,
+    span: Span
+    kind: String
+    micro constructor(self, base, args, span) {
+        self.base = base;
+        self.args = args;
+        self.span = span;
+        self.kind = "GenericType";
+    }
+}
+
+class Expression {
+    # Base class for expressions
+    micro constructor(self) {}
+}
+
+class Statement {
+    annotations: List
+    # Base class for statements
+    micro constructor(self) {
+        self.annotations = [];
+    }
+}
+
+class NamespaceStatement(Statement) {
+    name: String,
+    span: Span
+    kind: String
+    micro constructor(self, name, span) {
+        self.name = name;
+        self.span = span;
+        self.kind = "NamespaceStatement";
+        self.annotations = [];
+    }
+    micro accept(self, visitor) { return visitor.visit_namespace(self); }
+}
+
+class UsingStatement(Statement) {
+    paths: List,
+    span: Span
+    kind: String
+    micro constructor(self, paths, span) {
+        self.paths = paths;
+        self.span = span;
+        self.kind = "UsingStatement";
+        self.annotations = [];
+    }
+    micro accept(self, visitor) { return visitor.visit_using(self); }
+}
+
+class Program(Statement) {
+    statements: List
+    span: Span
+    kind: String
+    micro constructor(self, statements, span) {
+        self.statements = statements;
+        self.span = span;
+        self.kind = "Program";
+        self.annotations = [];
+    }
+    micro accept(self, visitor) { return visitor.visit_program(self); }
+}
+
+class BlockStatement(Statement) {
+    statements: List
+    span: Span
+    kind: String
+    micro constructor(self, statements, span) {
+        self.statements = statements;
+        self.span = span;
+        self.kind = "BlockStatement";
+        self.annotations = [];
+    }
+    micro accept(self, visitor) { return visitor.visit_block(self); }
+}
+
+class LetStatement(Statement) {
+    name: Identifier,
+    ty: Identifier, # Optional type annotation
+    initializer: Expression,
+    span: Span
+    kind: String
+    micro constructor(self, name, ty, initializer, span) {
+        self.name = name;
+        self.ty = ty;
+        self.initializer = initializer;
+        self.span = span;
+        self.kind = "LetStatement";
+        self.annotations = [];
+    }
+    micro accept(self, visitor) { return visitor.visit_let(self); }
+}
+
+class ExpressionStatement(Statement) {
+    expression: Expression,
+    span: Span
+    kind: String
+    micro constructor(self, expression, span) {
+        self.expression = expression;
+        self.span = span;
+        self.kind = "ExpressionStatement";
+        self.annotations = [];
+    }
+    micro accept(self, visitor) { return visitor.visit_expression_statement(self); }
+}
+
+class ReturnStatement(Statement) {
+    result: Expression, # Can be null/void
+    span: Span
+    kind: String
+    micro constructor(self, result, span) {
+        self.result = result;
+        self.span = span;
+        self.kind = "ReturnStatement";
+        self.annotations = [];
+    }
+    micro accept(self, visitor) { return visitor.visit_return(self); }
+}
+
+class IfStatement(Statement) {
+    condition: Expression,
+    then_branch: BlockStatement,
+    else_branch: Statement, # Can be Block or If (for else if)
+    span: Span
+    kind: String
+    micro constructor(self, condition, then_branch, else_branch, span) {
+        self.condition = condition;
+        self.then_branch = then_branch;
+        self.else_branch = else_branch;
+        self.span = span;
+        self.kind = "IfStatement";
+        self.annotations = [];
+    }
+    micro accept(self, visitor) { return visitor.visit_if(self); }
+}
+
+class WhileStatement(Statement) {
+    condition: Expression,
+    body: BlockStatement,
+    span: Span
+    kind: String
+    micro constructor(self, condition, body, span) {
+        self.condition = condition;
+        self.body = body;
+        self.span = span;
+        self.kind = "WhileStatement";
+        self.annotations = [];
+    }
+    micro accept(self, visitor) { return visitor.visit_while(self); }
+}
+
+class Parameter {
+    name: Identifier,
+    ty: Identifier,
+    span: Span
+    micro constructor(self, name, ty, span) {
+        self.name = name;
+        self.ty = ty;
+        self.span = span;
+    }
+}
+
+class FunctionStatement(Statement) {
+    name: Identifier,
+    params: List, # List of Parameter
+    body: BlockStatement,
+    generic_params: List, # List of Identifier
+    span: Span
+    kind: String
+    micro constructor(self, name, params, body, span) {
+        self.name = name;
+        self.params = params;
+        self.body = body;
+        self.generic_params = [];
+        self.span = span;
+        self.kind = "FunctionStatement";
+        self.annotations = [];
+    }
+    micro accept(self, visitor) { return visitor.visit_function(self); }
+}
+
+class MatchStatement(Statement) {
+    condition: Expression,
+    cases: List, # List of CaseStatement
+    span: Span
+    kind: String
+    micro constructor(self, condition, cases, span) {
+        self.condition = condition;
+        self.cases = cases;
+        self.span = span;
+        self.kind = "MatchStatement";
+        self.annotations = [];
+    }
+    micro accept(self, visitor) { return visitor.visit_match(self); }
+}
+
+class CaseStatement(Statement) {
+    pattern: Expression,
+    body: BlockStatement, # Or Statement
+    span: Span
+    kind: String
+    micro constructor(self, pattern, body, span) {
+        self.pattern = pattern;
+        self.body = body;
+        self.span = span;
+        self.kind = "CaseStatement";
+        self.annotations = [];
+    }
+    # Usually visited inside visit_match, but for consistency:
+    micro accept(self, visitor) { return null; }
+}
+
+class ClassStatement(Statement) {
+    name: Identifier,
+    parent: Identifier,
+    fields: List,
+    methods: List,
+    generic_params: List, # List of Identifier
+    span: Span
+    kind: String
+    micro constructor(self, name, parent, fields, methods, span) {
+        self.name = name;
+        self.parent = parent;
+        self.fields = fields;
+        self.methods = methods;
+        self.generic_params = [];
+        self.span = span;
+        self.kind = "ClassStatement";
+        self.annotations = [];
+    }
+    micro accept(self, visitor) { return visitor.visit_class(self); }
+}
+
+class NewExpression(Expression) {
+    class_name: Identifier,
+    args: List,
+    span: Span
+    kind: String
+    micro constructor(self, class_name, args, span) {
+        self.class_name = class_name;
+        self.args = args;
+        self.span = span;
+        self.kind = "NewExpression";
+    }
+    micro accept(self, visitor) { return visitor.visit_new(self); }
+}
+
+class GetExpression(Expression) {
+    object: Expression,
+    name: Identifier,
+    span: Span
+    kind: String
+    micro constructor(self, object, name, span) {
+        self.object = object;
+        self.name = name;
+        self.span = span;
+        self.kind = "GetExpression";
+    }
+    micro accept(self, visitor) { return visitor.visit_get(self); }
+}
+
+class SetExpression(Expression) {
+    object: Expression,
+    name: Identifier,
+    value: Expression,
+    span: Span
+    kind: String
+    micro constructor(self, object, name, value, span) {
+        self.object = object;
+        self.name = name;
+        self.value = value;
+        self.span = span;
+        self.kind = "SetExpression";
+    }
+    micro accept(self, visitor) { return visitor.visit_set(self); }
+}
+
+class IndexExpression(Expression) {
+    object: Expression,
+    index: Expression,
+    span: Span
+    kind: String
+    micro constructor(self, object, index, span) {
+        self.object = object;
+        self.index = index;
+        self.span = span;
+        self.kind = "IndexExpression";
+    }
+    micro accept(self, visitor) { return visitor.visit_index(self); }
+}
+
+class SetIndexExpression(Expression) {
+    object: Expression,
+    index: Expression,
+    value: Expression,
+    span: Span
+    kind: String
+    micro constructor(self, object, index, value, span) {
+        self.object = object;
+        self.index = index;
+        self.value = value;
+        self.span = span;
+        self.kind = "SetIndexExpression";
+    }
+    micro accept(self, visitor) { return visitor.visit_set_index(self); }
+}
+
+class CallExpression(Expression) {
+    callee: Expression,
+    args: List,
+    span: Span
+    kind: String
+    micro constructor(self, callee, args, span) {
+        self.callee = callee;
+        self.args = args;
+        self.span = span;
+        self.kind = "CallExpression";
+    }
+    micro accept(self, visitor) { return visitor.visit_call(self); }
+}
+
+class MacroCallExpression(Expression) {
+    name: String,
+    args: List,
+    span: Span
+    kind: String
+    micro constructor(self, name, args, span) {
+        self.name = name;
+        self.args = args;
+        self.span = span;
+        self.kind = "MacroCallExpression";
+    }
+    micro accept(self, visitor) { return visitor.visit_macro_call(self); }
+}
+
+class Literal(Expression) {
+    value: String, # Or dynamic
+    kind: String
+    span: Span
+    
+    micro constructor(self, value, kind, span) {
+        self.value = value;
+        self.kind = kind;
+        self.span = span;
+    }
+    micro accept(self, visitor) { return visitor.visit_expression(self); }
+}
+
+class BinaryExpression(Expression) {
+    left: Expression,
+    operator: String,
+    right: Expression,
+    span: Span,
+    kind: String
+    
+    micro constructor(self, left, operator, right, span) {
+        self.left = left;
+        self.operator = operator;
+        self.right = right;
+        self.span = span;
+        self.kind = "BinaryExpression";
+    }
+    micro accept(self, visitor) { return visitor.visit_binary(self); }
+}
+
+class UnaryExpression(Expression) {
+    operator: String,
+    operand: Expression,
+    span: Span,
+    kind: String
+    
+    micro constructor(self, operator, operand, span) {
+        self.operator = operator;
+        self.operand = operand;
+        self.span = span;
+        self.kind = "UnaryExpression";
+    }
+    micro accept(self, visitor) { return visitor.visit_unary(self); }
+}
+
+class BlockExpression(Expression) {
+    statements: List,
+    span: Span,
+    kind: String
+    
+    micro constructor(self, statements, span) {
+        self.statements = statements;
+        self.span = span;
+        self.kind = "BlockExpression";
+    }
+    micro accept(self, visitor) { return visitor.visit_block_expression(self); }
+}
+
+class ListExpression(Expression) {
+    elements: List,
+    span: Span,
+    kind: String
+    
+    micro constructor(self, elements, span) {
+        self.elements = elements;
+        self.span = span;
+        self.kind = "ListExpression";
+    }
+    micro accept(self, visitor) { return visitor.visit_list(self); }
+}

@@ -1,0 +1,22 @@
+namespace std::result;
+
+class Result<T, E> {
+    micro is_fine() -> bool { return false; }
+    micro is_fail() -> bool { return false; }
+}
+
+class Fine<T, E>(Result<T, E>) {
+    value: T
+    micro constructor(self, value: T) {
+        self.value = value;
+    }
+    micro is_fine() -> bool { return true; }
+}
+
+class Fail<T, E>(Result<T, E>) {
+    error: E
+    micro constructor(self, error: E) {
+        self.error = error;
+    }
+    micro is_fail() -> bool { return true; }
+}

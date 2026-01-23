@@ -1,0 +1,22 @@
+
+# @include("projects/valkyrie-vk/library/std/os.vk");
+
+# using std::os::args;
+# using std::os::get_env;
+# using std::os::getcwd;
+
+println("Testing CLI capabilities...");
+
+println("CWD:", cwd());
+
+println("Args:", get_args());
+
+let path_env = get_env("PATH");
+# println("PATH Env:", path_env); # Can be long
+if path_env != null {
+    println("PATH Env found (length):", len(path_env));
+} else {
+    println("PATH Env not found");
+}
+
+println("CLI Test Finished.");

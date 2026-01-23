@@ -1,0 +1,162 @@
+namespace compiler::pkg;
+
+using compiler::pkg::toml::TomlParser;
+# using std::collections::hash_map::HashMap;
+
+class PackageMapEntry {
+    key: String,
+    value: Any
+    micro constructor(self, k, v) { self.key = k; self.value = v; }
+}
+
+class PackageMap {
+    entries: List
+    micro constructor(self) { self.entries = []; }
+    micro set(self, k, v) {
+        let i = 0;
+        let len = self.entries.len();
+        while i < len {
+            let e = self.entries[i];
+            if e.key == k { e.value = v; return; }
+            i = i + 1;
+        }
+        self.entries.push(new PackageMapEntry(k, v));
+    }
+    micro get(self, k) -> Any {
+        let i = 0;
+        let len = self.entries.len();
+        while i < len {
+            let e = self.entries[i];
+            if e.key == k { return e.value; }
+            i = i + 1;
+        }
+        return null;
+    }
+}
+
+class PackageManifest {
+    name: String,
+    version: String,
+    dependencies: PackageMap,
+    base_dir: String
+    
+    micro constructor(self, name, version, dependencies, base_dir) {
+        self.name = name;
+        self.version = version;
+        self.dependencies = dependencies;
+        self.base_dir = base_dir;
+    }
+    
+    micro load(self, path) -> PackageManifest {
+        println("PackageManifest.load called with ", path);
+        let content = read_file(path);
+        if content == "" || content == null {
+            println("Error: Failed to read manifest: ", path);
+            return null;
+        }
+        
+        println("Parsing TOML...");
+        let parser = new TomlParser(content);
+        let root = parser.parse();
+        println("TOML Parsed.");
+        
+        let pkg_table = root.get("package");
+        let name = "unknown";
+        let version = "0.0.0";
+        if pkg_table != null {
+            name = pkg_table.get("name");
+            version = pkg_table.get("version");
+        }
+        println("Package Name: ", name);
+        
+        let deps = root.get("dependencies");
+        if deps == null {
+            deps = new PackageMap();
+        }
+        
+        # Calculate base_dir from path
+        let base_dir = ".";
+        # TODO: Split path
+        
+        println("Creating PackageManifest...");
+        return new PackageManifest(name, version, deps, base_dir);
+    }
+}
+
+class PackageManager {
+    root_manifest: PackageManifest,
+    loaded_packages: PackageMap
+    
+    micro constructor(self, root_manifest_path) {
+        println("PackageManager constructor called with ", root_manifest_path);
+        let h = new PackageMap();
+        println("PackageMap created.");
+        
+        # Manually load root for now
+        let dummy = new PackageManifest("", "", null, "");
+        println("Calling dummy.load...");
+        self.root_manifest = dummy.load(root_manifest_path);
+        println("Loaded root manifest.");
+        self.loaded_packages = new PackageMap();
+        
+        if self.root_manifest != null {
+            self.loaded_packages.set(self.root_manifest.name, self.root_manifest);
+        }
+    }
+    
+    micro resolve_dependencies(self) {
+        if self.root_manifest == null { return; }
+        
+        let deps = self.root_manifest.dependencies;
+        # Iterate keys? HashMap doesn't expose keys iterator easily yet?
+        # My HashMap implementation in std might have `keys()`?
+        # Let's assume we can iterate or we need to implement it.
+        # std/collections/hash_map/index.vk
+        
+        # For now, let's hardcode checking for "std" since iteration might be missing
+        let std_dep = deps.get("std");
+        if std_dep != null {
+             println("Found dependency: std");
+             # std_dep is a HashMap (inline table)
+             let path = std_dep.get("path");
+             println("Path: ", path);
+             
+             # Load it
+             # TODO: Resolve path relative to root manifest
+             let full_path = path + "/legion.toml"; # Naive
+             println("Loading dependency manifest: ", full_path);
+             
+             let dummy = new PackageManifest("", "", null, "");
+             let dep_manifest = dummy.load(full_path);
+             
+             if dep_manifest != null {
+                 self.loaded_packages.set("std", dep_manifest);
+                 println("Loaded std package.");
+             }
+        }
+    }
+    
+    micro get_package_sources(self, package_name) -> List {
+        # Return list of source files for the package
+        # Convention: library/**/*.vk
+        if package_name == "std" {
+            let pkg = self.loaded_packages.get("std");
+            if pkg == null { return []; }
+            
+            # Hardcoded list for now because we don't have `walk_dir` or glob yet
+            let base = pkg.base_dir; # This might be wrong if not resolved
+            # path was "../valkyrie-std"
+            # So files are at "../valkyrie-std/library/..."
+            
+            let root = "../valkyrie-std/library";
+            return [
+                root + "/result.vk",
+                root + "/os/os.vk",
+                root + "/primitive/i32.vk",
+                root + "/primitive/bool.vk"
+                # ... add others
+            ];
+        }
+        return [];
+    }
+}

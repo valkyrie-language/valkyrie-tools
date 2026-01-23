@@ -1,0 +1,388 @@
+namespace compiler::mir_compiler;
+
+using compiler::mir::OpCode;
+using compiler::mir::PushInt;
+using compiler::mir::PushString;
+using compiler::mir::PushBool;
+using compiler::mir::PushVoid;
+using compiler::mir::LoadLocal;
+using compiler::mir::StoreLocal;
+using compiler::mir::Print;
+using compiler::mir::Call;
+using compiler::mir::Return;
+using compiler::mir::Label;
+using compiler::mir::Jump;
+using compiler::mir::JumpIfFalse;
+using compiler::mir::Add;
+using compiler::mir::Sub;
+using compiler::mir::Mul;
+using compiler::mir::Div;
+using compiler::mir::Eq;
+using compiler::mir::Neq;
+using compiler::mir::Lt;
+using compiler::mir::Le;
+using compiler::mir::Gt;
+using compiler::mir::Ge;
+using compiler::mir::MirProgram;
+using compiler::mir::DeclareFunction;
+using compiler::mir::DeclareClass;
+using compiler::mir::MirFunction;
+using compiler::mir::DebugInfo;
+using compiler::mir::CallMethod;
+using compiler::mir::GetField;
+using compiler::mir::SetField;
+using compiler::mir::LoadGlobal;
+using compiler::mir::StoreGlobal;
+using compiler::mir::New;
+using compiler::mir::NewList;
+using compiler::mir::Pop;
+using compiler::mir::GetIndex;
+
+class MirCompiler {
+    instructions: List,
+    local_map: Any, # Name -> Index
+    local_count: i32,
+    label_counter: i32
+    
+    micro constructor(self) {
+        self.instructions = [];
+        self.local_map = []; 
+        self.local_count = 0;
+        self.label_counter = 0;
+    }
+
+    micro next_label_id(self) {
+        let id = self.label_counter;
+        self.label_counter = self.label_counter + 1;
+        return id;
+    }
+    
+    micro compile(self, hir_program) {
+        println("Compiling HIR to MIR...");
+        self.compile_program(hir_program);
+        println("MIR Compilation done.");
+        return new MirProgram(self.instructions);
+    }
+    
+    micro emit(self, instr) {
+        self.instructions.push(instr);
+    }
+    
+    micro get_local_index(self, name) {
+        let i = 0;
+        let len = self.local_map.len();
+        let loop_cond = true;
+        while loop_cond {
+            if i >= len { loop_cond = false; } else {
+                if self.local_map[i] == name {
+                    return i;
+                }
+                i = i + 1;
+            }
+        }
+        return 9999; # Use 9999 as sentinel for "not found"
+    }
+    
+    micro define_local(self, name) {
+        println("Defining local: ", name);
+        let idx = self.local_map.len();
+        self.local_map.push(name);
+        return idx;
+    }
+    
+    micro compile_program(self, node) {
+        let i = 0;
+        let len = node.statements.len();
+        let loop_cond = true;
+        while loop_cond {
+            if i >= len { loop_cond = false; } else {
+                self.compile_statement(node.statements[i]);
+                i = i + 1;
+            }
+        }
+    }
+    
+    micro compile_statement(self, stmt) {
+        let k = stmt.kind;
+        if k == "HirBlock" {
+            self.compile_block(stmt);
+        } else if k == "HirLet" {
+            self.compile_let(stmt);
+        } else if k == "HirIf" {
+            self.compile_if(stmt);
+        } else if k == "HirWhile" {
+            self.compile_while(stmt);
+        } else if k == "HirExpressionStatement" {
+            self.compile_expression_statement(stmt);
+        } else if k == "HirFunction" {
+            self.compile_function(stmt);
+        } else if k == "HirClass" {
+            self.compile_class(stmt);
+        } else if k == "HirReturn" {
+            self.compile_return(stmt);
+        } else {
+            # Ignored
+        }
+    }
+    
+    micro compile_block(self, node) {
+        let i = 0;
+        let len = node.statements.len();
+        let loop_cond = true;
+        while loop_cond {
+            if i >= len { loop_cond = false; } else {
+                self.compile_statement(node.statements[i]);
+                i = i + 1;
+            }
+        }
+    }
+    
+    micro compile_let(self, node) {
+        self.compile_expression(node.value);
+        let idx = self.define_local(node.name);
+        self.emit(new StoreLocal(idx));
+    }
+    
+    micro compile_if(self, node) {
+        let else_label = self.next_label_id();
+        let end_label = self.next_label_id();
+        
+        self.compile_expression(node.condition);
+        self.emit(new JumpIfFalse(else_label));
+        
+        self.compile_block(node.then_branch);
+        self.emit(new Jump(end_label));
+        
+        self.emit(new Label(else_label));
+        if node.else_branch != null {
+            self.compile_statement(node.else_branch);
+        }
+        
+        self.emit(new Label(end_label));
+    }
+    
+    micro compile_while(self, node) {
+        let loop_label = self.next_label_id();
+        let end_label = self.next_label_id();
+        
+        self.emit(new Label(loop_label));
+        self.compile_expression(node.condition);
+        self.emit(new JumpIfFalse(end_label));
+        
+        self.compile_block(node.body);
+        self.emit(new Jump(loop_label));
+        
+        self.emit(new Label(end_label));
+    }
+
+    micro compile_expression_statement(self, node) {
+        self.compile_expression(node.expression);
+        self.emit(new Pop());
+    }
+
+    micro compile_return(self, node) {
+        if node.value != null {
+            self.compile_expression(node.value);
+        } else {
+            self.emit(new PushVoid());
+        }
+        self.emit(new Return());
+    }
+    
+    micro compile_expression(self, expr) {
+        let k = expr.kind;
+        if k == "HirLiteral" {
+            if expr.lit_kind == "Integer" {
+                let val = int(expr.value);
+                self.emit(new PushInt(val));
+            } else if expr.lit_kind == "String" {
+                self.emit(new PushString(expr.value));
+            } else if expr.lit_kind == "Boolean" {
+                let val = false;
+                if expr.value == "true" { val = true; }
+                self.emit(new PushBool(val));
+            } else if expr.lit_kind == "IdentOrNum" {
+                 # Assume int
+                 let val = int(expr.value);
+                 self.emit(new PushInt(val));
+            }
+        } else if k == "HirReference" {
+            let idx = self.get_local_index(expr.name);
+            if idx != 9999 {
+                self.emit(new LoadLocal(idx));
+            } else {
+                # Global
+                self.emit(new LoadGlobal(expr.name));
+            }
+        } else if k == "HirCall" {
+            if expr.callee.kind == "HirGet" {
+                 self.compile_expression(expr.callee.object);
+                 let i = 0;
+                 let len = expr.args.len();
+                 let loop_cond = true;
+                 while loop_cond {
+                     if i >= len { loop_cond = false; } else {
+                         self.compile_expression(expr.args[i]);
+                         i = i + 1;
+                     }
+                 }
+                 self.emit(new CallMethod(expr.callee.name, len));
+            } else {
+                let i = 0;
+                let len = expr.args.len();
+                let loop_cond = true;
+                while loop_cond {
+                    if i >= len { loop_cond = false; } else {
+                        self.compile_expression(expr.args[i]);
+                        i = i + 1;
+                    }
+                }
+                
+                let callee_name = "";
+                if expr.callee.kind == "HirReference" {
+                    callee_name = expr.callee.name;
+                } else if expr.callee.kind == "HirLiteral" {
+                    callee_name = expr.callee.value;
+                }
+                
+                if callee_name == "add" {
+                    self.emit(new Add());
+                } else if callee_name == "sub" {
+                    self.emit(new Sub());
+                } else if callee_name == "mul" {
+                    self.emit(new Mul());
+                } else if callee_name == "div" {
+                    self.emit(new Div());
+                } else if callee_name == "eq" {
+                    self.emit(new Eq());
+                } else if callee_name == "neq" {
+                    self.emit(new Neq());
+                } else if callee_name == "lt" {
+                    self.emit(new Lt());
+                } else if callee_name == "le" {
+                    self.emit(new Le());
+                } else if callee_name == "gt" {
+                    self.emit(new Gt());
+                } else if callee_name == "ge" {
+                    self.emit(new Ge());
+                } else {
+                    self.emit(new Call(callee_name, len));
+                }
+            }
+        } else if k == "HirNew" {
+             # Compile args
+             let i = 0;
+             let len = expr.args.len();
+             let loop_cond = true;
+             while loop_cond {
+                 if i >= len { loop_cond = false; } else {
+                     self.compile_expression(expr.args[i]);
+                     i = i + 1;
+                 }
+             }
+             self.emit(new New(expr.class_name, len));
+        } else if k == "HirGet" {
+            self.compile_expression(expr.object);
+            self.emit(new GetField(expr.name));
+        } else if k == "HirIndex" {
+            self.compile_expression(expr.object);
+            self.compile_expression(expr.index);
+            self.emit(new GetIndex());
+        } else if k == "HirSet" {
+            self.compile_expression(expr.object);
+            self.compile_expression(expr.value);
+            self.emit(new SetField(expr.name));
+        } else if k == "HirSetIndex" {
+            self.compile_expression(expr.object);
+            self.compile_expression(expr.index);
+            self.compile_expression(expr.value);
+            self.emit(new CallMethod("set", 2));
+        } else if k == "HirList" {
+            let i = 0;
+            let len = expr.elements.len();
+            let loop_cond = true;
+            while loop_cond {
+                if i >= len { loop_cond = false; } else {
+                    self.compile_expression(expr.elements[i]);
+                    i = i + 1;
+                }
+            }
+            self.emit(new NewList(len));
+        } else if k == "HirBinary" {
+            self.compile_expression(expr.left);
+            self.compile_expression(expr.right);
+            let op = expr.op;
+            if op == "+" { self.emit(new Add()); }
+            else if op == "-" { self.emit(new Sub()); }
+            else if op == "*" { self.emit(new Mul()); }
+            else if op == "/" { self.emit(new Div()); }
+            else if op == "==" { self.emit(new Eq()); }
+            else if op == "!=" { self.emit(new Neq()); }
+            else if op == "<" { self.emit(new Lt()); }
+            else if op == "<=" { self.emit(new Le()); }
+            else if op == ">" { self.emit(new Gt()); }
+            else if op == ">=" { self.emit(new Ge()); }
+        } else if k == "HirUnary" {
+             # TODO: Unary ops
+        }
+    }
+
+    micro compile_function(self, node) {
+        let func_compiler = new MirCompiler();
+        let i = 0;
+        let len = node.params.len();
+        let loop_cond = true;
+        while loop_cond {
+            if i >= len { loop_cond = false; } else {
+                func_compiler.define_local(node.params[i].name);
+                i = i + 1;
+            }
+        }
+        
+        func_compiler.compile_block(node.body);
+        let body_instrs = func_compiler.instructions;
+        body_instrs.push(new PushVoid());
+        body_instrs.push(new Return());
+        
+        let debug_info = new DebugInfo(node.span, node.name);
+        
+        self.emit(new DeclareFunction(node.name, node.params, body_instrs, debug_info, false, false));
+    }
+
+    micro compile_class(self, node) {
+        let methods = [];
+        let i = 0;
+        let len = node.methods.len();
+        let loop_cond = true;
+        while loop_cond {
+             if i >= len { loop_cond = false; } else {
+                 let m = node.methods[i];
+                 let method_compiler = new MirCompiler();
+                 let j = 0;
+                 let plen = m.params.len();
+                 let ploop = true;
+                 while ploop {
+                     if j >= plen { ploop = false; } else {
+                         method_compiler.define_local(m.params[j].name);
+                         j = j + 1;
+                     }
+                 }
+                 
+                 method_compiler.compile_block(m.body);
+                 let body_instrs = method_compiler.instructions;
+                 body_instrs.push(new PushVoid());
+                 body_instrs.push(new Return());
+                 
+                 let debug_info = new DebugInfo(m.span, m.name);
+                 let mir_func = new MirFunction(m.name, m.params, body_instrs, debug_info, false, false);
+                 mir_func.annotations = m.annotations;
+                 methods.push(mir_func);
+                 
+                 i = i + 1;
+             }
+        }
+        
+        let parents = [];
+        self.emit(new DeclareClass(node.name, parents, node.fields, methods));
+    }
+}

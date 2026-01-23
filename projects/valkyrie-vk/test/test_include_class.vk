@@ -1,0 +1,10 @@
+@include("included_class.vk");
+using test::included::MyClass;
+
+println("Starting test...");
+let c = new MyClass(42);
+println("Value is: ", c.get_value());
+c.set_value(100);
+println("New value is: ", c.get_value());
+println("Direct field access: ", c.value);
+println("Test finished.");

@@ -1,0 +1,102 @@
+namespace compiler::hir::symbol;
+
+using compiler::ast::Span;
+
+class Symbol {
+    name: String,
+    kind: String, # "variable", "function", "class"
+    span: Span,
+    info: Any # Type info or other data
+    
+    micro constructor(self, name, kind, span) {
+        self.name = name;
+        self.kind = kind;
+        self.span = span;
+        self.info = null;
+    }
+}
+
+class Scope {
+    symbols: Any, # Map<String, Symbol> - valkyrie-rs doesn't have Map in stdlib exposed yet? 
+                  # Wait, VM has HashMap. Does standard library expose it?
+                  # Currently stdlib::register only has print, println, sqrt, len, read_file.
+                  # No Map.
+                  # We have to use List of (name, Symbol) pairs for now or implement Map in Valkyrie.
+    parent: Scope
+    
+    micro constructor(self, parent) {
+        self.symbols = []; 
+        self.parent = parent;
+    }
+    
+    micro define(self, name, kind, span) {
+        let sym = new Symbol(name, kind, span);
+        self.symbols.push(sym); # Should check duplicate?
+        return sym;
+    }
+    
+    micro resolve(self, name) {
+        let current = self;
+        let loop_scope = true;
+        while loop_scope {
+            # Linear search in current scope
+            let i = 0;
+            let len = current.symbols.len();
+            let loop_sym = true;
+            let found = null;
+            
+            while loop_sym {
+                if i >= len { loop_sym = false; } else {
+                    let sym = current.symbols[i];
+                    if sym.name == name {
+                        found = sym;
+                        loop_sym = false;
+                    } else {
+                        i = i + 1;
+                    }
+                }
+            }
+            
+            if found != null {
+                return found;
+            }
+            
+            if current.parent != null {
+                current = current.parent;
+            } else {
+                loop_scope = false;
+            }
+        }
+        
+        return null;
+    }
+}
+
+class SymbolTable {
+    global_scope: Scope,
+    current_scope: Scope
+    
+    micro constructor(self) {
+        self.global_scope = new Scope(null);
+        self.current_scope = self.global_scope;
+    }
+    
+    micro enter_scope(self) {
+        let new_scope = new Scope(self.current_scope);
+        self.current_scope = new_scope;
+    }
+    
+    micro exit_scope(self) {
+        if self.current_scope.parent != null {
+            self.current_scope = self.current_scope.parent;
+        }
+    }
+    
+    micro define(self, name, kind, span) {
+        return self.current_scope.define(name, kind, span);
+    }
+    
+    micro resolve(self, name) {
+        return self.current_scope.resolve(name);
+    }
+}

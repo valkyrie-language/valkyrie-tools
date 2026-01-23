@@ -1,0 +1,32 @@
+[package]
+name = "valkyrie-rs"
+version = "0.0.1"
+edition = "2021"
+
+[dependencies]
+async-recursion = "1.1.1"
+thiserror = "2.0.17"
+tokio = { version = "1.38.0", features = ["full"] }
+clap = { version = "4.5", features = ["derive"] }
+wasm-encoder = "0.207.0"
+# Dependencies will be added as needed. 
+# For now, we are bootstrapping within this crate.
+
+[dev-dependencies]
+wasmtime = "21.0.1"
+
+[[bin]]
+name = "valkyrie-rs"
+path = "src/main.rs"
+
+[[bin]]
+name = "vcc"
+path = "src/bin/vcc.rs"
+
+[[bin]]
+name = "vcc_debug"
+path = "src/bin/vcc_debug.rs"
+
+[[bin]]
+name = "vcc_debug_short"
+path = "src/bin/vcc_debug_short.rs"

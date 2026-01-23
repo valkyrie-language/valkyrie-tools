@@ -1,0 +1,10 @@
+namespace std::collections::index_map;
+
+class IndexMap<K, V> {
+    micro set(self, key: K, value: V) {}
+    micro get(self, key: K) -> V {
+        let x: V = null;
+        return x;
+    }
+    micro has(self, key: K) -> bool { return false; }
+}

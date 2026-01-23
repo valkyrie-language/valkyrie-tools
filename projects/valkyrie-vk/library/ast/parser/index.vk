@@ -1,0 +1,839 @@
+namespace compiler::ast::parser;
+
+using compiler::ast::lexer::Lexer;
+using compiler::ast::lexer::Token;
+using compiler::ast::Span;
+using compiler::ast::Identifier;
+using compiler::ast::Program;
+using compiler::ast::Statement;
+using compiler::ast::LetStatement;
+using compiler::ast::ExpressionStatement;
+using compiler::ast::Expression;
+using compiler::ast::Literal;
+using compiler::ast::BlockStatement;
+using compiler::ast::ReturnStatement;
+using compiler::ast::IfStatement;
+using compiler::ast::WhileStatement;
+using compiler::ast::FunctionStatement;
+using compiler::ast::ClassStatement;
+using compiler::ast::NamespaceStatement;
+using compiler::ast::UsingStatement;
+using compiler::ast::MatchStatement;
+using compiler::ast::CaseStatement;
+using compiler::ast::Parameter;
+using compiler::ast::GenericType;
+using compiler::ast::ListExpression;
+
+class ParseError {
+    msg: String,
+    file: String,
+    line: i32,
+    col: i32,
+    token: Token
+    
+    micro constructor(self, msg, file, line, col, token) {
+        self.msg = msg;
+        self.file = file;
+        self.line = line;
+        self.col = col;
+        self.token = token;
+    }
+}
+
+class Parser {
+    lexer: Lexer,
+    current: Token,
+    package_name: String,
+    file_path: String,
+    errors: List
+
+    micro constructor(self, lexer, package_name, file_path) {
+        self.lexer = lexer;
+        self.current = lexer.next_token();
+        self.package_name = package_name;
+        self.file_path = file_path;
+        self.errors = [];
+    }
+    
+    micro error(self, msg) {
+        let err = new ParseError(msg, self.file_path, self.current.line, self.current.col, self.current);
+        self.errors.push(err);
+        println("Parse Error in ", self.file_path, ":", self.current.line, ":", self.current.col, " : ", msg);
+    }
+    
+    micro expect(self, kind) {
+        if self.current.kind == kind {
+            self.bump();
+            return true;
+        } else {
+            self.error("Expected " + kind + " but got " + self.current.kind);
+            return false;
+        }
+    }
+    
+    micro bump(self) {
+        self.current = self.lexer.next_token();
+    }
+    
+    micro parse_type(self) {
+        let name_str = self.current.value;
+        let name = new Identifier(name_str, new Span(0, 0));
+        self.bump();
+        
+        if self.current.kind == "Less" {
+            self.bump(); # <
+            let args = [];
+            let loop_cond = true;
+            while loop_cond {
+                if self.current.kind == "Greater" {
+                    loop_cond = false;
+                } else {
+                    args.push(self.parse_type());
+                    if self.current.kind == "Comma" {
+                        self.bump();
+                    }
+                }
+            }
+            if self.current.kind == "Greater" {
+                self.bump();
+            }
+            return new GenericType(name, args, new Span(0, 0));
+        }
+        return name;
+    }
+
+    micro parse_generic_params(self) {
+        let params = [];
+        if self.current.kind == "Less" {
+             self.bump();
+             let loop_cond = true;
+             while loop_cond {
+                 if self.current.kind == "Greater" {
+                     loop_cond = false;
+                 } else {
+                     let name = new Identifier(self.current.value, new Span(0, 0));
+                     self.bump();
+                     params.push(name);
+                     if self.current.kind == "Comma" { self.bump(); }
+                 }
+             }
+             self.bump(); # >
+        }
+        return params;
+    }
+
+    micro parse_program(self) -> Program {
+        let statements = [];
+        let span = new Span(0, 0); 
+        
+        let loop_cond = true;
+        while loop_cond {
+            if self.current.kind == "EOF" {
+                loop_cond = false;
+            } else {
+                let stmt = self.parse_statement();
+                statements.push(stmt);
+                # println("Parsed stmt");
+            }
+        }
+        
+        return new Program(statements, span);
+    }
+    
+    micro parse_statement(self) -> Statement {
+        let annotations = [];
+        while self.current.kind == "At" {
+            self.bump();
+            annotations.push(self.parse_macro_call());
+        }
+
+        let k = self.current.kind;
+        
+        if annotations.len() > 0 {
+             if k == "BraceR" || k == "EOF" || k == "Semi" {
+                 if k == "Semi" { self.bump(); }
+                 
+                 if annotations.len() == 1 {
+                     return new ExpressionStatement(annotations[0], new Span(0,0));
+                 }
+                 
+                 let stmts = [];
+                 let i = 0;
+                 let len = annotations.len();
+                 while i < len {
+                     stmts.push(new ExpressionStatement(annotations[i], new Span(0,0)));
+                     i = i + 1;
+                 }
+                 return new BlockStatement(stmts, new Span(0,0));
+             }
+        }
+
+        let stmt = null;
+        if k == "Namespace" { stmt = self.parse_namespace_statement(); }
+        else if k == "Using" { stmt = self.parse_using_statement(); }
+        else if k == "Let" { stmt = self.parse_let_statement(); }
+        else if k == "Class" { stmt = self.parse_class_statement(); }
+        else if k == "Return" { stmt = self.parse_return_statement(); }
+        else if k == "If" { stmt = self.parse_if_statement(); }
+        else if k == "Match" { stmt = self.parse_match_statement(); }
+        else if k == "While" { stmt = self.parse_while_statement(); }
+        else if k == "Micro" { stmt = self.parse_function_statement(); }
+        else if k == "BraceL" { stmt = self.parse_block_statement(); }
+        else { stmt = self.parse_expression_statement(); }
+        
+        if annotations.len() > 0 {
+            stmt.annotations = annotations;
+        }
+        
+        return stmt;
+    }
+    
+    micro parse_block_statement(self) -> BlockStatement {
+        self.bump(); # consume '{'
+        let statements = [];
+        let loop_cond = true;
+        while loop_cond {
+            if self.current.kind == "BraceR" {
+                loop_cond = false;
+            } else if self.current.kind == "EOF" {
+                self.error("Unexpected EOF in block statement");
+                loop_cond = false;
+            } else {
+                statements.push(self.parse_statement());
+            }
+        }
+        self.expect("BraceR"); # consume '}'
+        return new BlockStatement(statements, new Span(0, 0));
+    }
+    
+    micro parse_let_statement(self) -> LetStatement {
+        # let x = 123;
+        # let x: i32 = 123;
+        self.bump(); # consume 'let'
+        
+        let name_str = self.current.value;
+        let name_span = new Span(0, 0);
+        let name = new Identifier(name_str, name_span);
+        self.bump(); # consume name
+        
+        let ty = null;
+        if self.current.kind == "Colon" {
+            self.bump(); # consume ':'
+            ty = self.parse_type();
+        }
+        
+        if self.current.kind == "Equal" {
+            self.bump(); # consume '='
+        }
+        
+        let initializer = self.parse_expression();
+        
+        if self.current.kind == "Semi" {
+            self.bump(); # consume ';'
+        }
+        
+        let span = new Span(0, 0);
+        return new LetStatement(name, ty, initializer, span);
+    }
+    
+    micro parse_return_statement(self) -> ReturnStatement {
+        self.bump(); # consume 'return'
+        let result = self.parse_expression(); # TODO: optional value?
+        if self.current.kind == "Semi" {
+            self.bump();
+        }
+        return new ReturnStatement(result, new Span(0, 0));
+    }
+    
+    micro parse_if_statement(self) -> IfStatement {
+        self.bump(); # consume 'if'
+        let condition = self.parse_expression();
+        let then_branch = self.parse_block_statement();
+        let else_branch = null; 
+        
+        if self.current.kind == "Else" || self.current.value == "else" {
+             self.bump();
+             # Check for 'if' (else if) or block
+             if self.current.kind == "If" {
+                 else_branch = self.parse_if_statement();
+             } else {
+                 else_branch = self.parse_block_statement();
+             }
+        }
+        
+        return new compiler::ast::IfStatement(condition, then_branch, else_branch, new compiler::ast::Span(0, 0));
+    }
+    
+    micro parse_match_statement(self) -> MatchStatement {
+        self.bump(); # consume 'match'
+        let condition = self.parse_expression();
+        self.bump(); # consume '{'
+        
+        let cases = [];
+        let loop_cond = true;
+        while loop_cond {
+            if self.current.kind == "BraceR" {
+                loop_cond = false;
+            } else if self.current.kind == "EOF" {
+                loop_cond = false;
+            } else {
+                # Parse case
+                # For now, assume simplified pattern (expression)
+                let pattern = self.parse_expression();
+                
+                # Expect Arrow "->" or Block?
+                # Valkyrie syntax: pattern => body ?
+                # Let's assume BraceL starts body for now or "=>"
+                # My Lexer doesn't have Arrow "=>", only "->" (Arrow token).
+                # Wait, Lexer has Arrow -> TokenKind::Arrow.
+                # But does it tokenize "=>"? 
+                # Lexer has "=>" ? No.
+                # Lexer: 
+                # match s.as_str() { ... }
+                # operators: = == != < <= > >= ->
+                # So let's use "{" for now or check if we need to add "=>".
+                # Usually `case pattern { ... }` or `pattern => ...`
+                # Let's assume `pattern { ... }` style for simplicity or check if `self.current.kind` is BraceL.
+                
+                # Actually, let's just parse block statement immediately after expression.
+                # This means `match x { 1 { ... } 2 { ... } }`
+                # Or `match x { case 1 { ... } }` if we used keywords.
+                # But typically it's `match x { 1 => { ... }, 2 => { ... } }`.
+                
+                # Let's assume just `pattern { ... }` for now to avoid Lexer changes for `=>`.
+                let body = self.parse_block_statement();
+                cases.push(new compiler::ast::CaseStatement(pattern, body, new Span(0, 0)));
+            }
+        }
+        self.bump(); # consume '}'
+        
+        return new compiler::ast::MatchStatement(condition, cases, new Span(0, 0));
+    }
+
+    micro parse_while_statement(self) -> WhileStatement {
+        self.bump(); # consume 'while'
+        let condition = self.parse_expression();
+        let body = self.parse_block_statement();
+        return new WhileStatement(condition, body, new Span(0, 0));
+    }
+    
+    micro parse_function_statement(self) -> FunctionStatement {
+        self.bump(); # consume 'micro'
+        let name_str = self.current.value;
+        let name = new Identifier(name_str, new Span(0, 0));
+        self.bump(); # consume name
+        
+        let generic_params = self.parse_generic_params();
+        
+        self.bump(); # consume '('
+        let params = [];
+        let loop_cond = true;
+        while loop_cond {
+            if self.current.kind == "ParenR" {
+                loop_cond = false;
+            } else {
+                let p_name = new Identifier(self.current.value, new Span(0, 0));
+                self.bump();
+                
+                let p_ty = null;
+                if self.current.kind == "Colon" {
+                    self.bump(); # :
+                    p_ty = self.parse_type();
+                }
+                
+                params.push(new Parameter(p_name, p_ty, new Span(0, 0)));
+                
+                if self.current.kind == "Comma" {
+                    self.bump();
+                }
+            }
+        }
+        self.bump(); # consume ')'
+        
+        let body = self.parse_block_statement();
+        let func_stmt = new FunctionStatement(name, params, body, new Span(0, 0));
+        func_stmt.generic_params = generic_params;
+        return func_stmt;
+    }
+    
+    micro parse_class_statement(self) -> ClassStatement {
+        self.bump(); # consume 'class'
+        let name_str = self.current.value;
+        let name = new Identifier(name_str, new Span(0, 0));
+        self.bump(); # consume name
+        
+        let generic_params = self.parse_generic_params();
+        
+        let parent = null;
+        if self.current.kind == "ParenL" {
+             self.bump(); # (
+             if self.current.kind != "ParenR" {
+                 parent = self.parse_type();
+             }
+             self.bump(); # )
+        }
+        
+        self.bump(); # {
+        
+        let fields = [];
+        let methods = [];
+        
+        let loop_cond = true;
+        while loop_cond {
+            let k = self.current.kind;
+            
+            if k == "BraceR" { loop_cond = false; }
+            else if k == "EOF" { loop_cond = false; }
+            else if k == "Micro" { methods.push(self.parse_function_statement()); }
+            else {
+                # Field definition
+                let f_name_str = self.current.value;
+                let f_name = new compiler::ast::Identifier(f_name_str, new compiler::ast::Span(0, 0));
+                let f_span = new compiler::ast::Span(0, 0);
+                self.bump(); # name
+                
+                let f_ty = null;
+                if self.current.kind == "Colon" {
+                    self.bump(); # :
+                    f_ty = self.parse_type();
+                }
+                
+                if self.current.kind == "Comma" {
+                    self.bump();
+                }
+                
+                fields.push(new compiler::ast::Parameter(f_name, f_ty, f_span));
+            }
+        }
+        self.bump(); # }
+        
+        let class_stmt = new ClassStatement(name, parent, fields, methods, new Span(0, 0));
+        class_stmt.generic_params = generic_params;
+        return class_stmt;
+    }
+    
+    micro parse_namespace_statement(self) -> NamespaceStatement {
+        self.bump(); # namespace
+        let name = "";
+        let loop_cond = true;
+        while loop_cond {
+            if self.current.kind == "Semi" {
+                loop_cond = false;
+            } else {
+                name = name + self.current.value;
+                self.bump();
+            }
+        }
+        self.bump(); # ;
+        
+        # Check package prefix
+        if name != self.package_name {
+             # Naive starts_with check
+             let p_len = self.package_name.len();
+             if name.len() < p_len {
+                  println("Error: Namespace '", name, "' must start with package name '", self.package_name, "'");
+             } else {
+                 # Should check if substring matches, but assuming valid for now if starts_with check is hard.
+                 # Just printing warning if it doesn't look like package::...
+                 # TODO: Implement proper string check
+             }
+        }
+        
+        return new NamespaceStatement(name, new Span(0, 0));
+    }
+
+    micro parse_using_statement(self) -> UsingStatement {
+        self.bump(); # using
+        let paths = self.parse_import_paths("");
+        self.bump(); # ;
+        return new UsingStatement(paths, new Span(0, 0));
+    }
+    
+    micro parse_import_paths(self, prefix) {
+        let paths = [];
+        let current_segment = "";
+        
+        if self.current.kind == "Star" {
+            current_segment = "*";
+            self.bump();
+        } else if self.current.value == "self" {
+             current_segment = "self";
+             self.bump();
+        } else {
+             current_segment = self.current.value;
+             self.bump();
+        }
+        
+        let full_path = "";
+        if prefix == "" {
+            full_path = current_segment;
+        } else {
+            if current_segment == "self" {
+                # using a::self -> import 'a'
+                # prefix is "a::"
+                # remove trailing ::
+                # Naive: assuming prefix ends with ::
+                # But Valkyrie strings don't have slice/substring easily exposed?
+                # Actually, HirLowering logic handles what "a::b" means.
+                # If we produce "a::self", lowering should handle it?
+                # The user said "using yy::{*, self}".
+                # If we output "yy::self" and "yy::*", the resolver decides what to do.
+                # Let's keep "yy::self" in the path list for now.
+                full_path = prefix + current_segment;
+            } else {
+                full_path = prefix + current_segment;
+            }
+        }
+        
+        if self.current.kind == "DoubleColon" {
+             self.bump(); # ::
+             
+             if self.current.kind == "BraceL" {
+                 self.bump(); # {
+                 let loop_cond = true;
+                 while loop_cond {
+                     if self.current.kind == "BraceR" {
+                         loop_cond = false;
+                     } else {
+                         let sub_paths = self.parse_import_paths(full_path + "::");
+                         let i = 0;
+                         let len = sub_paths.len();
+                         while i < len {
+                             paths.push(sub_paths[i]);
+                             i = i + 1;
+                         }
+                         
+                         if self.current.kind == "Comma" {
+                             self.bump();
+                         }
+                     }
+                 }
+                 self.bump(); # }
+             } else {
+                 let sub_paths = self.parse_import_paths(full_path + "::");
+                 let i = 0;
+                 let len = sub_paths.len();
+                 while i < len {
+                     paths.push(sub_paths[i]);
+                     i = i + 1;
+                 }
+             }
+        } else {
+            paths.push(full_path);
+        }
+        return paths;
+    }
+
+    micro parse_expression_statement(self) -> ExpressionStatement {
+        let expr = self.parse_expression();
+        
+        if self.current.kind == "Semi" {
+            self.bump();
+        }
+        
+        let span = new Span(0, 0);
+        return new ExpressionStatement(expr, span);
+    }
+    
+    micro parse_expression(self) -> Expression {
+        return self.parse_expression_pratt(0);
+    }
+    
+    micro get_precedence(self, kind) {
+        if kind == "Equal" { return 10; }
+        if kind == "Or" { return 20; }
+        if kind == "And" { return 30; }
+        if kind == "BitOr" { return 40; }
+        if kind == "BitAnd" { return 60; }
+        if kind == "EqualEqual" { return 70; }
+        if kind == "BangEqual" { return 70; }
+        if kind == "Neq" { return 70; }
+        if kind == "Less" { return 80; }
+        if kind == "LessEqual" { return 80; }
+        if kind == "Greater" { return 80; }
+        if kind == "GreaterEqual" { return 80; }
+        if kind == "Plus" { return 100; }
+        if kind == "Minus" { return 100; }
+        if kind == "Star" { return 110; }
+        if kind == "Slash" { return 110; }
+        if kind == "Percent" { return 110; }
+        if kind == "ParenL" { return 130; }
+        if kind == "Dot" { return 130; }
+        if kind == "BracketL" { return 130; }
+        return 0;
+    }
+
+    micro parse_expression_pratt(self, precedence) {
+        let token = self.current;
+        self.bump();
+        
+        let left = self.parse_prefix(token);
+        
+        let loop_cond = true;
+        while loop_cond {
+            let p = self.get_precedence(self.current.kind);
+            if precedence < p {
+                 let op = self.current;
+                 self.bump();
+                 left = self.parse_infix(left, op);
+            } else {
+                 loop_cond = false;
+            }
+        }
+        
+        return left;
+    }
+    
+    micro parse_prefix(self, token) {
+        let k = token.kind;
+        
+        if k == "IdentOrNum" {
+            let val = token.value;
+            let c = val.chars()[0];
+            let is_num = false;
+            if c == "0" || c == "1" || c == "2" || c == "3" || c == "4" || 
+               c == "5" || c == "6" || c == "7" || c == "8" || c == "9" {
+                is_num = true;
+            }
+            if is_num {
+                 return new compiler::ast::Literal(token.value, "Integer", new compiler::ast::Span(0,0));
+            } else {
+                 return new compiler::ast::Identifier(token.value, new compiler::ast::Span(0,0));
+            }
+        }
+        
+        if k == "String" {
+            return new compiler::ast::Literal(token.value, k, new compiler::ast::Span(0,0));
+        }
+        
+        if k == "Boolean" {
+            return new compiler::ast::Literal(token.value, k, new compiler::ast::Span(0,0));
+        }
+        
+        if k == "At" {
+            return self.parse_macro_call();
+        }
+        
+        if k == "New" {
+            return self.parse_new_expression();
+        }
+        
+        if k == "ParenL" {
+            let expr = self.parse_expression();
+            if self.current.kind == "ParenR" { self.bump(); }
+            return expr;
+        }
+        
+        if k == "BracketL" {
+            return self.parse_list_expression();
+        }
+        
+        if k == "Minus" {
+            let operand = self.parse_expression_pratt(120); # Unary precedence
+            return new compiler::ast::UnaryExpression("-", operand, new compiler::ast::Span(0,0));
+        }
+        
+        if k == "Bang" {
+            let operand = self.parse_expression_pratt(120); # Unary precedence
+            return new compiler::ast::UnaryExpression("!", operand, new compiler::ast::Span(0,0));
+        }
+        
+        self.error("Unexpected token in prefix position: " + k);
+        return new compiler::ast::Literal("error", "Error", new compiler::ast::Span(0,0));
+    }
+    
+    micro parse_infix(self, left, token) {
+        let k = token.kind;
+        
+        if k == "Dot" {
+             let name_str = self.current.value;
+             let name = new compiler::ast::Identifier(name_str, new compiler::ast::Span(0,0));
+             self.bump();
+             return new compiler::ast::GetExpression(left, name, new compiler::ast::Span(0,0));
+        }
+        
+        if k == "BracketL" {
+             let index = self.parse_expression();
+             if self.current.kind == "BracketR" { self.bump(); }
+             return new compiler::ast::IndexExpression(left, index, new compiler::ast::Span(0,0));
+        }
+        
+        if k == "Equal" {
+             let right = self.parse_expression_pratt(9);
+             if left.kind == "GetExpression" {
+                 return new compiler::ast::SetExpression(left.object, left.name, right, new compiler::ast::Span(0,0));
+             } else if left.kind == "IndexExpression" {
+                 return new compiler::ast::SetIndexExpression(left.object, left.index, right, new compiler::ast::Span(0,0));
+             } else {
+                 return new compiler::ast::BinaryExpression(left, "=", right, new compiler::ast::Span(0,0));
+             }
+        }
+        
+        if k == "ParenL" {
+            # Call
+            let args = [];
+            let loop_cond = true;
+            while loop_cond {
+                if self.current.kind == "ParenR" {
+                     loop_cond = false;
+                } else if self.current.kind == "EOF" {
+                     loop_cond = false;
+                } else {
+                     args.push(self.parse_expression());
+                     if self.current.kind == "Comma" || self.current.value == "," { self.bump(); }
+                }
+            }
+            if self.current.kind == "ParenR" { self.bump(); }
+            return new compiler::ast::CallExpression(left, args, new compiler::ast::Span(0,0));
+        }
+        
+        # Binary Op
+        let p = self.get_precedence(k);
+        let right = self.parse_expression_pratt(p);
+        return new compiler::ast::BinaryExpression(left, token.value, right, new compiler::ast::Span(0,0));
+    }
+
+    micro parse_primary(self) -> Expression {
+        # For now, only literals or identifiers
+        let val = self.current.value;
+        let kind = self.current.kind;
+        let span = new Span(0, 0);
+        self.bump();
+        
+        return new Literal(val, kind, span);
+    }
+    
+    micro parse_call_expression(self, callee) -> compiler::ast::CallExpression {
+        self.bump(); # consume '('
+        let args = [];
+        let loop_cond = true;
+        while loop_cond {
+            if self.current.kind == "ParenR" {
+                loop_cond = false;
+            } else if self.current.kind == "EOF" {
+                self.error("Unexpected EOF in function call arguments");
+                loop_cond = false;
+            } else {
+                let arg = self.parse_expression();
+                args.push(arg);
+                
+                if self.current.kind == "Comma" || self.current.value == "," {
+                    self.bump();
+                }
+            }
+        }
+        self.expect("ParenR"); # consume ')'
+        return new compiler::ast::CallExpression(callee, args, new compiler::ast::Span(0, 0));
+    }
+
+    micro parse_list_expression(self) -> compiler::ast::ListExpression {
+        # Assumes BracketL is already consumed or current?
+        # parse_prefix calls it when current is BracketL.
+        # But parse_expression_pratt bumps BEFORE calling parse_prefix(token).
+        # So token is BracketL, current is next token.
+        # So we don't need to bump BracketL.
+        
+        let elements = [];
+        let loop_cond = true;
+        while loop_cond {
+            if self.current.kind == "BracketR" {
+                loop_cond = false;
+            } else if self.current.kind == "EOF" {
+                self.error("Unexpected EOF in list expression");
+                loop_cond = false;
+            } else {
+                let elem = self.parse_expression();
+                elements.push(elem);
+                
+                if self.current.kind == "Comma" {
+                    self.bump();
+                }
+            }
+        }
+        self.expect("BracketR"); # consume ']'
+        return new compiler::ast::ListExpression(elements, new Span(0, 0));
+    }
+
+    micro parse_new_expression(self) -> compiler::ast::NewExpression {
+        # Parse Type (potentially generic)
+        # Note: self.parse_type() expects current token to be identifier
+        let ty = self.parse_type();
+        
+        # In NewExpression AST, 'name' is Identifier or TypeExpression?
+        # Check AST definition.
+        # If it's identifier, we need to adapt.
+        # But 'ty' returns GenericType or Identifier.
+        # If NewExpression expects Identifier, we have a problem.
+        # Let's assume we can change NewExpression to accept TypeExpression or we hack it into Identifier for now.
+        # But wait, Identifier is a class. GenericType is a class.
+        # They don't share a common 'Type' base class in this simple parser implementation?
+        # Actually they are just classes.
+        
+        # Let's check `parse_type` return value.
+        # It returns `Identifier` or `GenericType`.
+        
+        # Let's check NewExpression definition in `library/ast/index.vk`?
+        # We haven't read it yet.
+        # But if we assume it stores `class_name` as the object returned here.
+        
+        let args = [];
+        if self.current.kind == "ParenL" {
+             self.bump(); # (
+             let loop_cond = true;
+             while loop_cond {
+                 if self.current.kind == "ParenR" {
+                     loop_cond = false;
+                 } else if self.current.kind == "EOF" {
+                     self.error("Unexpected EOF in new expression");
+                     loop_cond = false;
+                 } else {
+                     args.push(self.parse_expression());
+                     if self.current.kind == "Comma" {
+                         self.bump();
+                     }
+                 }
+             }
+             self.expect("ParenR"); # )
+        }
+        
+        return new compiler::ast::NewExpression(ty, args, new compiler::ast::Span(0, 0));
+    }
+
+    micro parse_macro_call(self) -> compiler::ast::MacroCallExpression {
+        # Current token is At (@), but parse_prefix consumed it.
+        # Check if next token is Dot (.) for annotation style: @.annotation
+        
+        let name_str = "";
+        
+        if self.current.kind == "Dot" {
+            self.bump(); # .
+            name_str = "." + self.current.value;
+            self.bump(); # name
+        } else {
+            name_str = self.current.value;
+            self.bump();
+        }
+        
+        let args = [];
+        if self.current.kind == "ParenL" {
+             self.bump(); # (
+             let loop_cond = true;
+             while loop_cond {
+                 if self.current.kind == "ParenR" {
+                     loop_cond = false;
+                 } else if self.current.kind == "EOF" {
+                     self.error("Unexpected EOF in macro call");
+                     loop_cond = false;
+                 } else {
+                     args.push(self.parse_expression());
+                     if self.current.kind == "Comma" {
+                         self.bump();
+                     }
+                 }
+             }
+             self.expect("ParenR"); # )
+        }
+        
+        return new compiler::ast::MacroCallExpression(name_str, args, new compiler::ast::Span(0, 0));
+    }
+}

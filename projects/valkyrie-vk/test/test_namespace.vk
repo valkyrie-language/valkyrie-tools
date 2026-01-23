@@ -1,0 +1,14 @@
+namespace bootstrap::test_namespace;
+
+using std::os::{args, get_env};
+using std::os::{getcwd};
+
+println("Namespace test start");
+
+micro test() {
+    println("Inside bootstrap::test_namespace::test");
+}
+
+test();
+
+println("Namespace test end");

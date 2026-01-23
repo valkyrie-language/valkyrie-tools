@@ -1,0 +1,28 @@
+namespace std::os;
+
+@.native("wasm", "wasi_snapshot_preview1", "environ_get")
+micro get_environment(key: String) -> String {
+    # Foreign Function Interface
+}
+
+@.native("jvm", "java.lang.System", "getenv")
+micro get_environment(key: String) -> String {
+    # Foreign Function Interface
+}
+
+micro env(key: String) -> String {
+    return get_environment(key);
+}
+
+micro args() -> List<String> {
+    return get_args();
+}
+
+micro getcwd() -> String {
+    # TODO: Native binding
+    return "";
+}
+
+micro exit_process(code: i32) {
+    # TODO: Native binding
+}

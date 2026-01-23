@@ -1,0 +1,169 @@
+namespace compiler::mir_codegen_wat;
+
+using compiler::mir::OpCode;
+using compiler::mir::MirProgram;
+
+class CodegenWat {
+    code: String,
+    indent: i32
+    
+    micro constructor(self) {
+        self.code = "";
+        self.indent = 0;
+    }
+    
+    micro compile(self, program) {
+        self.code = "";
+        self.emit_line("(module");
+        self.indent = self.indent + 1;
+        
+        self.emit_line("(import \"env\" \"print\" (func $print (param i64)))");
+        
+        # Define main function
+        self.emit_line("(func $main (export \"main\")");
+        self.indent = self.indent + 1;
+        
+        # Locals
+        # We need to count locals from MIR?
+        # MirCompiler doesn't store local count in MirProgram directly, but we can scan or just define a bunch.
+        # Let's define 100 locals for now to be safe, or scan instructions.
+        # Scanning is better.
+        let max_local = -1;
+        let i = 0;
+        let len = program.instructions.len();
+        let loop_cond = true;
+        while loop_cond {
+            if i >= len { loop_cond = false; } else {
+                let instr = program.instructions[i];
+                # Check for LoadLocal/StoreLocal
+                # But instr is an object, need to check kind/fields.
+                # Assuming simple object structure from mir/_.vk
+                if instr.kind == "LoadLocal" {
+                    if instr.index > max_local { max_local = instr.index; }
+                } else if instr.kind == "StoreLocal" {
+                    if instr.index > max_local { max_local = instr.index; }
+                }
+                i = i + 1;
+            }
+        }
+        
+        if max_local >= 0 {
+            let j = 0;
+            self.emit_indent();
+            self.code = self.code + "(local";
+            while j <= max_local {
+                self.code = self.code + " i64";
+                j = j + 1;
+            }
+            self.code = self.code + ")\n";
+        }
+        
+        # Instructions
+        i = 0;
+        loop_cond = true;
+        while loop_cond {
+            if i >= len { loop_cond = false; } else {
+                let instr = program.instructions[i];
+                self.emit_instruction(instr);
+                i = i + 1;
+            }
+        }
+        
+        self.indent = self.indent - 1;
+        self.emit_line(")"); # end func
+        
+        self.indent = self.indent - 1;
+        self.emit_line(")"); # end module
+        
+        return self.code;
+    }
+    
+    micro emit_instruction(self, instr) {
+        let k = instr.kind;
+        if k == "PushInt" {
+            self.emit_line("i64.const " + instr.value);
+        } else if k == "PushBool" {
+            if instr.value {
+                self.emit_line("i64.const 1");
+            } else {
+                self.emit_line("i64.const 0");
+            }
+        } else if k == "PushVoid" {
+            # Void in stack machine -> usually nothing or 0
+            self.emit_line("i64.const 0");
+        } else if k == "Add" {
+            self.emit_line("i64.add");
+        } else if k == "Sub" {
+            self.emit_line("i64.sub");
+        } else if k == "Mul" {
+            self.emit_line("i64.mul");
+        } else if k == "Div" {
+            self.emit_line("i64.div_s");
+        } else if k == "Eq" {
+            self.emit_line("i64.eq");
+        } else if k == "Neq" {
+            self.emit_line("i64.ne");
+        } else if k == "Lt" {
+            self.emit_line("i64.lt_s");
+        } else if k == "Gt" {
+            self.emit_line("i64.gt_s");
+        } else if k == "Le" {
+            self.emit_line("i64.le_s");
+        } else if k == "Ge" {
+            self.emit_line("i64.ge_s");
+        } else if k == "Print" {
+            self.emit_line("call $print");
+        } else if k == "StoreLocal" {
+            self.emit_line("local.set " + instr.index);
+        } else if k == "LoadLocal" {
+            self.emit_line("local.get " + instr.index);
+        } else if k == "Pop" {
+            self.emit_line("drop");
+        } else if k == "Label" {
+            # WAT uses block/loop structure, not arbitrary labels usually.
+            # But we can use `br` to branching.
+            # However, mapping flat labels to structured WAT is hard without 'relooper'.
+            # A simple way is to use a big `block` and `br_table` (switch) but that's complex.
+            # Or we just assume structured control flow if we compile from AST...
+            # But we are compiling from MIR which is flat.
+            # Wait, `valkyrie-rs` WASM backend didn't handle Labels!
+            # It just ignored them?
+            # Let's check `valkyrie-rs` again.
+            # `valkyrie-rs` WASM backend ignored Labels!
+            # It implies `valkyrie-rs` WASM backend only supports straight-line code or it was incomplete.
+            # The user wants "executable".
+            # If I ignore labels, `if` and `while` won't work.
+            # I must handle control flow.
+            # Since MIR comes from AST, maybe I can compile from AST directly or use structured MIR?
+            # The current MIR is flat with Jumps.
+            # WASM requires structured control flow (block, loop, if).
+            # Converting flat CFG to structured CFG is the "Relooper" algorithm.
+            # That's too hard for this turn.
+            
+            # ALTERNATIVE: Generate C code!
+            # C supports `goto`. Flat MIR maps perfectly to C with `goto`.
+            # This is why C is a better bootstrap target than WASM for flat IR.
+            
+            self.emit_line(";; Label " + instr.id);
+        } else if k == "Jump" {
+             self.emit_line(";; jump " + instr.target);
+        } else if k == "JumpIfFalse" {
+             self.emit_line(";; jump_if_false " + instr.target);
+        } else {
+             self.emit_line(";; Unknown " + k);
+        }
+    }
+    
+    micro emit_line(self, line) {
+        self.emit_indent();
+        self.code = self.code + line + "\n";
+    }
+    
+    micro emit_indent(self) {
+        let i = 0;
+        while i < self.indent {
+            self.code = self.code + "  ";
+            i = i + 1;
+        }
+    }
+}

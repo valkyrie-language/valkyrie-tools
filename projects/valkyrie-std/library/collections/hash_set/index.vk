@@ -1,0 +1,43 @@
+namespace std::collections::hash_set;
+
+using std::collections::Set;
+using std::collections::MutableSet;
+using std::collections::hash_map::HashMap;
+
+class HashSet<T> (MutableSet<T>) {
+    map: HashMap<T, bool>
+    
+    micro constructor(self) {
+        self.map = new HashMap();
+    }
+    
+    micro len(self) -> isize {
+        return self.map.len();
+    }
+    
+    micro contains(self, item: T) -> bool {
+        return self.map.has(item);
+    }
+    
+    micro insert(self, item: T) -> bool {
+        if self.map.has(item) { return false; }
+        self.map.set(item, true);
+        return true;
+    }
+    
+    micro remove(self, item: T) -> bool {
+        if self.map.has(item) {
+            self.map.remove(item);
+            return true;
+        }
+        return false;
+    }
+    
+    micro clear(self) {
+        self.map.clear();
+    }
+    
+    micro iterator(self) {
+        return self.map.keys();
+    }
+}

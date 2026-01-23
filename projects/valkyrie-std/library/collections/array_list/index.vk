@@ -1,0 +1,78 @@
+namespace std::collections::array_list;
+
+using std::collections;
+using std::collections::array::Array;
+using std::iterator::Iterator;
+
+class ArrayList<T> (MutableList<T>) {
+    buffer: Array<T>,
+    capacity: usize,
+    size: usize
+    
+    micro constructor(self) {
+        self.capacity = 16;
+        self.buffer = new Array(16);
+        self.size = 0;
+    }
+    
+    micro len(self) -> isize {
+        return self.size;
+    }
+    
+    micro push(self, item: T) {
+        if self.size >= self.capacity {
+            self.grow();
+        }
+        self.buffer.set(self.size, item);
+        self.size = self.size + 1;
+    }
+    
+    micro pop(self) -> T {
+        if self.size == 0 { return null; }
+        self.size = self.size - 1;
+        return self.buffer.get(self.size);
+    }
+    
+    micro get(self, index: usize) -> T {
+        if index < 0 || index >= self.size { return null; }
+        return self.buffer.get(index);
+    }
+    
+    micro set(self, index: usize, item: T) {
+        if index >= 0 && index < self.size {
+            self.buffer.set(index, item);
+        }
+    }
+    
+    micro clear(self) {
+        self.size = 0;
+    }
+    
+    micro grow(self) {
+        let new_cap = self.capacity * 2;
+        let new_buf = new Array(new_cap);
+        
+        let i = 0;
+        while i < self.size {
+            new_buf.set(i, self.buffer.get(i));
+            i = i + 1;
+        }
+        
+        self.buffer = new_buf;
+        self.capacity = new_cap;
+    }
+    
+    micro iterator(self) -> Iterator<T> {
+        return new ArrayListIterator(self);
+    }
+}
+
+
+
+imply ArrayList<T> : List<T> {
+
+}
+
+imply ArrayList<T> : MutableList<T> {
+
+}

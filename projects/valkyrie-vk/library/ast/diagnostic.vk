@@ -1,0 +1,21 @@
+namespace compiler::ast::diagnostic;
+
+class Diagnostic {
+    level: String, # "error", "warning", "info"
+    message: String,
+    file: String,
+    line: i32,
+    col: i32
+    
+    micro constructor(self, level, message, file, line, col) {
+        self.level = level;
+        self.message = message;
+        self.file = file;
+        self.line = line;
+        self.col = col;
+    }
+    
+    micro print(self) {
+        println("[", self.level, "] ", self.file, ":", self.line, ":", self.col, ": ", self.message);
+    }
+}

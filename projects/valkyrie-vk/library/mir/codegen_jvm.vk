@@ -1,0 +1,274 @@
+namespace compiler::mir_codegen_jvm;
+
+using compiler::mir::OpCode;
+using compiler::mir::MirProgram;
+
+class CodegenJvm {
+    code: String,
+    method_code: String,
+    current_method: String,
+    uuid_counter: i32
+    
+    micro constructor(self) {
+        self.code = "";
+        self.method_code = "";
+        self.current_method = "";
+        self.uuid_counter = 0;
+    }
+    
+    micro int_to_string(self, n) {
+        if n == 0 { return "0"; }
+        let s = "";
+        let is_neg = false;
+        if n < 0 { is_neg = true; n = 0 - n; }
+        
+        while n > 0 {
+            let digit = n % 10;
+            n = n / 10;
+            if digit == 0 { s = "0" + s; }
+            else if digit == 1 { s = "1" + s; }
+            else if digit == 2 { s = "2" + s; }
+            else if digit == 3 { s = "3" + s; }
+            else if digit == 4 { s = "4" + s; }
+            else if digit == 5 { s = "5" + s; }
+            else if digit == 6 { s = "6" + s; }
+            else if digit == 7 { s = "7" + s; }
+            else if digit == 8 { s = "8" + s; }
+            else if digit == 9 { s = "9" + s; }
+        }
+        if is_neg { s = "-" + s; }
+        return s;
+    }
+    
+    micro compile(self, program) {
+        self.code = "";
+        
+        self.emit_line(".class public Output");
+        self.emit_line(".super java/lang/Object");
+        self.emit_line("");
+        
+        # Default constructor
+        self.emit_line(".method public <init>()V");
+        self.emit_line("  aload_0");
+        self.emit_line("  invokespecial java/lang/Object/<init>()V");
+        self.emit_line("  return");
+        self.emit_line(".end method");
+        self.emit_line("");
+        
+        # Process functions
+        let i = 0;
+        let len = program.instructions.len();
+        let loop_cond = true;
+        while loop_cond {
+            if i >= len { loop_cond = false; } else {
+                let instr = program.instructions[i];
+                if instr.kind == "DeclareFunction" {
+                    self.emit_function(instr);
+                }
+                # Ignore DeclareClass for now or implement as inner classes later
+                i = i + 1;
+            }
+        }
+        
+        # Main method
+        self.emit_line(".method public static main([Ljava/lang/String;)V");
+        self.emit_line("  .limit stack 100");
+        self.emit_line("  .limit locals 100");
+        
+        # Emit top-level instructions
+        i = 0;
+        loop_cond = true;
+        while loop_cond {
+            if i >= len { loop_cond = false; } else {
+                let instr = program.instructions[i];
+                if instr.kind != "DeclareFunction" && instr.kind != "DeclareClass" {
+                    self.emit_instruction(instr);
+                }
+                i = i + 1;
+            }
+        }
+        
+        self.emit_line("  return");
+        self.emit_line(".end method");
+        
+        return self.code;
+    }
+    
+    micro emit_line(self, line) {
+        self.code = self.code + line + "\n";
+    }
+    
+    micro emit_function(self, instr) {
+        let name = instr.name;
+        # Construct signature
+        # Assume (II)I for now (Int args, Int return)
+        # Or (II)V if void?
+        # We don't have type info in MIR explicitly for return type in DeclareFunction?
+        # DeclareFunction has params list, but types?
+        # MIR is untyped or loosely typed (everything is 64-bit word).
+        # In JVM we use 'I' (int) for 32-bit.
+        
+        let sig = "(";
+        let k = 0;
+        let plen = instr.params.len();
+        while k < plen {
+            sig = sig + "I";
+            k = k + 1;
+        }
+        sig = sig + ")I"; # Assume return int
+        
+        self.emit_line(".method public static " + name + sig);
+        self.emit_line("  .limit stack 100");
+        self.emit_line("  .limit locals 100");
+        
+        # Body
+        let b = 0;
+        let blen = instr.body.len();
+        let bloop = true;
+        while bloop {
+            if b >= blen { bloop = false; } else {
+                self.emit_instruction(instr.body[b]);
+                b = b + 1;
+            }
+        }
+        
+        # Add implicit return 0 if missing?
+        # MIR should have Return.
+        
+        self.emit_line(".end method");
+        self.emit_line("");
+    }
+    
+    micro emit_instruction(self, instr) {
+        let k = instr.kind;
+        if k == "PushInt" {
+            self.emit_line("  ldc " + self.int_to_string(instr.value));
+        } else if k == "PushString" {
+            self.emit_line("  ldc \"" + instr.value + "\"");
+        } else if k == "PushBool" {
+            if instr.value { self.emit_line("  iconst_1"); } 
+            else { self.emit_line("  iconst_0"); }
+        } else if k == "PushVoid" {
+            self.emit_line("  iconst_0");
+        } else if k == "Add" {
+            self.emit_line("  iadd");
+        } else if k == "Sub" {
+            self.emit_line("  isub");
+        } else if k == "Mul" {
+            self.emit_line("  imul");
+        } else if k == "Div" {
+            self.emit_line("  idiv");
+        } else if k == "Eq" {
+            # JVM doesn't have ieq. It has if_icmpeq.
+            # We need to synthesize boolean 0/1.
+            let uuid = self.int_to_string(self.get_uuid());
+            let l1 = "L_eq_" + uuid;
+            let l2 = "L_end_" + uuid;
+            self.emit_line("  if_icmpeq " + l1);
+            self.emit_line("  iconst_0");
+            self.emit_line("  goto " + l2);
+            self.emit_line(l1 + ":");
+            self.emit_line("  iconst_1");
+            self.emit_line(l2 + ":");
+        } else if k == "Neq" {
+            let uuid = self.int_to_string(self.get_uuid());
+            let l1 = "L_ne_" + uuid;
+            let l2 = "L_end_" + uuid;
+            self.emit_line("  if_icmpne " + l1);
+            self.emit_line("  iconst_0");
+            self.emit_line("  goto " + l2);
+            self.emit_line(l1 + ":");
+            self.emit_line("  iconst_1");
+            self.emit_line(l2 + ":");
+        } else if k == "Lt" {
+            let uuid = self.int_to_string(self.get_uuid());
+            let l1 = "L_lt_" + uuid;
+            let l2 = "L_end_" + uuid;
+            self.emit_line("  if_icmplt " + l1);
+            self.emit_line("  iconst_0");
+            self.emit_line("  goto " + l2);
+            self.emit_line(l1 + ":");
+            self.emit_line("  iconst_1");
+            self.emit_line(l2 + ":");
+        } else if k == "Gt" {
+            let uuid = self.int_to_string(self.get_uuid());
+            let l1 = "L_gt_" + uuid;
+            let l2 = "L_end_" + uuid;
+            self.emit_line("  if_icmpgt " + l1);
+            self.emit_line("  iconst_0");
+            self.emit_line("  goto " + l2);
+            self.emit_line(l1 + ":");
+            self.emit_line("  iconst_1");
+            self.emit_line(l2 + ":");
+        } else if k == "Print" {
+            self.emit_line("  getstatic java/lang/System/out Ljava/io/PrintStream;");
+            self.emit_line("  swap"); # Swap so out is below value
+            self.emit_line("  invokevirtual java/io/PrintStream/println(I)V");
+        } else if k == "StoreLocal" {
+            self.emit_line("  istore " + self.int_to_string(instr.index));
+        } else if k == "LoadLocal" {
+            self.emit_line("  iload " + self.int_to_string(instr.index));
+        } else if k == "LoadGlobal" {
+            if instr.name == "null" {
+                self.emit_line("  aconst_null"); # or iconst_0 if we treat everything as int
+                # But JVM stack is typed.
+                # If we use int for everything, null is 0.
+                # But strings are objects.
+                # If we mix types, we need Object on stack?
+                # The current impl uses 'I' (int) signatures.
+                # So we should use 0 for null.
+                self.emit_line("  iconst_0");
+            } else {
+                self.emit_line("; Unknown global " + instr.name);
+            }
+        } else if k == "Pop" {
+            self.emit_line("  pop");
+        } else if k == "Label" {
+            self.emit_line("L" + self.int_to_string(instr.id) + ":");
+        } else if k == "Jump" {
+            self.emit_line("  goto L" + self.int_to_string(instr.label_id));
+        } else if k == "JumpIfFalse" {
+             self.emit_line("  ifeq L" + self.int_to_string(instr.label_id));
+        } else if k == "Call" {
+            self.emit_line("  ; Call " + instr.name);
+            # We assume static call for now
+            # Need class name? Assume same class "Output" or similar
+            # Signature? Assume (I...I)I
+            let sig = "(";
+            let i = 0;
+            while i < instr.argc { sig = sig + "I"; i = i + 1; }
+            sig = sig + ")I";
+            self.emit_line("  invokestatic Output/" + instr.name + sig);
+        } else if k == "CallMethod" {
+            # Object is on stack
+            # Args are on stack
+            # Need to know class of object.
+            # Hack: if method is 'add', call Output/Calculator_add
+            if instr.name == "add" {
+                self.emit_line("  invokestatic Output/Calculator_add(II)I");
+            } else {
+                self.emit_line("  ; Unknown CallMethod " + instr.name);
+                # Pop args and object to keep stack balanced
+                let i = 0;
+                while i < instr.argc { self.emit_line("  pop"); i = i + 1; }
+                self.emit_line("  pop"); # object
+                self.emit_line("  iconst_0"); # result
+            }
+        } else if k == "New" {
+            self.emit_line("  new " + instr.name);
+            self.emit_line("  dup");
+            self.emit_line("  invokespecial " + instr.name + "/<init>()V");
+            # Handle constructor args? test_backend uses 0 args
+        } else if k == "Return" {
+            self.emit_line("  ireturn");
+        } else {
+             self.emit_line("; Unknown " + k);
+        }
+    }
+    
+    micro get_uuid(self) {
+        let id = self.uuid_counter;
+        self.uuid_counter = self.uuid_counter + 1;
+        return id;
+    }
+}

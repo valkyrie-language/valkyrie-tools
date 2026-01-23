@@ -1,0 +1,4 @@
+
+println("Debug start");
+let path = "test_semantic.vk";
+println(path);

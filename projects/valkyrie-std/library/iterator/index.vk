@@ -1,0 +1,195 @@
+namespace std::iterator;
+
+using std::collections;
+
+# Trait for types that can be converted into an Iterator
+trait IntoIterator<T> {
+    micro iterator(self) -> Iterator<T>;
+}
+
+# Base Iterator Class (Abstract)
+# Users should extend this and implement `next`
+class Iterator<T> (IntoIterator<T>) {
+    micro next(self) -> T {
+        return null;
+    }
+
+    # Iterator is also an IntoIterator (returns self)
+    micro iterator(self) -> Iterator<T> {
+        return self;
+    }
+
+    micro map(self, f) -> MapIterator<T, Any> {
+        return new MapIterator(self, f);
+    }
+
+    micro filter(self, predicate) -> FilterIterator<T> {
+        return new FilterIterator(self, predicate);
+    }
+
+    micro enumerate(self) -> EnumerateIterator<T> {
+        return new EnumerateIterator(self);
+    }
+
+    micro take(self, n: usize) -> TakeIterator<T> {
+        return new TakeIterator(self, n);
+    }
+
+    micro skip(self, n: usize) -> SkipIterator<T> {
+        return new SkipIterator(self, n);
+    }
+
+    micro collect(self) -> List<T> {
+        # Default collection to ArrayList (we need to import it, or just use a dynamic list for now)
+        # Since we are in std, we can't easily depend on `array_list` if it depends on us?
+        # Actually `collections` depends on `iterator` likely.
+        # Let's return a basic dynamic List for now or rely on user to pass container.
+        # But `collect` usually creates a specific container.
+        # Let's use `std::collections::array_list::ArrayList` if we can import it.
+        # Circular dependency might be an issue if we include `collections` which includes `iterator`.
+        # But Valkyrie allows circular imports if symbols are resolved lazily?
+        # Let's return a dynamic list `[]` which is built-in.
+        let list = [];
+        let loop_cond = true;
+        while loop_cond {
+            let item = self.next();
+            if item == null {
+                loop_cond = false;
+            } else {
+                list.push(item);
+            }
+        }
+        return list;
+    }
+
+    micro fold(self, init: Any, f) -> Any {
+        let acc = init;
+        let loop_cond = true;
+        while loop_cond {
+            let item = self.next();
+            if item == null {
+                loop_cond = false;
+            } else {
+                acc = f(acc, item);
+            }
+        }
+        return acc;
+    }
+
+    micro for_each(self, f) {
+        let loop_cond = true;
+        while loop_cond {
+            let item = self.next();
+            if item == null {
+                loop_cond = false;
+            } else {
+                f(item);
+            }
+        }
+    }
+}
+
+class MapIterator<T, U> (Iterator<U>) {
+    iter: Iterator<T>,
+    f: Any # Function
+    
+    micro constructor(self, iter, f) {
+        self.iter = iter;
+        self.f = f;
+    }
+    
+    micro next(self) -> U {
+        let item = self.iter.next();
+        if item == null { return null; }
+        let func = self.f;
+        return func(item);
+    }
+}
+
+class FilterIterator<T> (Iterator<T>) {
+    iter: Iterator<T>,
+    predicate: Any # Function
+    
+    micro constructor(self, iter, predicate) {
+        self.iter = iter;
+        self.predicate = predicate;
+    }
+    
+    micro next(self) -> T {
+        let loop_cond = true;
+        while loop_cond {
+            let item = self.iter.next();
+            if item == null { return null; }
+            
+            let p = self.predicate;
+            if p(item) {
+                return item;
+            }
+        }
+        return null;
+    }
+}
+
+class EnumerateIterator<T> (Iterator<Any>) {
+    iter: Iterator<T>,
+    count: usize
+    
+    micro constructor(self, iter) {
+        self.iter = iter;
+        self.count = 0;
+    }
+    
+    micro next(self) -> Any { # Returns [index, item]
+        let item = self.iter.next();
+        if item == null { return null; }
+        
+        let idx = self.count;
+        self.count = self.count + 1;
+        return [idx, item];
+    }
+}
+
+class TakeIterator<T> (Iterator<T>) {
+    iter: Iterator<T>,
+    n: usize,
+    count: usize
+    
+    micro constructor(self, iter, n) {
+        self.iter = iter;
+        self.n = n;
+        self.count = 0;
+    }
+    
+    micro next(self) -> T {
+        if self.count >= self.n { return null; }
+        let item = self.iter.next();
+        if item == null { return null; }
+        self.count = self.count + 1;
+        return item;
+    }
+}
+
+class SkipIterator<T> (Iterator<T>) {
+    iter: Iterator<T>,
+    n: usize,
+    skipped: bool
+    
+    micro constructor(self, iter, n) {
+        self.iter = iter;
+        self.n = n;
+        self.skipped = false;
+    }
+    
+    micro next(self) -> T {
+        if !self.skipped {
+            let i = 0;
+            while i < self.n {
+                let skip = self.iter.next();
+                if skip == null { return null; }
+                i = i + 1;
+            }
+            self.skipped = true;
+        }
+        return self.iter.next();
+    }
+}

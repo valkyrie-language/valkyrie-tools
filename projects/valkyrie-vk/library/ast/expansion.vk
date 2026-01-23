@@ -1,0 +1,233 @@
+namespace compiler::ast::expansion;
+
+using compiler::ast::Program;
+using compiler::ast::Statement;
+using compiler::ast::BlockStatement;
+using compiler::ast::ExpressionStatement;
+using compiler::ast::Expression;
+using compiler::ast::lexer::Lexer;
+using compiler::ast::parser::Parser;
+using compiler::ast::Span;
+
+class MacroExpander {
+    base_dir: String,
+    package_name: String,
+    errors: List
+
+    micro constructor(self, base_dir, package_name) {
+        self.base_dir = base_dir;
+        self.package_name = package_name;
+        self.errors = [];
+    }
+
+    micro expand_program(self, program: Program) -> Program {
+        let new_stmts = [];
+        let i = 0;
+        let len = program.statements.len();
+        let loop_cond = true;
+        while loop_cond {
+            if i >= len {
+                loop_cond = false;
+            } else {
+                let stmt = program.statements[i];
+                let expanded_list = self.expand_statement(stmt);
+                
+                let j = 0;
+                let j_len = expanded_list.len();
+                let inner_loop = true;
+                while inner_loop {
+                    if j >= j_len {
+                        inner_loop = false;
+                    } else {
+                        new_stmts.push(expanded_list[j]);
+                        j = j + 1;
+                    }
+                }
+                
+                i = i + 1;
+            }
+        }
+        return new Program(new_stmts, program.span);
+    }
+
+    micro expand_statement(self, stmt) -> List {
+        if stmt.kind == "ExpressionStatement" {
+             let expr = stmt.expression;
+             if expr.kind == "MacroCallExpression" {
+                 return self.expand_macro(expr, stmt.span);
+             }
+        }
+        
+        if stmt.kind == "BlockStatement" {
+            let new_stmts = [];
+            let i = 0;
+            let len = stmt.statements.len();
+            let loop_cond = true;
+            while loop_cond {
+                if i >= len {
+                    loop_cond = false;
+                } else {
+                    let s = stmt.statements[i];
+                    let expanded_list = self.expand_statement(s);
+                    
+                    let j = 0;
+                    let j_len = expanded_list.len();
+                    let inner_loop = true;
+                    while inner_loop {
+                        if j >= j_len {
+                            inner_loop = false;
+                        } else {
+                            new_stmts.push(expanded_list[j]);
+                            j = j + 1;
+                        }
+                    }
+                    
+                    i = i + 1;
+                }
+            }
+            return [new BlockStatement(new_stmts, stmt.span)];
+        }
+        
+        # TODO: Visit other statements recursively
+        return [stmt];
+    }
+
+    micro expand_macro(self, expr, span) -> List {
+        if expr.name == "include" {
+             if expr.args.len() > 0 {
+                 let arg = expr.args[0];
+                 # Literal check
+                 if arg.kind == "String" {
+                         let path = arg.value;
+                         # Resolve path relative to base_dir
+                         # Naive join: base_dir + "/" + path
+                         # But check if path is absolute?
+                         # For now, assume relative if base_dir is set.
+                         let full_path = path;
+                         if self.base_dir != "" {
+                             full_path = self.base_dir + "/" + path;
+                         }
+                         
+                         println("Expanding include: ", full_path);
+                         
+                         let src = read_file(full_path);
+                         if src == "" {
+                             println("Error: Failed to read file or empty file: ", full_path);
+                             return [];
+                         }
+                         
+                         let lexer = new Lexer(src);
+                         let parser = new Parser(lexer, self.package_name);
+                         let program = parser.parse_program();
+                         
+                         if parser.errors.len() > 0 {
+                             let i = 0;
+                             let len = parser.errors.len();
+                             while i < len {
+                                 self.errors.push(parser.errors[i]);
+                                 i = i + 1;
+                             }
+                         }
+                         
+                         # Recursively expand
+                         # For sub-includes, the base_dir should be the dir of *that* file?
+                         # This implies we need to track base_dir per file.
+                         # But read_file doesn't tell us where the file is if we just pass full_path.
+                         # We need to extract dir from full_path.
+                         
+                         # Extract dir from full_path
+                         let new_base_dir = self.base_dir;
+                         # Find last slash
+                         # TODO: Helper for path manipulation
+                         
+                         let sub_expander = new MacroExpander(new_base_dir, self.package_name);
+                         let expanded_program = sub_expander.expand_program(program);
+                         
+                         if sub_expander.errors.len() > 0 {
+                             let i = 0;
+                             let len = sub_expander.errors.len();
+                             while i < len {
+                                 self.errors.push(sub_expander.errors[i]);
+                                 i = i + 1;
+                             }
+                         }
+                         
+                         return expanded_program.statements;
+                 }
+             }
+        }
+        
+        if expr.name == "assert" {
+             # @assert(cond)
+             # -> if !cond { println("Assertion failed: cond"); exit(1); }
+             if expr.args.len() > 0 {
+                 let cond = expr.args[0];
+                 let span = cond.span;
+                 
+                 # Negate condition: !cond
+                 let not_cond = new UnaryExpression("!", cond, span);
+                 
+                 # Body
+                 let print_args = [new Literal("Assertion failed", "String", span)];
+                 let print_call = new CallExpression(
+                     new Identifier("println", span), 
+                     print_args, 
+                     span
+                 );
+                 let print_stmt = new ExpressionStatement(print_call, span);
+                 
+                 let exit_args = [new Literal("1", "Integer", span)];
+                 let exit_call = new CallExpression(
+                     new Identifier("exit", span), 
+                     exit_args, 
+                     span
+                 );
+                 let exit_stmt = new ExpressionStatement(exit_call, span);
+                 
+                 let body = new BlockStatement([print_stmt, exit_stmt], span);
+                 
+                 let if_stmt = new IfStatement(not_cond, body, null, span);
+                 return [if_stmt];
+             }
+        }
+        
+        if expr.name == "debug" {
+             # @debug(expr)
+             # -> println("DEBUG:", expr)
+             if expr.args.len() > 0 {
+                 let arg = expr.args[0];
+                 let span = arg.span;
+                 
+                 let print_args = [
+                     new Literal("DEBUG:", "String", span),
+                     arg
+                 ];
+                 let print_call = new CallExpression(
+                     new Identifier("println", span), 
+                     print_args, 
+                     span
+                 );
+                 return [new ExpressionStatement(print_call, span)];
+             }
+        }
+
+        if expr.name == ".primitive" {
+            # Just ignore primitive annotation for now, effectively removing it from AST if it was an expression statement.
+            # But wait, @primitive is applied to a class usually?
+            # My parser parses `parse_prefix` for `@`.
+            # `case "At": self.parse_macro_call()`
+            # So `@primitive` is parsed as a MacroCallExpression.
+            # If it precedes a class, the parser logic for `parse_statement` handles it?
+            # No, `parse_statement` calls `parse_expression_statement` if it doesn't match keywords.
+            # So `@primitive class X {}`
+            # The parser sees `@primitive` as expression.
+            # Then `class X {}` as next statement?
+            # If so, `@primitive` is a separate statement.
+            # In that case, returning `[]` here removes it, which is correct behavior for an annotation that does nothing at runtime/expansion time (handled by compiler elsewhere or just marker).
+            return [];
+        }
+        
+        println("Warning: Unknown macro or invalid args: ", expr.name);
+        return [];
+    }
+}

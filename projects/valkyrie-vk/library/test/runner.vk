@@ -1,0 +1,152 @@
+namespace compiler::test;
+
+using compiler::mir::MirProgram;
+using compiler::mir_interpreter::MirInterpreter;
+
+class TestRunner {
+    interpreter: MirInterpreter,
+    passed: i32,
+    failed: i32,
+    total: i32
+    
+    micro constructor(self) {
+        self.interpreter = new MirInterpreter();
+        self.passed = 0;
+        self.failed = 0;
+        self.total = 0;
+    }
+    
+    micro run_tests(self, program: MirProgram) {
+        println("Running tests...");
+        self.interpreter.instructions = program.instructions;
+        self.interpreter.build_label_map();
+        
+        # Scan for functions with @test annotation
+        # We need to iterate over `interpreter.functions` or `interpreter.classes`
+        # But `interpreter.functions` is populated during execution of `DeclareFunction`.
+        # So we need to "load" the program first (execute top-level instructions).
+        
+        # Run top-level to register functions
+        self.interpreter.run(program);
+        
+        # Now iterate registered functions
+        # HashMap iteration is needed.
+        # Assuming `interpreter.functions` is a HashMap<String, MirFunction>
+        
+        let functions = self.interpreter.functions;
+        # We need a way to iterate keys/values from HashMap.
+        # Since we don't have a robust iterator yet, we might depend on internal implementation
+        # or we scan instructions for DeclareFunction again?
+        # Scanning instructions is safer given current std lib limitations.
+        
+        let instrs = program.instructions;
+        let i = 0;
+        let len = instrs.len();
+        while i < len {
+            let instr = instrs[i];
+            if instr.kind == "DeclareFunction" {
+                self.check_and_run(instr);
+            } else if instr.kind == "DeclareClass" {
+                self.check_class_methods(instr);
+            }
+            i = i + 1;
+        }
+        
+        println("");
+        println("Test Results: ", self.passed, " passed, ", self.failed, " failed, ", self.total, " total.");
+        if self.failed > 0 {
+            println("SOME TESTS FAILED");
+            exit(1);
+        } else {
+            println("ALL TESTS PASSED");
+        }
+    }
+    
+    micro check_and_run(self, func) {
+        if self.has_test_annotation(func.annotations) {
+            self.total = self.total + 1;
+            print("test ", func.name, " ... ");
+            
+            # Execute function
+            # We need a fresh interpreter or reset state?
+            # Reusing interpreter is fine if we manage stack.
+            # Call function with 0 args
+            
+            # We use `call_function` from interpreter?
+            # `interpreter.call_function` is not public/exposed in previous file content?
+            # Let's check `interpreter.vk` again or assume we can invoke it.
+            # Actually `execute` handles `Call`.
+            # We can manually push a `Call` instruction and execute it?
+            # Or expose `call_function`.
+            
+            # Simpler: Create a mini-program that calls this function and run it.
+            # But we need to handle errors/panics.
+            # Our interpreter exits on error?
+            # We need `try-catch` support in interpreter or just hope it returns.
+            # If interpreter crashes (host panic), we can't catch it in Valkyrie yet.
+            # Assuming interpreter handles soft errors.
+            
+            # Let's try to run it.
+            let success = true;
+            
+            # For now, just call it.
+            # We need to find the function object in interpreter.functions
+            let mir_func = self.interpreter.functions.get(func.name);
+            if mir_func != null {
+                 self.interpreter.call_function(mir_func, [], false);
+                 # If it returns, it passed?
+                 # Assertions usually panic/exit.
+                 # If `assert` is implemented as `exit(1)`, then the whole runner exits.
+                 # We need `assert` to throw an error that we can catch, or return false.
+            } else {
+                 println("Error: Function not found in interpreter: ", func.name);
+                 success = false;
+            }
+            
+            if success {
+                println("ok");
+                self.passed = self.passed + 1;
+            } else {
+                println("FAILED");
+                self.failed = self.failed + 1;
+            }
+        }
+    }
+    
+    micro check_class_methods(self, class_decl) {
+        let methods = class_decl.methods;
+        let i = 0;
+        let len = methods.len();
+        while i < len {
+            let m = methods[i];
+            if self.has_test_annotation(m.annotations) {
+                # TODO: Support class method tests (needs instance?)
+                # Only static methods or default constructor?
+                # For now skip or warn.
+                # println("Skipping class method test: ", class_decl.name, "::", m.name);
+            }
+            i = i + 1;
+        }
+    }
+    
+    micro has_test_annotation(self, annotations) -> bool {
+        if annotations == null { return false; }
+        let i = 0;
+        let len = annotations.len();
+        while i < len {
+            let ann = annotations[i];
+            # ann is MacroCallExpression? No, in MIR it's... what?
+            # In MIR compiler, we assigned `node.annotations` to `decl.annotations`.
+            # `node.annotations` comes from Parser -> `MacroCallExpression`.
+            # So `ann.name` should be ".test" or "test" (depending on how parser stores it).
+            # Parser: `name_str = "." + self.current.value` if dot is present.
+            # If user writes `@test`, parser expects `@` then `test`.
+            # Parser: `if self.current.kind == "Dot"` -> `@.test`.
+            # If just `@test`, `name_str = "test"`.
+            
+            if ann.name == ".test" { return true; }
+            i = i + 1;
+        }
+        return false;
+    }
+}

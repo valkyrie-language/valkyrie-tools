@@ -1,0 +1,450 @@
+namespace compiler::mir_interpreter;
+
+using compiler::mir::OpCode;
+using std::collections::hash_map::HashMap;
+
+class CallFrame {
+    pc: i32,
+    instructions: List,
+    locals: List,
+    label_map: List,
+    pop_on_return: bool
+
+    micro constructor(self, pc, instructions, locals, label_map, pop_on_return) {
+        self.pc = pc;
+        self.instructions = instructions;
+        self.locals = locals;
+        self.label_map = label_map;
+        self.pop_on_return = pop_on_return;
+    }
+}
+
+class MirInterpreter {
+    stack: List,
+    locals: List,
+    instructions: List,
+    pc: i32,
+    label_map: List,
+    functions: HashMap,
+    classes: HashMap,
+    call_stack: List,
+    args: List
+    
+    micro constructor(self) {
+        self.stack = [];
+        self.locals = [];
+        self.instructions = [];
+        self.pc = 0;
+        self.label_map = [];
+        self.functions = new HashMap(); # Map for function bodies
+        self.classes = new HashMap();   # Map for class definitions
+        self.call_stack = [];
+        self.args = null;
+    }
+
+    micro set_args(self, args) {
+        self.args = args;
+    }
+    
+    micro run(self, program) {
+        println("Interpreter: Starting execution...");
+        self.instructions = program.instructions;
+        self.pc = 0;
+        self.build_label_map();
+        
+        let len = self.instructions.len();
+        let loop_cond = true;
+        while loop_cond {
+            if self.pc >= len {
+                loop_cond = false;
+            } else {
+                let instr = self.instructions[self.pc];
+                self.pc = self.pc + 1;
+                self.execute(instr);
+            }
+        }
+        println("Interpreter: Execution finished.");
+    }
+    
+    micro build_label_map(self) {
+        self.label_map = [];
+        let i = 0;
+        let len = self.instructions.len();
+        let loop_cond = true;
+        while loop_cond {
+            if i >= len { loop_cond = false; } else {
+                let instr = self.instructions[i];
+                if instr.kind == "Label" {
+                    self.set_label(instr.id, i);
+                }
+                i = i + 1;
+            }
+        }
+    }
+    
+    micro set_label(self, id, idx) {
+        let len = self.label_map.len();
+        while len <= id {
+            self.label_map.push(0);
+            len = self.label_map.len();
+        }
+        self.label_map.set(id, idx);
+    }
+    
+    micro execute(self, instr) {
+        let k = instr.kind;
+        # println("Exec:", k, " PC:", self.pc);
+        
+        if k == "DeclareFunction" {
+             self.functions[instr.name] = instr;
+        } else if k == "DeclareClass" {
+             # println("Interpreter: Declaring class: ", instr.name);
+             self.classes[instr.name] = instr;
+        } else if k == "PushInt" {
+            self.stack.push(instr.value);
+        } else if k == "PushBool" {
+            self.stack.push(instr.value);
+        } else if k == "PushString" {
+            self.stack.push(instr.value);
+        } else if k == "PushVoid" {
+            self.stack.push(null);
+        } else if k == "Pop" {
+            self.stack.pop();
+        } else if k == "StoreLocal" {
+            let val = self.stack.pop();
+            self.set_local(instr.index, val);
+        } else if k == "LoadLocal" {
+            let val = self.get_local(instr.index);
+            self.stack.push(val);
+        } else if k == "Print" {
+            println(self.stack.pop());
+        } else if k == "Label" {
+            # No-op
+        } else if k == "Jump" {
+            let target = self.label_map[instr.label_id];
+            self.pc = target;
+        } else if k == "JumpIfFalse" {
+            let val = self.stack.pop();
+            let is_false = false;
+            if val == 0 { is_false = true; }
+            else if val == false { is_false = true; }
+            else if val == null { is_false = true; }
+            
+            if is_false {
+                let target = self.label_map[instr.label_id];
+                self.pc = target;
+            }
+        } else if k == "Add" {
+            let b = self.stack.pop();
+            let a = self.stack.pop();
+            self.stack.push(a + b);
+        } else if k == "Sub" {
+            let b = self.stack.pop();
+            let a = self.stack.pop();
+            self.stack.push(a - b);
+        } else if k == "Mul" {
+            let b = self.stack.pop();
+            let a = self.stack.pop();
+            self.stack.push(a * b);
+        } else if k == "Div" {
+            let b = self.stack.pop();
+            let a = self.stack.pop();
+            self.stack.push(a / b);
+        } else if k == "Eq" {
+            let b = self.stack.pop();
+            let a = self.stack.pop();
+            self.stack.push(a == b);
+        } else if k == "Neq" {
+            let b = self.stack.pop();
+            let a = self.stack.pop();
+            self.stack.push(a != b);
+        } else if k == "Lt" {
+            let b = self.stack.pop();
+            let a = self.stack.pop();
+            self.stack.push(a < b);
+        } else if k == "Le" {
+            let b = self.stack.pop();
+            let a = self.stack.pop();
+            self.stack.push(a <= b);
+        } else if k == "Gt" {
+            let b = self.stack.pop();
+            let a = self.stack.pop();
+            self.stack.push(a > b);
+        } else if k == "Ge" {
+            let b = self.stack.pop();
+            let a = self.stack.pop();
+            self.stack.push(a >= b);
+        } else if k == "LoadGlobal" {
+             let name = instr.name;
+             if name == "get_env" { self.stack.push(get_env); }
+             else if name == "exit" { self.stack.push(exit); }
+             else if name == "cwd" { self.stack.push(cwd); }
+             else if name == "get_args" { self.stack.push(get_args); }
+             else if name == "print" { self.stack.push(print); }
+             else if name == "println" { self.stack.push(println); }
+             else if name == "read_file" { self.stack.push(read_file); }
+             else if name == "len" { self.stack.push(len); }
+             else if name == "int" { self.stack.push(int); }
+             else if name == "typeof" { self.stack.push(typeof); }
+             else if name == "null" { self.stack.push(null); }
+             else if name == "void" { self.stack.push(null); }
+             else if name == "PI" { self.stack.push(3.141592653589793); }
+             else if name == "E" { self.stack.push(2.718281828459045); }
+             else if name == "fn" { self.stack.push(null); }
+             else {
+                 println("Warning: LoadGlobal unknown: ", name);
+                 self.stack.push(null);
+             }
+        } else if k == "Call" {
+            let name = instr.name;
+            let argc = instr.argc;
+            
+            let args = [];
+            let i = 0;
+            while i < argc {
+                args.push(self.stack.pop());
+                i = i + 1;
+            }
+            let reversed = [];
+            i = argc - 1;
+            while i >= 0 {
+                reversed.push(args[i]);
+                i = i - 1;
+            }
+            args = reversed;
+
+            if name == "get_env" {
+                 self.stack.push(get_env(args[0]));
+            } else if self.functions[name] != null {
+                 let func = self.functions[name];
+                 self.call_function(func, args, false);
+            } else if name == "exit" {
+                 exit(args[0]);
+            } else if name == "cwd" {
+                 self.stack.push(cwd());
+            } else if name == "get_args" {
+                 if self.args != null {
+                     self.stack.push(self.args);
+                 } else {
+                     self.stack.push(get_args(0));
+                 }
+            } else if name == "print" {
+                 let j = 0;
+                 while j < argc {
+                     print(args[j]);
+                     print(" ");
+                     j = j + 1;
+                 }
+                 println([]); 
+                 self.stack.push(null);
+            } else if name == "println" {
+                 let j = 0;
+                 while j < argc {
+                     print(args[j]); 
+                     j = j + 1;
+                 }
+                 println([]);
+                 self.stack.push(null);
+            } else if name == "read_file" {
+                 self.stack.push(read_file(args[0]));
+            } else if name == "len" {
+                 self.stack.push(len(args[0]));
+            } else if name == "int" {
+                 self.stack.push(int(args[0]));
+            } else if name == "typeof" {
+                 self.stack.push(typeof(args[0]));
+            } else if name == "main" {
+                 self.stack.push(null);
+            } else {
+                 println("Warning: Call unknown: ", name);
+                 self.stack.push(null);
+            }
+        } else if k == "New" {
+            let class_name = instr.class_name;
+            # println("New: ", class_name);
+            let argc = instr.argc;
+            let class_def = self.classes[class_name];
+            if class_def == null {
+                println("Error: Unknown class: ", class_name);
+                return;
+            }
+            
+            # Create instance
+            let obj = new Map();
+            obj["_class"] = class_name;
+            
+            # Pop args
+            let args = [];
+            let i = 0;
+            while i < argc {
+                args.push(self.stack.pop());
+                i = i + 1;
+            }
+            
+            self.stack.push(obj); # Return value
+            
+            # Check constructor
+            let ctor = self.find_method(class_name, "constructor");
+            if ctor != null {
+                let call_args = [obj]; # self
+                let j = argc - 1;
+                while j >= 0 {
+                    call_args.push(args[j]);
+                    j = j - 1;
+                }
+                self.call_function(ctor, call_args, true);
+            } else {
+                if argc > 0 {
+                    println("Error: No constructor but args provided");
+                }
+            }
+        } else if k == "CallMethod" {
+             let name = instr.name;
+             # println("CallMethod: ", name);
+             let argc = instr.argc;
+             
+             let args = [];
+             let i = 0;
+             while i < argc {
+                 args.push(self.stack.pop());
+                 i = i + 1;
+             }
+             let obj = self.stack.pop();
+             # println("CallMethod obj: ", obj);
+             
+             let type_name = typeof(obj);
+             if type_name == "list" {
+                 if name == "len" {
+                     self.stack.push(len(obj));
+                 } else if name == "push" {
+                     obj.push(args[0]);
+                     self.stack.push(null);
+                 } else if name == "pop" {
+                     self.stack.push(obj.pop());
+                 } else {
+                     println("Error: Unknown method for List: ", name);
+                     self.stack.push(null);
+                 }
+             } else if type_name == "string" {
+                 if name == "len" {
+                     self.stack.push(len(obj));
+                 } else {
+                     println("Error: Unknown method for String: ", name);
+                     self.stack.push(null);
+                 }
+             } else {
+                 # Resolve method
+                 let class_name = obj["_class"];
+                 if class_name == null {
+                     println("Error: CallMethod on non-object or missing _class");
+                     self.stack.push(null);
+                 } else {
+                     let method = self.find_method(class_name, name);
+                     if method != null {
+                         let call_args = [obj];
+                         let j = argc - 1;
+                         while j >= 0 {
+                             call_args.push(args[j]);
+                             j = j - 1;
+                         }
+                         self.call_function(method, call_args, false);
+                     } else {
+                         println("Error: Method not found: ", name);
+                         self.stack.push(null);
+                     }
+                 }
+             }
+        } else if k == "GetField" {
+             let obj = self.stack.pop();
+             self.stack.push(obj[instr.name]);
+        } else if k == "GetIndex" {
+             let idx = self.stack.pop();
+             let obj = self.stack.pop();
+             self.stack.push(obj[idx]);
+        } else if k == "SetField" {
+             let val = self.stack.pop();
+             let obj = self.stack.pop();
+             obj[instr.name] = val;
+             self.stack.push(null); 
+        } else if k == "Return" {
+            if self.call_stack.len() > 0 {
+                let frame = self.call_stack.pop();
+                self.pc = frame.pc;
+                self.instructions = frame.instructions;
+                self.locals = frame.locals;
+                self.label_map = frame.label_map;
+                
+                if frame.pop_on_return {
+                    self.stack.pop();
+                }
+            } else {
+                self.pc = self.instructions.len();
+            }
+        }
+    }
+    
+    micro call_function(self, func, args, pop_on_return) {
+         let body = func.body;
+         let params = func.params;
+         
+         let frame = new CallFrame(self.pc, self.instructions, self.locals, self.label_map, pop_on_return);
+         self.call_stack.push(frame);
+         
+         self.instructions = body;
+         self.pc = 0;
+         self.locals = [];
+         
+         let p_i = 0;
+         let p_len = params.len();
+         while p_i < p_len {
+             self.locals.push(args[p_i]);
+             p_i = p_i + 1;
+         }
+         
+         self.build_label_map();
+    }
+    
+    micro find_method(self, class_name, method_name) {
+        let class_def = self.classes[class_name];
+        if class_def == null { return null; }
+        
+        # Search methods in current class
+        let methods = class_def.methods; # List of MirFunction
+        let i = 0;
+        let len = methods.len();
+        while i < len {
+            if methods[i].name == method_name {
+                return methods[i];
+            }
+            i = i + 1;
+        }
+        
+        # Search parents
+        let parents = class_def.parents;
+        let j = 0;
+        let plen = parents.len();
+        while j < plen {
+             let m = self.find_method(parents[j], method_name);
+             if m != null { return m; }
+             j = j + 1;
+        }
+        
+        return null;
+    }
+    
+    micro set_local(self, idx, val) {
+        let len = self.locals.len();
+        while len <= idx {
+            self.locals.push(null);
+            len = self.locals.len();
+        }
+        self.locals.set(idx, val);
+    }
+    
+    micro get_local(self, idx) {
+        if idx < self.locals.len() {
+            return self.locals[idx];
+        }
+        return null; 
+    }
+}

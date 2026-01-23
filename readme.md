@@ -99,6 +99,29 @@ const COMMIT_TYPES = {
 
 2. GitHub Actions 会自动执行发布流程
 
+---
+
+## 📦 Legion & Valor
+
+Legion is the package manager for the Valkyrie language.
+
+### Single project directory structure
+
+```sh
+<Root>
+- source/      # Source Code
+- target/      # Artifacts
+- valor.toml   # Valor configuration
+```
+
+### Multi-project directory structure
+
+```sh
+<Root>
+- config/valor.toml
+- valor.toml
+```
+
 3. 在 GitHub 上查看生成的 Release
 
 ## 📁 输出文件

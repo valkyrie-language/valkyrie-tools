@@ -1,0 +1,40 @@
+namespace std::collections::tree_set;
+
+using std::collections::Set;
+using std::collections::MutableSet;
+using std::collections::tree_map::TreeMap;
+
+class TreeSet<T> (MutableSet<T>) {
+    map: TreeMap<T, bool>
+    
+    micro constructor(self) {
+        self.map = new TreeMap();
+    }
+    
+    micro len(self) -> isize {
+        return self.map.len();
+    }
+    
+    micro contains(self, item: T) -> bool {
+        return self.map.has(item);
+    }
+    
+    micro insert(self, item: T) -> bool {
+        if self.map.has(item) { return false; }
+        self.map.set(item, true);
+        return true;
+    }
+    
+    micro remove(self, item: T) -> bool {
+        # TreeMap needs remove
+        return false; # TODO
+    }
+    
+    micro clear(self) {
+        # TODO
+    }
+    
+    micro iterator(self) {
+        return self.map.keys();
+    }
+}

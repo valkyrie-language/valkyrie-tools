@@ -1,0 +1,189 @@
+namespace compiler::hir::typecheck;
+
+using compiler::hir::HirProgram;
+using compiler::hir::HirStatement;
+using compiler::hir::HirExpression;
+using compiler::hir::symbol::SymbolTable;
+using compiler::hir::symbol::Symbol;
+using compiler::ast::diagnostic::Diagnostic;
+
+class TypeChecker {
+    symbols: SymbolTable,
+    diagnostics: List,
+    file_path: String
+    
+    micro constructor(self, symbols, file_path) {
+        self.symbols = symbols;
+        self.diagnostics = [];
+        self.file_path = file_path;
+    }
+    
+    micro error(self, msg) {
+        let d = new Diagnostic("error", msg, self.file_path, 0, 0);
+        self.diagnostics.push(d);
+        d.print();
+    }
+    
+    micro check(self, program) {
+        # println("Running Type Checking...");
+        self.check_program(program);
+        # println("Type Checking done.");
+    }
+    
+    micro check_program(self, node) {
+        let i = 0;
+        let len = node.statements.len();
+        let loop_cond = true;
+        while loop_cond {
+            if i >= len { loop_cond = false; } else {
+                self.check_statement(node.statements[i]);
+                i = i + 1;
+            }
+        }
+    }
+    
+    micro check_statement(self, stmt) {
+        if stmt == null {
+            self.error("Internal Error: check_statement called with null");
+            return;
+        }
+        
+        let k = stmt.kind;
+        if k == "HirBlock" {
+            self.check_block(stmt);
+        } else if k == "HirLet" {
+            self.check_let(stmt);
+        } else if k == "HirExpressionStatement" {
+            self.check_expression_statement(stmt);
+        } else if k == "HirFunction" {
+            self.check_function(stmt);
+        } else if k == "HirClass" {
+            self.check_class(stmt);
+        } else {
+            # Others ignored for now
+        }
+    }
+    
+    micro check_block(self, node) {
+        let i = 0;
+        let len = node.statements.len();
+        let loop_cond = true;
+        while loop_cond {
+            if i >= len { loop_cond = false; } else {
+                self.check_statement(node.statements[i]);
+                i = i + 1;
+            }
+        }
+    }
+    
+    micro check_let(self, node) {
+        # Infer type from initializer
+        let init_ty = self.check_expression(node.value);
+        
+        # Check if annotation exists
+        if node.ty == null {
+             # Should not happen if lowering does its job
+             self.error("Internal Error: HirLet ty is null");
+             return;
+        }
+        
+        # println("Checking let " + node.name + ", ty kind: " + node.ty.kind);
+        
+        if node.ty.kind == "Name" {
+            if node.ty.name != init_ty {
+                if init_ty != "unknown" {
+                     self.error("Type Mismatch for " + node.name + ": expected " + node.ty.name + ", got " + init_ty);
+                }
+            }
+        } else {
+            # Update node.ty if it was "Unknown"
+            if node.ty.kind == "Unknown" {
+                node.ty.kind = "Inferred";
+                node.ty.name = init_ty;
+            }
+        }
+    }
+    
+    micro check_expression_statement(self, node) {
+        self.check_expression(node.expression);
+    }
+    
+    micro check_function(self, node) {
+        self.check_block(node.body);
+    }
+    
+    micro check_class(self, node) {
+        # Check methods
+    }
+    
+    micro check_expression(self, expr) -> String {
+        let k = expr.kind;
+        if k == "HirLiteral" {
+            return self.check_literal(expr);
+        } else if k == "HirReference" {
+            return self.check_reference(expr);
+        } else if k == "HirCall" {
+            return self.check_call(expr);
+        } else if k == "HirNew" {
+            return self.check_new(expr);
+        } else if k == "HirGet" {
+            return "any";
+        }
+        return "()";
+    }
+
+    micro check_new(self, expr) -> String {
+        return expr.class_name;
+    }
+    
+    micro check_literal(self, expr) {
+        if expr.lit_kind == "String" { return "String"; }
+        if expr.lit_kind == "Integer" { return "i32"; }
+        if expr.lit_kind == "Float" { return "f32"; }
+        if expr.lit_kind == "Boolean" { return "bool"; }
+        if expr.lit_kind == "IdentOrNum" { 
+             return "i32"; 
+        }
+        return "unknown_literal";
+    }
+    
+    micro check_reference(self, expr) {
+        return "unknown_ref";
+    }
+    
+    micro check_call(self, expr) {
+        println("Check call: " + expr.kind);
+        let callee_ty = self.check_expression(expr.callee);
+        
+        if expr.callee.kind == "HirGet" {
+            println("Check call HirGet");
+            let obj_ty = self.check_expression(expr.callee.object);
+            println("Obj ty: " + obj_ty);
+            let method = expr.callee.name;
+            println("Method: " + method);
+            
+            if obj_ty.starts_with("List<") {
+                if method == "push" {
+                    if expr.args.len() != 1 {
+                        self.error("List.push expects 1 argument");
+                    } else {
+                        let arg_ty = self.check_expression(expr.args[0]);
+                    }
+                    return "void";
+                }
+            }
+        }
+        
+        let i = 0;
+        let len = expr.args.len();
+        let loop_cond = true;
+        while loop_cond {
+            if i >= len { loop_cond = false; } else {
+                self.check_expression(expr.args[i]);
+                i = i + 1;
+            }
+        }
+        
+        return "unknown_call_result";
+    }
+}

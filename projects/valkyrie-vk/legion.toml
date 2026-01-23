@@ -1,0 +1,6 @@
+[package]
+name = "valkyrie-vk"
+version = "0.0.1"
+
+[dependencies]
+std = { path = "../valkyrie-std" }

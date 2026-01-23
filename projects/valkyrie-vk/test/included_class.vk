@@ -1,0 +1,17 @@
+namespace test::included;
+class MyClass {
+    value: i32
+    
+    micro constructor(self, v) {
+        println("MyClass constructed with value: ", v);
+        self.value = v;
+    }
+    
+    micro get_value(self) {
+        return self.value;
+    }
+    
+    micro set_value(self, v) {
+        self.value = v;
+    }
+}

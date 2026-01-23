@@ -1,0 +1,153 @@
+namespace compiler::hir::semantic;
+
+using compiler::visitor::Visitor;
+using compiler::hir::symbol::SymbolTable;
+
+class SemanticAnalyzer(Visitor) {
+    symbols: SymbolTable
+    
+    micro constructor(self) {
+        self.symbols = new SymbolTable();
+    }
+    
+    micro analyze(self, program) {
+        program.accept(self);
+    }
+    
+    micro visit_program(self, node) {
+        let i = 0;
+        let len = node.statements.len();
+        
+        let loop_cond = true;
+        while loop_cond {
+            if i >= len { 
+                loop_cond = false; 
+            } else {
+                let s = node.statements[i];
+                self.visit_statement(s);
+                i = i + 1;
+            }
+        }
+    }
+    
+    micro visit_statement(self, stmt) {
+        stmt.accept(self);
+    }
+
+    micro visit_expression_statement(self, node) {
+        self.visit_expression(node.expression);
+    }
+
+    micro visit_return(self, node) {
+        if node.value != null {
+            self.visit_expression(node.value);
+        }
+    }
+
+    micro visit_if(self, node) {
+        self.visit_expression(node.condition);
+        self.visit_block(node.then_branch);
+        if node.else_branch != null {
+            self.visit_statement(node.else_branch);
+        }
+    }
+
+    micro visit_while(self, node) {
+        self.visit_expression(node.condition);
+        self.visit_block(node.body);
+    }
+
+    micro visit_match(self, node) {
+        self.visit_expression(node.condition);
+        let i = 0;
+        let len = node.cases.len();
+        let loop_cond = true;
+        while loop_cond {
+            if i >= len { loop_cond = false; } else {
+                let c = node.cases[i];
+                self.visit_expression(c.pattern);
+                self.visit_statement(c.body);
+                i = i + 1;
+            }
+        }
+    }
+    
+    micro visit_block(self, node) {
+        self.symbols.enter_scope();
+        
+        let i = 0;
+        let len = node.statements.len();
+        let loop_cond = true;
+        while loop_cond {
+            if i >= len { loop_cond = false; } else {
+                self.visit_statement(node.statements[i]);
+                i = i + 1;
+            }
+        }
+        
+        self.symbols.exit_scope();
+    }
+    
+    micro visit_let(self, node) {
+        self.visit_expression(node.value);
+        let name = node.name;
+        self.symbols.define(name, "variable", node.span);
+    }
+    
+    micro visit_function(self, node) {
+        let name = node.name;
+        self.symbols.define(name, "function", node.span);
+        
+        self.symbols.enter_scope();
+        # Define params
+        let i = 0;
+        let len = node.params.len();
+        let loop_cond = true;
+        while loop_cond {
+            if i >= len { loop_cond = false; } else {
+                let p = node.params[i];
+                self.symbols.define(p.name, "parameter", p.span);
+                i = i + 1;
+            }
+        }
+        
+        self.visit_block(node.body);
+        self.symbols.exit_scope();
+    }
+    
+    micro visit_class(self, node) {
+        let name = node.name;
+        self.symbols.define(name, "class", node.span);
+        
+        self.symbols.enter_scope();
+        
+        # Fields
+        let i = 0;
+        let len = node.fields.len();
+        let loop_cond = true;
+        while loop_cond {
+            if i >= len { loop_cond = false; } else {
+                let f = node.fields[i];
+                self.symbols.define(f.name, "field", f.span);
+                i = i + 1;
+            }
+        }
+        
+        # Methods
+        i = 0;
+        len = node.methods.len();
+        loop_cond = true;
+        while loop_cond {
+            if i >= len { loop_cond = false; } else {
+                self.visit_statement(node.methods[i]);
+                i = i + 1;
+            }
+        }
+        
+        self.symbols.exit_scope();
+    }
+    
+    micro visit_expression(self, expr) {
+        # Expression visiting logic if needed
+    }
+}

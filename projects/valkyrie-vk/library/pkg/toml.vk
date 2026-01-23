@@ -1,0 +1,250 @@
+namespace compiler::pkg::toml;
+
+# using std::collections::hash_map::HashMap;
+
+class TomlMapEntry {
+    key: String,
+    value: Any
+    micro constructor(self, k, v) { self.key = k; self.value = v; }
+}
+
+class TomlMap {
+    entries: List
+    micro constructor(self) { self.entries = []; }
+    micro set(self, k, v) {
+        let i = 0;
+        let len = self.entries.len();
+        while i < len {
+            let e = self.entries[i];
+            if e.key == k { e.value = v; return; }
+            i = i + 1;
+        }
+        self.entries.push(new TomlMapEntry(k, v));
+    }
+    micro get(self, k) -> Any {
+        let i = 0;
+        let len = self.entries.len();
+        while i < len {
+            let e = self.entries[i];
+            if e.key == k { return e.value; }
+            i = i + 1;
+        }
+        return null;
+    }
+}
+
+class TomlValue {
+    kind: String,
+    value: Any
+    
+    micro constructor(self, kind, value) {
+        self.kind = kind;
+        self.value = value;
+    }
+}
+
+class TomlParser {
+    source: String,
+    pos: i32,
+    len: i32,
+    chars: List
+    
+    micro constructor(self, source) {
+        self.source = source;
+        self.chars = source.chars();
+        self.pos = 0;
+        self.len = self.chars.len();
+    }
+    
+    micro parse(self) -> TomlMap {
+        let root = new TomlMap();
+        let current_table = root;
+        
+        let loop_cond = true;
+        while loop_cond {
+            self.skip_whitespace();
+            if self.pos >= self.len {
+                loop_cond = false;
+            } else {
+                let c = self.peek();
+                if c == "[" {
+                    # Table definition
+                    self.bump(); # [
+                    let key = self.parse_key();
+                    self.expect("]");
+                    
+                    # For now, only support top-level tables or [dependencies]
+                    # Create new table in root
+                    let new_table = new TomlMap();
+                    root.set(key, new_table);
+                    current_table = new_table;
+                } else if c == "#" {
+                    self.skip_comment();
+                } else {
+                    # Key-Value pair
+                    let key = self.parse_key();
+                    self.expect("=");
+                    let val = self.parse_value();
+                    current_table.set(key, val);
+                }
+            }
+        }
+        return root;
+    }
+    
+    micro parse_key(self) -> String {
+        self.skip_whitespace();
+        let start = self.pos;
+        let loop_cond = true;
+        while loop_cond {
+            if self.pos >= self.len {
+                loop_cond = false;
+            } else {
+                let c = self.peek();
+                if c == " " || c == "=" || c == "]" || c == "\n" || c == "\r" {
+                    loop_cond = false;
+                } else {
+                    self.bump();
+                }
+            }
+        }
+        return self.substring(start, self.pos);
+    }
+    
+    micro parse_value(self) -> Any {
+        self.skip_whitespace();
+        let c = self.peek();
+        if c == "\"" {
+            return self.parse_string();
+        } else if c == "{" {
+            return self.parse_inline_table();
+        } else {
+            # Number or boolean?
+            return self.parse_primitive();
+        }
+    }
+    
+    micro parse_string(self) -> String {
+        self.bump(); # "
+        let start = self.pos;
+        let loop_cond = true;
+        while loop_cond {
+            if self.pos >= self.len {
+                loop_cond = false;
+            } else {
+                let c = self.peek();
+                if c == "\"" {
+                    loop_cond = false;
+                } else {
+                    self.bump();
+                }
+            }
+        }
+        let res = self.substring(start, self.pos);
+        self.bump(); # "
+        return res;
+    }
+    
+    micro parse_inline_table(self) -> TomlMap {
+        self.bump(); # {
+        let table = new TomlMap();
+        let loop_cond = true;
+        while loop_cond {
+            self.skip_whitespace();
+            let c = self.peek();
+            if c == "}" {
+                self.bump();
+                loop_cond = false;
+            } else {
+                let key = self.parse_key();
+                self.expect("=");
+                let val = self.parse_value();
+                table.set(key, val);
+                
+                self.skip_whitespace();
+                if self.peek() == "," {
+                    self.bump();
+                }
+            }
+        }
+        return table;
+    }
+    
+    micro parse_primitive(self) -> String {
+        let start = self.pos;
+        let loop_cond = true;
+        while loop_cond {
+            if self.pos >= self.len {
+                loop_cond = false;
+            } else {
+                let c = self.peek();
+                if c == " " || c == "\n" || c == "\r" || c == "," || c == "}" {
+                    loop_cond = false;
+                } else {
+                    self.bump();
+                }
+            }
+        }
+        return self.substring(start, self.pos);
+    }
+    
+    micro skip_whitespace(self) {
+        let loop_cond = true;
+        while loop_cond {
+            if self.pos >= self.len {
+                loop_cond = false;
+            } else {
+                let c = self.peek();
+                if c == " " || c == "\t" || c == "\n" || c == "\r" {
+                    self.bump();
+                } else {
+                    loop_cond = false;
+                }
+            }
+        }
+    }
+    
+    micro skip_comment(self) {
+        let loop_cond = true;
+        while loop_cond {
+            if self.pos >= self.len {
+                loop_cond = false;
+            } else {
+                let c = self.peek();
+                if c == "\n" {
+                    loop_cond = false;
+                } else {
+                    self.bump();
+                }
+            }
+        }
+    }
+    
+    micro peek(self) -> String {
+        if self.pos >= self.len { return ""; }
+        return self.chars[self.pos];
+    }
+    
+    micro bump(self) {
+        self.pos = self.pos + 1;
+    }
+    
+    micro expect(self, char) {
+        self.skip_whitespace();
+        if self.peek() == char {
+            self.bump();
+        } else {
+            println("TOML Error: Expected ", char, " but got ", self.peek());
+        }
+    }
+    
+    micro substring(self, start, end) -> String {
+        let res = "";
+        let i = start;
+        while i < end {
+            res = res + self.chars[i];
+            i = i + 1;
+        }
+        return res;
+    }
+}

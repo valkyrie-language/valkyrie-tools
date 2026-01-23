@@ -1,0 +1,22 @@
+@include("../library/compiler/lexer.vk");
+
+# We need to use the full name or `using` if the namespace is enforced.
+# But currently `new Lexer` might fail if HirLowering doesn't resolve it.
+# Let's try to use `using` and see if my fix (coming next) works.
+
+using compiler::lexer::Lexer;
+
+let src = "let x = 123;";
+let lexer = new Lexer(src);
+
+println("Source:", src);
+
+let loop_cond = true;
+while loop_cond {
+    let t = lexer.next_token();
+    if t.kind == "EOF" {
+        loop_cond = false;
+    } else {
+        println(t.kind, t.value);
+    }
+}

@@ -1,0 +1,40 @@
+namespace std::collections::index_set;
+
+using std::collections::Set;
+using std::collections::MutableSet;
+using std::collections::index_map::IndexMap;
+
+class IndexSet<T> (MutableSet<T>) {
+    map: IndexMap<T, bool>
+    
+    micro constructor(self) {
+        self.map = new IndexMap();
+    }
+    
+    micro len(self) -> isize {
+        return self.map.len();
+    }
+    
+    micro contains(self, item: T) -> bool {
+        return self.map.has(item);
+    }
+    
+    micro insert(self, item: T) -> bool {
+        if self.map.has(item) { return false; }
+        self.map.set(item, true);
+        return true;
+    }
+    
+    micro remove(self, item: T) -> bool {
+        # TODO
+        return false;
+    }
+    
+    micro clear(self) {
+        # TODO
+    }
+    
+    micro iterator(self) {
+        return self.map.keys();
+    }
+}
