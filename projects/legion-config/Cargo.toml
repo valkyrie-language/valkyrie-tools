@@ -1,0 +1,32 @@
+[package]
+name = "legion-config"
+version = "0.1.0"
+authors = ["Aster <192607617@qq.com>"]
+description = "Valkyrie workspace manager"
+repository = "https://github.com/nyar-vm/valkyrie-valor"
+documentation = "https://docs.rs/legion-config"
+readme = "Readme.md"
+license = "MPL-2.0"
+edition = "2021"
+
+[dependencies]
+serde = "=1.0.210"
+serde_derive = "=1.0.210"
+#config = "0.13.3"
+semver = { version = "1.0.16", features = ["serde"] }
+json5 = "0.4.1"
+toml = "0.8.19"
+globset = "0.4.8"
+
+[dependencies.serde-types]
+#path = "../serde-types"
+version = "0.1.1"
+
+[dependencies.valkyrie-errors]
+version = "0.0.3"
+features = ["toml", "json5"]
+
+[dev-dependencies]
+
+[features]
+default = []

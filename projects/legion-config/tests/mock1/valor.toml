@@ -1,0 +1,39 @@
+[workspace]
+packages = [
+    "projects/*"
+]
+projects = ["projects/*"]
+include = [
+    "projects/valor-config",
+]
+exclude = [
+    "projects/.DS_Store",
+]
+
+[profile.release]
+lto = true
+panic = "abort"
+
+
+
+[package]
+name = "valor-core"
+publish = false
+version = "0.0.0"
+authors = ["Aster <192607617@qq.com>"]
+description = "..."
+repository = "https://github.com/oovm/sub_projects"
+documentation = "https://docs.rs/sub_projects"
+readme = "Readme.md"
+license = "MPL-2.0"
+edition = "2021"
+
+[dependencies]
+serde = "1.0.152"
+serde_derive = "1.0.152"
+config = "0.13.3"
+
+[dev-dependencies]
+
+[features]
+default = []

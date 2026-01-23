@@ -1,0 +1,10 @@
+[workspace]
+resolver = "2"
+members = [
+    "projects/legion-app",
+    "projects/legion-config",
+]
+
+[profile.release]
+lto = true
+panic = "abort"

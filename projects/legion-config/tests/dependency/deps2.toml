@@ -1,0 +1,11 @@
+[dependencies]
+"dp1" = "^1.0"
+"@a/dp2" = { path = "path/to/dep" }
+
+[dependencies.dp3]
+version = "^1.0.2-alpha"
+git = "https://github.com/username/dp3.git"
+features = ["feature1", "feature2"]
+
+[dev-dependencies]
+dp4 = "^1.0"

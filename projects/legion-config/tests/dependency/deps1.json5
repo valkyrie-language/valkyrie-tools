@@ -1,0 +1,11 @@
+{
+    dependencies: {
+        "dp1": "^1.0",
+        "@a/dp2": {
+            "path": "path/to/dep"
+        },
+        "dp3": {
+            "version": "^1.0.2-alpha"
+        }
+    }
+}

@@ -6,6 +6,10 @@ time-travel.*
 
 # Valkyrie
 
+# Rust
+target/
+Cargo.lock
+
 # Node
 node_modules/
 cache/
