@@ -54,12 +54,12 @@ impl<'de, 'body> Visitor<'de> for WorkspaceVisitor<'body> {
     where
         A: MapAccess<'de>,
     {
-        while let Some(key) = map.next_key::<&str>()? {
-            match key {
+        while let Some(key) = map.next_key::<String>()? {
+            match key.as_str() {
                 "include" => {
                     self.body.include = map.next_value::<OneOrMany<String>>()?.unwrap();
                 }
-                "exclude" => {
+                "packages" => {
                     self.body.packages = map.next_value::<OneOrMany<String>>()?.unwrap();
                 }
                 _ => {}
