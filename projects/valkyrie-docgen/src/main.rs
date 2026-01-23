@@ -1,11 +1,65 @@
-use anyhow::Result;
 use clap::Parser;
 use maud::{DOCTYPE, html};
+use std::fmt::{Display, Formatter};
+use std::error::Error;
 use std::{
     collections::HashMap,
     fs,
     path::{Path, PathBuf},
 };
+
+#[derive(Debug)]
+pub enum DocGenError {
+    Io(std::io::Error),
+    Json(serde_json::Error),
+    Other(String),
+}
+
+impl Display for DocGenError {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            DocGenError::Io(e) => write!(f, "IO Error: {}", e),
+            DocGenError::Json(e) => write!(f, "JSON Error: {}", e),
+            DocGenError::Other(e) => write!(f, "Error: {}", e),
+        }
+    }
+}
+
+impl Error for DocGenError {
+    fn source(&self) -> Option<&(dyn Error + 'static)> {
+        match self {
+            DocGenError::Io(e) => Some(e),
+            DocGenError::Json(e) => Some(e),
+            _ => None,
+        }
+    }
+}
+
+impl From<std::io::Error> for DocGenError {
+    fn from(e: std::io::Error) -> Self {
+        DocGenError::Io(e)
+    }
+}
+
+impl From<serde_json::Error> for DocGenError {
+    fn from(e: serde_json::Error) -> Self {
+        DocGenError::Json(e)
+    }
+}
+
+impl From<String> for DocGenError {
+    fn from(e: String) -> Self {
+        DocGenError::Other(e)
+    }
+}
+
+impl From<&str> for DocGenError {
+    fn from(e: &str) -> Self {
+        DocGenError::Other(e.to_string())
+    }
+}
+
+type Result<T> = std::result::Result<T, DocGenError>;
 use valkyrie_compiler::context::CompilationContext;
 use valkyrie_compiler::transform::ast_to_hir::{Lowering, LoweringContext};
 use valkyrie_parser::ValkyrieParser;

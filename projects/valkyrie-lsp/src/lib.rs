@@ -69,6 +69,7 @@
 pub mod backend;
 pub mod capabilities;
 pub mod diagnostics;
+pub mod errors;
 pub mod handlers;
 pub mod legion;
 pub mod state;
@@ -78,6 +79,7 @@ pub use crate::{
     backend::ValkyrieBackend,
     capabilities::server_capabilities,
     diagnostics::{DiagnosticFilterConfig, DiagnosticStats, DiagnosticsManager},
+    errors::{LspError, LspResult},
     state::{DocumentState, ServerState, SymbolInfo},
 };
 

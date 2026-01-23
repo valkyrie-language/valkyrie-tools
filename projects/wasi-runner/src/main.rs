@@ -1,22 +1,52 @@
 use clap::Parser;
 use std::path::PathBuf;
-use thiserror::Error;
+use std::fmt::{Display, Formatter};
+use std::error::Error;
 use wasmtime::{Engine, Linker, Module, Store};
 use wasmtime_wasi::{WasiCtxBuilder};
 use wasmtime_wasi::preview1::{self, WasiP1Ctx};
 
-#[derive(Error, Debug)]
+#[derive(Debug)]
 pub enum RunnerError {
-    #[error("Failed to load module: {0}")]
     LoadModule(String),
-    #[error("Failed to instantiate module: {0}")]
     Instantiate(String),
-    #[error("Failed to call function: {0}")]
     FunctionCall(String),
-    #[error("IO error: {0}")]
-    Io(#[from] std::io::Error),
-    #[error("Wasmtime error: {0}")]
-    Wasmtime(#[from] wasmtime::Error),
+    Io(std::io::Error),
+    Wasmtime(wasmtime::Error),
+}
+
+impl Display for RunnerError {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            RunnerError::LoadModule(msg) => write!(f, "Failed to load module: {}", msg),
+            RunnerError::Instantiate(msg) => write!(f, "Failed to instantiate module: {}", msg),
+            RunnerError::FunctionCall(msg) => write!(f, "Failed to call function: {}", msg),
+            RunnerError::Io(err) => write!(f, "IO error: {}", err),
+            RunnerError::Wasmtime(err) => write!(f, "Wasmtime error: {}", err),
+        }
+    }
+}
+
+impl Error for RunnerError {
+    fn source(&self) -> Option<&(dyn Error + 'static)> {
+        match self {
+            RunnerError::Io(err) => Some(err),
+            RunnerError::Wasmtime(err) => Some(err),
+            _ => None,
+        }
+    }
+}
+
+impl From<std::io::Error> for RunnerError {
+    fn from(error: std::io::Error) -> Self {
+        Self::Io(error)
+    }
+}
+
+impl From<wasmtime::Error> for RunnerError {
+    fn from(error: wasmtime::Error) -> Self {
+        Self::Wasmtime(error)
+    }
 }
 
 #[derive(Parser, Debug)]

@@ -1,5 +1,6 @@
 use oak_lsp::types::{CompletionItem, CompletionItemKind, Position};
 use crate::state::ServerState;
+use crate::errors::LspResult;
 
 /// 补全处理器
 pub struct CompletionHandler;
@@ -9,7 +10,7 @@ impl CompletionHandler {
         state: &ServerState,
         _uri: &str,
         _position: Position,
-    ) -> anyhow::Result<Vec<CompletionItem>> {
+    ) -> LspResult<Vec<CompletionItem>> {
         let mut items = Vec::new();
 
         // 1. 添加关键字补全
