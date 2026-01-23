@@ -2,102 +2,61 @@
 //!
 //! 定义 Valkyrie LSP 服务器支持的功能
 
-use tower_lsp::lsp_types::*;
+use oak_lsp::types::*;
 
 /// 返回服务器支持的能力
-pub fn server_capabilities() -> ServerCapabilities {
-    ServerCapabilities {
-        // 文本文档同步
-        text_document_sync: Some(TextDocumentSyncCapability::Kind(TextDocumentSyncKind::INCREMENTAL)),
-
-        // 悬停支持
-        hover_provider: Some(HoverProviderCapability::Simple(true)),
-
-        // 补全支持
-        completion_provider: Some(CompletionOptions {
-            resolve_provider: Some(true),
-            trigger_characters: Some(vec![
-                ".".to_string(),
-                "::".to_string(),
-                "(".to_string(),
-                "[".to_string(),
-                "{".to_string(),
-            ]),
-            all_commit_characters: None,
-            work_done_progress_options: WorkDoneProgressOptions::default(),
-            completion_item: Some(CompletionOptionsCompletionItem { label_details_support: Some(true) }),
-        }),
-
-        // 定义跳转
-        definition_provider: Some(OneOf::Left(true)),
-
-        // 类型定义跳转
-        type_definition_provider: Some(TypeDefinitionProviderCapability::Simple(true)),
-
-        // 实现跳转
-        implementation_provider: Some(ImplementationProviderCapability::Simple(true)),
-
-        // 引用查找
-        references_provider: Some(OneOf::Left(true)),
-
-        // 文档高亮
-        document_highlight_provider: Some(OneOf::Left(true)),
-
-        // 文档符号
-        document_symbol_provider: Some(OneOf::Left(true)),
-
-        // 工作区符号
-        workspace_symbol_provider: Some(OneOf::Left(true)),
-
-        // 代码操作
-        code_action_provider: Some(CodeActionProviderCapability::Options(CodeActionOptions {
-            code_action_kinds: Some(vec![
-                CodeActionKind::QUICKFIX,
-                CodeActionKind::REFACTOR,
-                CodeActionKind::REFACTOR_EXTRACT,
-                CodeActionKind::REFACTOR_INLINE,
-                CodeActionKind::REFACTOR_REWRITE,
-                CodeActionKind::SOURCE,
-                CodeActionKind::SOURCE_ORGANIZE_IMPORTS,
-            ]),
-            resolve_provider: Some(true),
-            work_done_progress_options: WorkDoneProgressOptions::default(),
-        })),
-
-        // 代码镜头
-        code_lens_provider: Some(CodeLensOptions { resolve_provider: Some(true) }),
-
-        // 文档格式化
-        document_formatting_provider: Some(OneOf::Left(true)),
-
-        // 范围格式化
-        document_range_formatting_provider: Some(OneOf::Left(true)),
-
-        // 输入时格式化
-        document_on_type_formatting_provider: Some(DocumentOnTypeFormattingOptions {
-            first_trigger_character: "}".to_string(),
-            more_trigger_character: Some(vec![";".to_string(), "\n".to_string()]),
-        }),
-
-        // 重命名
-        rename_provider: Some(OneOf::Right(RenameOptions {
-            prepare_provider: Some(true),
-            work_done_progress_options: WorkDoneProgressOptions::default(),
-        })),
-
-        // 折叠范围
-        folding_range_provider: Some(FoldingRangeProviderCapability::Simple(true)),
-
-        // 选择范围
-        selection_range_provider: Some(SelectionRangeProviderCapability::Simple(true)),
-
-        // 语义标记
-        semantic_tokens_provider: Some(SemanticTokensServerCapabilities::SemanticTokensOptions(SemanticTokensOptions {
-            work_done_progress_options: WorkDoneProgressOptions::default(),
-            legend: SemanticTokensLegend { token_types: semantic_token_types(), token_modifiers: semantic_token_modifiers() },
-            range: Some(true),
-            full: Some(SemanticTokensFullOptions::Bool(true)),
-        })),
+pub fn server_capabilities() -> Value {
+    serde_json::json!({
+        "textDocumentSync": 1, // Full
+        "hoverProvider": true,
+        "completionProvider": {
+            "resolveProvider": true,
+            "triggerCharacters": [".", "::", "(", "[", "{"]
+        },
+        "definitionProvider": true,
+        "typeDefinitionProvider": true,
+        "implementationProvider": true,
+        "referencesProvider": true,
+        "documentHighlightProvider": true,
+        "documentSymbolProvider": true,
+        "workspaceSymbolProvider": true,
+        "codeActionProvider": {
+            "codeActionKinds": [
+                "quickfix",
+                "refactor",
+                "refactor.extract",
+                "refactor.inline",
+                "refactor.rewrite",
+                "source",
+                "source.organizeImports"
+            ]
+        },
+        "codeLensProvider": {
+            "resolveProvider": true
+        },
+        "documentFormattingProvider": true,
+        "documentRangeFormattingProvider": true,
+        "documentOnTypeFormattingProvider": {
+            "firstTriggerCharacter": "}",
+            "moreTriggerCharacter": [";", "\n"]
+        },
+        "renameProvider": {
+            "prepareProvider": true
+        },
+        "foldingRangeProvider": true,
+        "selectionRangeProvider": true,
+        "semanticTokensProvider": {
+            "legend": {
+                "tokenTypes": [
+                    "class", "parameter", "variable", "function", "keyword", "string", "number", "operator"
+                ],
+                "tokenModifiers": []
+            },
+            "range": true,
+            "full": true
+        }
+    })
+}
 
         // 内联提示
         inlay_hint_provider: Some(OneOf::Left(true)),

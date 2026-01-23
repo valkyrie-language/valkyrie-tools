@@ -2,7 +2,7 @@
 //!
 //! 将 Nyar 编译器的诊断信息转换为 LSP 格式
 
-use tower_lsp::lsp_types::*;
+use oak_lsp::types::*;
 use tracing::{debug, warn};
 use valkyrie_error::{ReportKind, ValkyrieError};
 
@@ -36,68 +36,32 @@ impl DiagnosticsManager {
         Some(Diagnostic {
             range,
             severity: Some(severity),
-            code: code.map(NumberOrString::String),
-            code_description: None,
+            code,
             source: Some("valkyrie-lsp".to_string()),
             message: diag.to_string(),
-            related_information: self.extract_related_information(diag),
-            tags: self.extract_diagnostic_tags(diag),
-            data: None,
         })
     }
 
     /// 从诊断信息中提取位置范围
-    fn extract_range_from_diagnostic(&self, diag: &ValkyrieError, source: &str) -> Option<Range> {
+    fn extract_range_from_diagnostic(&self, diag: &ValkyrieError, _source: &str) -> Option<Range<usize>> {
         let span = diag.span()?;
         let start_offset = span.get_start() as usize;
         let end_offset = span.get_end() as usize;
 
-        Some(Range { start: self.offset_to_position(start_offset, source), end: self.offset_to_position(end_offset, source) })
-    }
-
-    /// 将偏移量转换为 LSP Position
-    fn offset_to_position(&self, offset: usize, source: &str) -> Position {
-        let mut line = 0;
-        let mut character = 0;
-
-        for (i, c) in source.char_indices() {
-            if i >= offset {
-                break;
-            }
-
-            if c == '\n' {
-                line += 1;
-                character = 0;
-            }
-            else {
-                character += 1;
-            }
-        }
-
-        Position::new(line, character)
+        Some(Range { start: start_offset, end: end_offset })
     }
 
     /// 映射诊断严重程度
     fn map_severity(&self, diag: &ValkyrieError) -> DiagnosticSeverity {
         match diag.level() {
-            ReportKind::Error => DiagnosticSeverity::ERROR,
-            _ => DiagnosticSeverity::WARNING,
+            ReportKind::Error => DiagnosticSeverity::Error,
+            _ => DiagnosticSeverity::Warning,
         }
     }
 
     /// 提取错误代码
     fn extract_error_code(&self, _diag: &ValkyrieError) -> Option<String> {
         // TODO: 从 ValkyrieError 中提取错误代码
-        None
-    }
-
-    /// 提取相关信息
-    fn extract_related_information(&self, _diag: &ValkyrieError) -> Option<Vec<DiagnosticRelatedInformation>> {
-        None
-    }
-
-    /// 提取诊断标签
-    fn extract_diagnostic_tags(&self, _diag: &ValkyrieError) -> Option<Vec<DiagnosticTag>> {
         None
     }
 }

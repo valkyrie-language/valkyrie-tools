@@ -1,6 +1,6 @@
 use oak_lsp::types::{LocationRange, Position};
 use crate::state::{ServerState, DocumentState};
-use super::utils::span_to_range_usize;
+use super::utils::{span_to_range_usize, range_to_lsp_range_usize};
 
 /// 引用处理器
 pub struct ReferencesHandler;

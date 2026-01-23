@@ -49,17 +49,19 @@
 //! ### 作为库使用
 //!
 //! ```rust
-//! use tower_lsp::{LspService, Server};
-//! use valkyrie_lsp::{start_lsp_server, ValkyrieBackend};
+//! use oak_lsp::LspServer;
+//! use valkyrie_lsp::ValkyrieBackend;
+//! use std::sync::Arc;
 //!
 //! #[tokio::main]
 //! async fn main() -> Result<(), Box<dyn std::error::Error>> {
-//!     let (service, socket) = LspService::build(|client| ValkyrieBackend::new(client)).finish();
+//!     let backend = Arc::new(ValkyrieBackend::new());
+//!     let server = LspServer::new(backend);
 //!
 //!     let stdin = tokio::io::stdin();
 //!     let stdout = tokio::io::stdout();
 //!
-//!     Server::new(stdin, stdout, socket).serve(service).await;
+//!     server.run(stdin, stdout).await?;
 //!     Ok(())
 //! }
 //! ```
@@ -112,22 +114,20 @@ pub const SUPPORTED_EXTENSIONS: &[&str] = &[".vk", ".valkyrie"];
 /// ```
 pub async fn start_lsp_server(mode: ServerMode, port: Option<u16>) -> Result<(), Box<dyn std::error::Error>> {
     use tokio::net::TcpListener;
-    use tower_lsp::{LspService, Server};
+    use oak_lsp::LspServer;
     use tracing::info;
+    use std::sync::Arc;
+
+    let backend = Arc::new(ValkyrieBackend::new());
 
     match mode {
         ServerMode::Stdio => {
             let stdin = tokio::io::stdin();
             let stdout = tokio::io::stdout();
-
-            let (service, socket) = LspService::build(|client| ValkyrieBackend::new(client))
-                .custom_method("valkyrie/getAst", ValkyrieBackend::get_ast)
-                .custom_method("valkyrie/getHir", ValkyrieBackend::get_hir)
-                .custom_method("valkyrie/querySymbol", ValkyrieBackend::query_symbol)
-                .finish();
+            let server = LspServer::new(backend);
 
             info!("Valkyrie LSP Server started on stdio");
-            Server::new(stdin, stdout, socket).serve(service).await;
+            server.run(stdin, stdout).await?;
         }
         ServerMode::Tcp => {
             let port = port.unwrap_or(9257);
@@ -138,19 +138,14 @@ pub async fn start_lsp_server(mode: ServerMode, port: Option<u16>) -> Result<(),
                 let (stream, addr) = listener.accept().await?;
                 info!("New connection from {}", addr);
 
+                let backend = backend.clone();
                 tokio::spawn(async move {
                     let (read, write) = tokio::io::split(stream);
+                    let server = LspServer::new(backend);
 
-                    let (service, socket) = LspService::build(|client| ValkyrieBackend::new(client))
-                        .custom_method("valkyrie/getAst", ValkyrieBackend::get_ast)
-                        .custom_method("valkyrie/getHir", ValkyrieBackend::get_hir)
-                        .custom_method("valkyrie/querySymbol", ValkyrieBackend::query_symbol)
-                        .custom_method("valkyrie/getTests", ValkyrieBackend::get_tests)
-                        .finish();
-
-                    let server = Server::new(read, write, socket);
-
-                    server.serve(service).await;
+                    if let Err(e) = server.run(read, write).await {
+                        info!("Error handling TCP connection: {}", e);
+                    }
                 });
             }
         }

@@ -125,6 +125,136 @@ impl LanguageService for ValkyrieBackend {
             handlers::HoverHandler::handle(&self.state, uri, position).await.ok().flatten()
         }
     }
+
+    fn completion(&self, uri: &str, offset: usize) -> impl std::future::Future<Output = Vec<CompletionItem>> + Send + '_ {
+        async move {
+            let position = self.offset_to_position(uri, offset).await.unwrap_or_default();
+            handlers::CompletionHandler::handle(&self.state, uri, position).await.unwrap_or_default()
+        }
+    }
+
+    fn definition(&self, uri: &str, range: core::range::Range<usize>) -> impl std::future::Future<Output = Vec<LocationRange>> + Send + '_ {
+        async move {
+            let position = self.offset_to_position(uri, range.start).await.unwrap_or_default();
+            handlers::DefinitionHandler::handle(&self.state, uri, position).await.unwrap_or_default()
+        }
+    }
+
+    fn type_definition(&self, uri: &str, range: core::range::Range<usize>) -> impl std::future::Future<Output = Vec<LocationRange>> + Send + '_ {
+        async move {
+            let position = self.offset_to_position(uri, range.start).await.unwrap_or_default();
+            // 暂时重用 definition handler，或者之后添加专门的 type definition handler
+            handlers::DefinitionHandler::handle(&self.state, uri, position).await.unwrap_or_default()
+        }
+    }
+
+    fn implementation(&self, uri: &str, range: core::range::Range<usize>) -> impl std::future::Future<Output = Vec<LocationRange>> + Send + '_ {
+        async move {
+            let position = self.offset_to_position(uri, range.start).await.unwrap_or_default();
+            // 暂时重用 definition handler
+            handlers::DefinitionHandler::handle(&self.state, uri, position).await.unwrap_or_default()
+        }
+    }
+
+    fn references(&self, uri: &str, range: core::range::Range<usize>) -> impl std::future::Future<Output = Vec<LocationRange>> + Send + '_ {
+        async move {
+            let position = self.offset_to_position(uri, range.start).await.unwrap_or_default();
+            handlers::ReferencesHandler::handle(&self.state, uri, position).await.unwrap_or_default()
+        }
+    }
+
+    fn document_symbols(&self, uri: &str) -> impl std::future::Future<Output = Vec<StructureItem>> + Send + '_ {
+        async move {
+            handlers::DocumentSymbolHandler::handle(&self.state, uri).await.unwrap_or_default()
+        }
+    }
+
+    fn workspace_symbols(&self, query: String) -> impl std::future::Future<Output = Vec<WorkspaceSymbol>> + Send + '_ {
+        async move {
+            handlers::WorkspaceSymbolHandler::handle(&self.state, &query).await.unwrap_or_default()
+        }
+    }
+
+    fn rename(&self, uri: &str, range: core::range::Range<usize>, new_name: String) -> impl std::future::Future<Output = Option<WorkspaceEdit>> + Send + '_ {
+        async move {
+            let position = self.offset_to_position(uri, range.start).await.unwrap_or_default();
+            handlers::RenameHandler::handle(&self.state, uri, position, new_name).await
+        }
+    }
+
+    fn folding_ranges(&self, uri: &str) -> impl std::future::Future<Output = Vec<FoldingRange>> + Send + '_ {
+        async move {
+            handlers::FoldingRangeHandler::handle(&self.state, uri).await.unwrap_or_default()
+        }
+    }
+
+    fn selection_ranges(&self, uri: &str, offsets: Vec<usize>) -> impl std::future::Future<Output = Vec<SelectionRange>> + Send + '_ {
+        async move {
+            handlers::SelectionRangeHandler::handle(&self.state, uri, offsets).await.unwrap_or_default()
+        }
+    }
+
+    fn signature_help(&self, uri: &str, offset: usize) -> impl std::future::Future<Output = Option<SignatureHelp>> + Send + '_ {
+        async move {
+            let position = self.offset_to_position(uri, offset).await.unwrap_or_default();
+            handlers::SignatureHelpHandler::handle(&self.state, uri, position).await
+        }
+    }
+
+    fn inlay_hints(&self, uri: &str) -> impl std::future::Future<Output = Vec<InlayHint>> + Send + '_ {
+        async move {
+            // 注意：Valkyrie 原本的 inlay_hint handler 需要 range，这里暂时传入全量范围或调整 handler
+            let range = core::range::Range { start: 0, end: usize::MAX };
+            handlers::InlayHintHandler::handle(&self.state, uri, range).await.unwrap_or_default()
+        }
+    }
+
+    fn document_highlights(&self, uri: &str, range: core::range::Range<usize>) -> impl std::future::Future<Output = Vec<DocumentHighlight>> + Send + '_ {
+        async move {
+            let position = self.offset_to_position(uri, range.start).await.unwrap_or_default();
+            handlers::DocumentHighlightHandler::handle(&self.state, uri, position).await.unwrap_or_default()
+        }
+    }
+
+    fn formatting(&self, uri: &str) -> impl std::future::Future<Output = Vec<TextEdit>> + Send + '_ {
+        async move {
+            handlers::FormattingHandler::handle(&self.state, uri).await.unwrap_or_default()
+        }
+    }
+
+    fn code_actions(&self, uri: &str, range: core::range::Range<usize>) -> impl std::future::Future<Output = Vec<CodeAction>> + Send + '_ {
+        async move {
+            handlers::CodeActionHandler::handle(&self.state, uri, range).await
+        }
+    }
+
+    fn semantic_tokens_full(&self, uri: &str) -> impl std::future::Future<Output = Option<SemanticTokens>> + Send + '_ {
+        async move {
+            handlers::SemanticTokensHandler::handle_full(&self.state, uri).await
+        }
+    }
+
+    fn semantic_tokens_range(&self, uri: &str, range: core::range::Range<usize>) -> impl std::future::Future<Output = Option<SemanticTokens>> + Send + '_ {
+        async move {
+            handlers::SemanticTokensHandler::handle_range(&self.state, uri, range).await
+        }
+    }
+
+    fn diagnostics(&self, uri: &str) -> impl std::future::Future<Output = Vec<Diagnostic>> + Send + '_ {
+        async move {
+            let text = match self.vfs.get_source(uri) {
+                Some(t) => t,
+                None => return vec![],
+            };
+            // 每次获取诊断时先尝试编译
+            if let Err(e) = self.state.compile_document(uri, &text) {
+                error!("Failed to compile document {} for diagnostics: {}", uri, e);
+            }
+            
+            let compiler_diagnostics = self.state.get_diagnostics(uri).unwrap_or_default();
+            self.diagnostics.convert_to_lsp_diagnostics(&compiler_diagnostics, &text)
+        }
+    }
 }
 
 impl ValkyrieBackend {
@@ -133,46 +263,5 @@ impl ValkyrieBackend {
         let line_map = oak_core::source::LineMap::from_source(&source);
         let (line, col) = line_map.offset_to_line_col_utf16(&source, offset);
         Some(Position { line, character: col })
-    }
-}
-
-    async fn selection_range(&self, params: SelectionRangeParams) -> Result<Option<Vec<SelectionRange>>> {
-        Ok(handlers::SelectionRangeHandler::handle(&self.state, params).await)
-    }
-
-    async fn folding_range(&self, params: FoldingRangeParams) -> Result<Option<Vec<FoldingRange>>> {
-        Ok(handlers::FoldingRangeHandler::handle(&self.state, params).await)
-    }
-
-    async fn document_highlight(&self, params: DocumentHighlightParams) -> Result<Option<Vec<DocumentHighlight>>> {
-        Ok(handlers::DocumentHighlightHandler::handle(&self.state, params).await)
-    }
-
-    async fn symbol(&self, params: WorkspaceSymbolParams) -> Result<Option<Vec<SymbolInformation>>> {
-        Ok(handlers::WorkspaceSymbolHandler::handle(&self.state, params).await)
-    }
-
-    async fn rename(&self, params: RenameParams) -> Result<Option<WorkspaceEdit>> {
-        Ok(handlers::RenameHandler::handle(&self.state, params).await)
-    }
-
-    async fn code_action(&self, params: CodeActionParams) -> Result<Option<CodeActionResponse>> {
-        Ok(handlers::CodeActionHandler::handle(&self.state, params).await)
-    }
-
-    async fn formatting(&self, params: DocumentFormattingParams) -> Result<Option<Vec<TextEdit>>> {
-        Ok(handlers::FormattingHandler::handle(&self.state, params).await)
-    }
-
-    async fn semantic_tokens_full(&self, params: SemanticTokensParams) -> Result<Option<SemanticTokensResult>> {
-        Ok(handlers::SemanticTokensHandler::handle_full(&self.state, params).await)
-    }
-
-    async fn semantic_tokens_range(&self, params: SemanticTokensRangeParams) -> Result<Option<SemanticTokensRangeResult>> {
-        Ok(handlers::SemanticTokensHandler::handle_range(&self.state, params).await)
-    }
-
-    async fn inlay_hint(&self, params: InlayHintParams) -> Result<Option<Vec<InlayHint>>> {
-        Ok(handlers::InlayHintHandler::handle(&self.state, params).await)
     }
 }

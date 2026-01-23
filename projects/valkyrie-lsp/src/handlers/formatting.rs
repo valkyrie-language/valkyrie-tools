@@ -1,4 +1,4 @@
-use tower_lsp::lsp_types::*;
+use oak_lsp::types::*;
 use crate::state::ServerState;
 use valkyrie_ast::helper::{PrettyPrint, PrettyProvider};
 
@@ -6,14 +6,19 @@ use valkyrie_ast::helper::{PrettyPrint, PrettyProvider};
 pub struct FormattingHandler;
 
 impl FormattingHandler {
-    pub async fn handle(state: &ServerState, params: DocumentFormattingParams) -> Option<Vec<TextEdit>> {
-        let uri = params.text_document.uri.to_string();
-        let doc = state.get_document(&uri)?;
-        let ast = doc.ast.as_ref()?;
+    pub async fn handle(state: &ServerState, uri: &str, options: FormattingOptions) -> Vec<TextEdit> {
+        let doc = match state.get_document(uri) {
+            Some(d) => d,
+            None => return vec![],
+        };
+        let ast = match doc.ast.as_ref() {
+            Some(a) => a,
+            None => return vec![],
+        };
 
         // 获取格式化选项
-        let tab_size = params.options.tab_size as usize;
-        let insert_spaces = params.options.insert_spaces;
+        let tab_size = options.tab_size as usize;
+        let insert_spaces = options.insert_spaces;
 
         let theme = PrettyProvider::new(80);
         let tree = ast.pretty(&theme);
@@ -28,7 +33,7 @@ impl FormattingHandler {
         formatted = Self::adjust_indentation(formatted, tab_size, insert_spaces);
 
         // 处理其他格式化选项
-        if params.options.trim_trailing_whitespace.unwrap_or(false) {
+        if options.trim_trailing_whitespace.unwrap_or(false) {
             let tree_ends_with_newline = formatted.ends_with('\n');
             formatted = formatted.lines().map(|line| line.trim_end()).collect::<Vec<_>>().join("\n");
             // 保持末尾换行符状态
@@ -37,25 +42,25 @@ impl FormattingHandler {
             }
         }
 
-        if params.options.insert_final_newline.unwrap_or(false) {
+        if options.insert_final_newline.unwrap_or(false) {
             if !formatted.ends_with('\n') {
                 formatted.push('\n');
             }
         }
-        else if params.options.trim_final_newlines.unwrap_or(false) {
+        else if options.trim_final_newlines.unwrap_or(false) {
             while formatted.ends_with("\n\n") {
                 formatted.pop();
             }
         }
 
         if formatted == doc.text {
-            return None;
+            return vec![];
         }
 
-        Some(vec![TextEdit {
+        vec![TextEdit {
             range: Range { start: Position { line: 0, character: 0 }, end: doc.offset_to_position(doc.text.len()) },
             new_text: formatted,
-        }])
+        }]
     }
 
     fn adjust_indentation(text: String, tab_size: usize, insert_spaces: bool) -> String {

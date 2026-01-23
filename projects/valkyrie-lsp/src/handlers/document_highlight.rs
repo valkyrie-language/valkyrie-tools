@@ -1,31 +1,33 @@
-use tower_lsp::lsp_types::*;
+use oak_lsp::types::*;
 use crate::state::{ServerState, DocumentState};
-use super::utils::{span_to_range, range_to_lsp_range};
+use super::utils::{span_to_range, range_to_lsp_range_usize};
 
 /// 文档高亮处理器
 pub struct DocumentHighlightHandler;
 
 impl DocumentHighlightHandler {
-    pub async fn handle(state: &ServerState, params: DocumentHighlightParams) -> Option<Vec<DocumentHighlight>> {
-        let uri = params.text_document_position_params.text_document.uri.to_string();
-        let position = params.text_document_position_params.position;
-        let doc = state.get_document(&uri)?;
-        let ast = doc.ast.as_ref()?;
+    pub async fn handle(state: &ServerState, uri: &str, position: Position) -> Vec<DocumentHighlight> {
+        let doc = match state.get_document(uri) {
+            Some(d) => d,
+            None => return vec![],
+        };
+        let ast = match doc.ast.as_ref() {
+            Some(a) => a,
+            None => return vec![],
+        };
 
         // 1. 找到当前位置的符号
-        let symbol = state.query_symbol_at_position(&uri, position).await?;
+        let symbol = match state.query_symbol_at_position(uri, position).await {
+            Some(s) => s,
+            None => return vec![],
+        };
         let name = symbol.name;
 
         // 2. 在文档中搜索所有同名符号
         let mut highlights = Vec::new();
         Self::collect_highlights(&ast.statements, &name, &doc, &mut highlights);
 
-        if highlights.is_empty() {
-            None
-        }
-        else {
-            Some(highlights)
-        }
+        highlights
     }
 
     pub fn collect_highlights(
@@ -40,7 +42,7 @@ impl DocumentHighlightHandler {
                     if f.name.to_string() == name {
                         highlights.push(DocumentHighlight {
                             range: span_to_range(f.name.span(), doc),
-                            kind: Some(DocumentHighlightKind::WRITE),
+                            kind: Some(DocumentHighlightKind::Write),
                         });
                     }
                     Self::collect_highlights(&f.body.terms, name, doc, highlights);
@@ -49,7 +51,7 @@ impl DocumentHighlightHandler {
                     if c.name.to_string() == name {
                         highlights.push(DocumentHighlight {
                             range: span_to_range(c.name.span, doc),
-                            kind: Some(DocumentHighlightKind::WRITE),
+                            kind: Some(DocumentHighlightKind::Write),
                         });
                     }
                     for term in &c.terms {
@@ -58,7 +60,7 @@ impl DocumentHighlightHandler {
                                 if f.name.to_string() == name {
                                     highlights.push(DocumentHighlight {
                                         range: span_to_range(f.name.span, doc),
-                                        kind: Some(DocumentHighlightKind::WRITE),
+                                        kind: Some(DocumentHighlightKind::Write),
                                     });
                                 }
                             }
@@ -66,7 +68,7 @@ impl DocumentHighlightHandler {
                                 if m.name.to_string() == name {
                                     highlights.push(DocumentHighlight {
                                         range: span_to_range(m.name.span(), doc),
-                                        kind: Some(DocumentHighlightKind::WRITE),
+                                        kind: Some(DocumentHighlightKind::Write),
                                     });
                                 }
                                 if let Some(body) = &m.body {
@@ -108,7 +110,7 @@ impl DocumentHighlightHandler {
                     if node.name.to_string() == name {
                         highlights.push(DocumentHighlight {
                             range: span_to_range(node.span.clone(), doc),
-                            kind: Some(DocumentHighlightKind::WRITE),
+                            kind: Some(DocumentHighlightKind::Write),
                         });
                     }
                 }
@@ -142,8 +144,8 @@ impl DocumentHighlightHandler {
             valkyrie_ast::ExpressionKind::Symbol(s) => {
                 if s.to_string() == name {
                     highlights.push(DocumentHighlight {
-                        range: range_to_lsp_range(&s.get_range(), doc),
-                        kind: Some(DocumentHighlightKind::READ),
+                        range: range_to_lsp_range_usize(&s.get_range(), doc),
+                        kind: Some(DocumentHighlightKind::Read),
                     });
                 }
             }
@@ -162,7 +164,7 @@ impl DocumentHighlightHandler {
                     if p.to_string() == name {
                         highlights.push(DocumentHighlight {
                             range: span_to_range(p.span.clone(), doc),
-                            kind: Some(DocumentHighlightKind::READ),
+                            kind: Some(DocumentHighlightKind::Read),
                         });
                     }
                 }
@@ -176,7 +178,7 @@ impl DocumentHighlightHandler {
                     if param.key.to_string() == name {
                         highlights.push(DocumentHighlight {
                             range: span_to_range(param.key.span.clone(), doc),
-                            kind: Some(DocumentHighlightKind::WRITE),
+                            kind: Some(DocumentHighlightKind::Write),
                         });
                     }
                 }

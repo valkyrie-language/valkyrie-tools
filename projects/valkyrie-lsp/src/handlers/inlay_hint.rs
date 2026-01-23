@@ -1,4 +1,4 @@
-use tower_lsp::lsp_types::*;
+use oak_lsp::types::*;
 use valkyrie_ast::helper::ValkyrieNode;
 use crate::state::{ServerState, DocumentState};
 
@@ -6,20 +6,20 @@ use crate::state::{ServerState, DocumentState};
 pub struct InlayHintHandler;
 
 impl InlayHintHandler {
-    pub async fn handle(state: &ServerState, params: InlayHintParams) -> Option<Vec<InlayHint>> {
-        let uri = params.text_document.uri.to_string();
-        let doc = state.get_document(&uri)?;
-        let ast = doc.ast.as_ref()?;
+    pub async fn handle(state: &ServerState, uri: &str) -> Vec<InlayHint> {
+        let doc = match state.get_document(uri) {
+            Some(d) => d,
+            None => return vec![],
+        };
+        let ast = match doc.ast.as_ref() {
+            Some(a) => a,
+            None => return vec![],
+        };
 
         let mut hints = Vec::new();
-        Self::collect_inlay_hints(&ast.statements, &doc, state, &uri, &mut hints).await;
+        Self::collect_inlay_hints(&ast.statements, &doc, state, uri, &mut hints).await;
 
-        if hints.is_empty() {
-            None
-        }
-        else {
-            Some(hints)
-        }
+        hints
     }
 
     #[async_recursion::async_recursion]
@@ -54,10 +54,10 @@ impl InlayHintHandler {
                         let position_end = doc.offset_to_position(range.end as usize);
                         hints.push(InlayHint {
                             position: position_end,
-                            label: InlayHintLabel::String(label),
-                            kind: Some(InlayHintKind::TYPE),
+                            label: label,
+                            kind: Some(InlayHintKind::Type),
                             text_edits: None,
-                            tooltip: Some(InlayHintTooltip::String("Inferred type".to_string())),
+                            tooltip: Some("Inferred type".to_string()),
                             padding_left: Some(true),
                             padding_right: None,
                             data: None,
@@ -89,10 +89,10 @@ impl InlayHintHandler {
                             let position_end = doc.offset_to_position(range.end as usize);
                             hints.push(InlayHint {
                                 position: position_end,
-                                label: InlayHintLabel::String(label),
-                                kind: Some(InlayHintKind::TYPE),
+                                label: label,
+                                kind: Some(InlayHintKind::Type),
                                 text_edits: None,
-                                tooltip: Some(InlayHintTooltip::String("Implicit type".to_string())),
+                                tooltip: Some("Implicit type".to_string()),
                                 padding_left: Some(true),
                                 padding_right: None,
                                 data: None,
@@ -104,10 +104,10 @@ impl InlayHintHandler {
                         let position = doc.offset_to_position(func.name.span().end as usize);
                         hints.push(InlayHint {
                             position,
-                            label: InlayHintLabel::String(" -> Any".to_string()),
-                            kind: Some(InlayHintKind::TYPE),
+                            label: " -> Any".to_string(),
+                            kind: Some(InlayHintKind::Type),
                             text_edits: None,
-                            tooltip: Some(InlayHintTooltip::String("Inferred return type".to_string())),
+                            tooltip: Some("Inferred return type".to_string()),
                             padding_left: Some(true),
                             padding_right: None,
                             data: None,
@@ -128,10 +128,10 @@ impl InlayHintHandler {
                                     let position = doc.offset_to_position(f.name.span.end as usize);
                                     hints.push(InlayHint {
                                         position,
-                                        label: InlayHintLabel::String(": Any".to_string()),
-                                        kind: Some(InlayHintKind::TYPE),
+                                        label: ": Any".to_string(),
+                                        kind: Some(InlayHintKind::Type),
                                         text_edits: None,
-                                        tooltip: Some(InlayHintTooltip::String("Field type".to_string())),
+                                        tooltip: Some("Field type".to_string()),
                                         padding_left: Some(true),
                                         padding_right: None,
                                         data: None,
@@ -143,17 +143,17 @@ impl InlayHintHandler {
                     }
                 }
                 valkyrie_ast::StatementKind::Expression(expr) => {
-                    Self::collect_expression_hints(&expr.body, doc, state, uri, hints).await;
+                    Self::collect_expression_hints(expr, doc, state, uri, hints).await;
                 }
                 valkyrie_ast::StatementKind::Each(each) => {
                     // 为 each 循环的迭代变量添加类型提示
                     let position = doc.offset_to_position(each.pattern.get_range().end as usize);
                     hints.push(InlayHint {
                         position,
-                        label: InlayHintLabel::String(": Element".to_string()),
-                        kind: Some(InlayHintKind::TYPE),
+                        label: ": Element".to_string(),
+                        kind: Some(InlayHintKind::Type),
                         text_edits: None,
-                        tooltip: Some(InlayHintTooltip::String("Iterated element type".to_string())),
+                        tooltip: Some("Iterated element type".to_string()),
                         padding_left: Some(true),
                         padding_right: None,
                         data: None,
@@ -197,42 +197,28 @@ impl InlayHintHandler {
                         }
                     }
                 }
-
-                for (i, term) in call.arguments.terms.iter().enumerate() {
-                    let position = doc.offset_to_position(term.value.get_range().start as usize);
-                    let label = if i < param_names.len() { format!("{}:", param_names[i]) } else { format!("arg{}:", i) };
-
-                    hints.push(InlayHint {
-                        position,
-                        label: InlayHintLabel::String(label),
-                        kind: Some(InlayHintKind::PARAMETER),
-                        text_edits: None,
-                        tooltip: Some(InlayHintTooltip::String(format!("Parameter index {}", i))),
-                        padding_left: None,
-                        padding_right: Some(true),
-                        data: None,
-                    });
-                    Self::collect_expression_hints(&term.value, doc, state, uri, hints).await;
-                }
-                Self::collect_expression_hints(&call.caller, doc, state, uri, hints).await;
-            }
-            valkyrie_ast::ExpressionKind::Lambda(lambda) => {
-                for param in lambda.parameters.terms() {
-                    if param.bound.is_none() {
-                        let position = doc.offset_to_position(param.key.span.end as usize);
+                
+                // 添加参数名提示
+                for (i, arg) in call.arguments.terms.iter().enumerate() {
+                    if i < param_names.len() {
+                        let position = doc.offset_to_position(arg.value.get_range().start as usize);
                         hints.push(InlayHint {
                             position,
-                            label: InlayHintLabel::String(": Any".to_string()),
-                            kind: Some(InlayHintKind::TYPE),
+                            label: format!("{}:", param_names[i]),
+                            kind: Some(InlayHintKind::Parameter),
                             text_edits: None,
-                            tooltip: Some(InlayHintTooltip::String("Lambda parameter type".to_string())),
-                            padding_left: Some(true),
-                            padding_right: None,
+                            tooltip: Some("Parameter name".to_string()),
+                            padding_left: None,
+                            padding_right: Some(true),
                             data: None,
                         });
                     }
+                    Self::collect_expression_hints(&arg.value, doc, state, uri, hints).await;
                 }
-                Self::collect_inlay_hints(&lambda.body.terms, doc, state, uri, hints).await;
+                Self::collect_expression_hints(&call.caller, doc, state, uri, hints).await;
+                if let Some(body) = &call.body {
+                    Self::collect_inlay_hints(&body.terms, doc, state, uri, hints).await;
+                }
             }
             valkyrie_ast::ExpressionKind::Infix(infix) => {
                 Self::collect_expression_hints(&infix.lhs, doc, state, uri, hints).await;

@@ -1,24 +1,24 @@
-use tower_lsp::lsp_types::*;
+use oak_lsp::types::*;
 use crate::state::{ServerState, DocumentState};
 
 /// 折叠范围处理器
 pub struct FoldingRangeHandler;
 
 impl FoldingRangeHandler {
-    pub async fn handle(state: &ServerState, params: FoldingRangeParams) -> Option<Vec<FoldingRange>> {
-        let uri = params.text_document.uri.to_string();
-        let doc = state.get_document(&uri)?;
-        let ast = doc.ast.as_ref()?;
+    pub async fn handle(state: &ServerState, uri: &str) -> Vec<FoldingRange> {
+        let doc = match state.get_document(uri) {
+            Some(d) => d,
+            None => return vec![],
+        };
+        let ast = match doc.ast.as_ref() {
+            Some(a) => a,
+            None => return vec![],
+        };
 
         let mut ranges = Vec::new();
         Self::collect_folding_ranges(ast, &doc, &mut ranges);
 
-        if ranges.is_empty() {
-            None
-        }
-        else {
-            Some(ranges)
-        }
+        ranges
     }
 
     fn collect_folding_ranges(
@@ -52,9 +52,6 @@ impl FoldingRangeHandler {
             }
             valkyrie_ast::StatementKind::Trait(tr) => {
                 ranges.push(Self::span_to_folding_range(tr.span.clone(), doc));
-            }
-            valkyrie_ast::StatementKind::Namespace(_) => {
-                // Namespace usually doesn't have a body in the same way, but if it does, add it
             }
             _ => {}
         }

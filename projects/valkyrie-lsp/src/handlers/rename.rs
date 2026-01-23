@@ -1,4 +1,4 @@
-use tower_lsp::lsp_types::*;
+use oak_lsp::types::*;
 use crate::state::ServerState;
 use std::collections::HashMap;
 
@@ -6,20 +6,13 @@ use std::collections::HashMap;
 pub struct RenameHandler;
 
 impl RenameHandler {
-    pub async fn handle(state: &ServerState, params: RenameParams) -> Option<WorkspaceEdit> {
-        let uri = params.text_document_position.text_document.uri;
-        let position = params.text_document_position.position;
-        let new_name = params.new_name;
-
+    pub async fn handle(state: &ServerState, uri: &str, position: Position, new_name: String) -> Option<WorkspaceEdit> {
         // 1. 获取所有需要重命名的位置
-        let refs_params = ReferenceParams {
-            text_document_position: TextDocumentPositionParams { text_document: TextDocumentIdentifier { uri: uri.clone() }, position },
-            work_done_progress_params: Default::default(),
-            partial_result_params: Default::default(),
-            context: ReferenceContext { include_declaration: true },
-        };
+        let locations = super::ReferencesHandler::handle(state, uri, position).await;
 
-        let locations = super::ReferencesHandler::handle(state, refs_params).await?;
+        if locations.is_empty() {
+            return None;
+        }
 
         // 2. 按 URI 分组
         let mut changes = HashMap::new();
