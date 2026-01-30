@@ -109,7 +109,8 @@ impl HirLowering {
             Statement::Let { name, value, .. } => {
                 self.compile_expression(value);
                 if self.promote_top_level_let_to_global {
-                    self.emit(OpCode::StoreGlobal(name));
+                    let full_name = if self.namespace.is_empty() { name } else { format!("{}::{}", self.namespace.join("::"), name) };
+                    self.emit(OpCode::StoreGlobal(full_name));
                 } else {
                     let index = self.declare_local(name);
                     self.emit(OpCode::StoreLocal(index));

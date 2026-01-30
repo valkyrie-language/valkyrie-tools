@@ -48,6 +48,7 @@ pub enum HirStatement {
         span: Span,
     },
     Let {
+        is_mutable: bool,
         name: String,
         binding: Option<HirBindingId>,
         ty: HirType,

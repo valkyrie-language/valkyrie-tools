@@ -228,6 +228,12 @@ impl<'a> Parser<'a> {
         let start = self.current.span.start;
         self.bump(); // consume 'let'
 
+        let mut is_mutable = false;
+        if self.current.kind == TokenKind::Mut {
+            is_mutable = true;
+            self.bump();
+        }
+
         let name = match &self.current.kind {
             TokenKind::Identifier(n) => n.clone(),
             TokenKind::New => "new".to_string(),
@@ -255,7 +261,7 @@ impl<'a> Parser<'a> {
         let end = self.current.span.end;
         self.bump(); // consume ';'
 
-        Ok(Statement::Let { name, type_hint, value, span: Span { start, end } })
+        Ok(Statement::Let { is_mutable, name, type_hint, value, span: Span { start, end } })
     }
 
     fn parse_return(&mut self) -> Result<Statement, ParseError> {

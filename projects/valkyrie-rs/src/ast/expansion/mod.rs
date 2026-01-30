@@ -99,6 +99,24 @@ impl MacroExpander {
         }
     }
 
+    fn get_target_name(&self, stmt: &Statement) -> Option<String> {
+        match stmt {
+            Statement::Function { name, .. } => Some(name.clone()),
+            Statement::Class { name, .. } => Some(name.clone()),
+            Statement::Annotation { target, .. } => self.get_target_name(target),
+            Statement::Block { statements, .. } => {
+                // If it's a block, look for the first function/class
+                for s in statements {
+                    if let Some(name) = self.get_target_name(s) {
+                        return Some(name);
+                    }
+                }
+                None
+            }
+            _ => None,
+        }
+    }
+
     fn expand_statement(&mut self, stmt: Statement) -> Vec<Statement> {
         match stmt {
             Statement::Using { path, span } => {
@@ -176,8 +194,8 @@ impl MacroExpander {
                 }
                 vec![Statement::Block { statements: expanded_stmts, span }]
             }
-            Statement::Let { name, type_hint, value, span } => {
-                vec![Statement::Let { name, type_hint, value: self.expand_expression(value), span }]
+            Statement::Let { is_mutable, name, type_hint, value, span } => {
+                vec![Statement::Let { is_mutable, name, type_hint, value: self.expand_expression(value), span }]
             }
             Statement::If { condition, then_branch, else_branch, span } => {
                 let then_block = self.expand_block(*then_branch);
@@ -280,16 +298,125 @@ impl MacroExpander {
                     }
 
                     let substituted = self.substitute_macro_args(body, &arg_map);
-                    let expanded = self.expand_statement(substituted);
-                    // If macro returns a lambda expression, we might need to convert it to a function statement
-                    // but for attribute macros wrapping functions, they usually return the lambda directly
-                    // which is then treated as an expression statement.
+                    let mut expanded = self.expand_statement(substituted);
+                    
+                    // Deeply flatten blocks from macro expansion results
+                    while expanded.len() == 1 {
+                        if let Statement::Block { statements, .. } = &expanded[0] {
+                            expanded = statements.clone();
+                        } else {
+                            break;
+                        }
+                    }
+
+                    // Recursively expand the target IF it's an annotation
+                    let final_target = match &*target {
+                        Statement::Annotation { .. } => {
+                            let mut expanded_target = self.expand_statement(*target.clone());
+                            if expanded_target.len() == 1 {
+                                Box::new(expanded_target.remove(0))
+                            } else {
+                                target.clone()
+                            }
+                        }
+                        _ => target.clone(),
+                    };
+
+                    // Handle macro expansion results for functions/classes
+                    let target_name_opt = self.get_target_name(&final_target);
+                    if let Some(target_name) = target_name_opt {
+                        let mut final_expanded = Vec::new();
+                        let mut last_expr_name: Option<String> = None;
+                        
+                        // Look for the last identifier in the expanded statements
+                        // This identifies which function should be renamed to the target name
+                        for s in expanded.iter().rev() {
+                            match s {
+                                Statement::Expression { expression: Expression::Identifier { name: id_name, .. }, .. } => {
+                                    last_expr_name = Some(id_name.clone());
+                                    break;
+                                }
+                                Statement::Return { value: Some(Expression::Identifier { name: id_name, .. }), .. } => {
+                                    last_expr_name = Some(id_name.clone());
+                                    break;
+                                }
+                                _ => {}
+                            }
+                        }
+
+                        for (i, mut stmt) in expanded.into_iter().enumerate() {
+                            // If this is the function referred to by the last identifier, rename it
+                            if let Statement::Function { name, .. } = &mut stmt {
+                                if last_expr_name.as_ref() == Some(name) {
+                                    *name = target_name.clone();
+                                    final_expanded.push(stmt);
+                                    continue;
+                                }
+                            }
+                            
+                            // Re-check for lambda specifically if it's the only/last thing
+                            if let Statement::Expression { expression: Expression::Lambda { params, body, is_async, is_generator, .. }, span: e_span } = stmt {
+                                // If target was a function, preserve its signature metadata if possible
+                                let (generics, return_type) = if let Statement::Function { generics, return_type, .. } = &*final_target {
+                                    (generics.clone(), return_type.clone())
+                                } else {
+                                    (Vec::new(), None)
+                                };
+
+                                final_expanded.push(Statement::Function {
+                                    name: target_name.clone(),
+                                    generics,
+                                    params,
+                                    return_type,
+                                    body: Some(body),
+                                    is_async,
+                                    is_generator,
+                                    span: e_span,
+                                });
+                                continue;
+                            }
+
+                            // Special case: if it's a block that only contains the target function (after expansion)
+                            if let Statement::Block { statements, .. } = &stmt {
+                                if statements.len() == 1 {
+                                    if let Statement::Function { name, .. } = &statements[0] {
+                                        if last_expr_name.as_ref() == Some(name) {
+                                            let mut inner = statements[0].clone();
+                                            if let Statement::Function { name: inner_name, .. } = &mut inner {
+                                                *inner_name = target_name.clone();
+                                            }
+                                            final_expanded.push(inner);
+                                            continue;
+                                        }
+                                    }
+                                }
+                            }
+
+                            // If it was the last identifier expression, skip it as we already renamed the function
+                            if let Statement::Expression { expression: Expression::Identifier { name: id_name, .. }, .. } = &stmt {
+                                if last_expr_name.as_ref() == Some(id_name) {
+                                    continue;
+                                }
+                            }
+
+                            final_expanded.push(stmt);
+                        }
+                        return final_expanded;
+                    }
+                    
                     return expanded;
                 }
 
-                let expanded_args = args.into_iter().map(|a| self.expand_expression(a)).collect();
-                let expanded_target = self.expand_block(*target);
-                vec![Statement::Annotation { name, args: expanded_args, target: Box::new(expanded_target), span }]
+                let mut expanded_target = self.expand_statement(*target);
+                if expanded_target.len() == 1 {
+                    return vec![Statement::Annotation {
+                        name,
+                        args: args.into_iter().map(|a| self.expand_expression(a)).collect(),
+                        target: Box::new(expanded_target.remove(0)),
+                        span,
+                    }];
+                }
+                return expanded_target;
             }
             _ => vec![stmt],
         }
@@ -336,18 +463,25 @@ impl MacroExpander {
                     }
                 }
 
-                // Check user-defined macros
-                if let Some((param_names, body)) = self.user_macros.get(&name).cloned() {
-                    if param_names.len() == args.len() {
-                        let mut arg_map = HashMap::new();
-                        for (i, param_name) in param_names.into_iter().enumerate() {
-                            arg_map.insert(param_name, args[i].clone());
-                        }
-                        
-                        let substituted_body = self.substitute_macro_args(body, &arg_map);
-                        let expanded_stmts = self.expand_statement(substituted_body);
-                        
-                        if expanded_stmts.len() == 1 {
+                        // Check user-defined macros
+                        if let Some((param_names, body)) = self.user_macros.get(&name).cloned() {
+                            if param_names.len() == args.len() {
+                                let mut arg_map = HashMap::new();
+                                for (i, param_name) in param_names.into_iter().enumerate() {
+                                    arg_map.insert(param_name, args[i].clone());
+                                }
+                                
+                                let substituted_body = self.substitute_macro_args(body, &arg_map);
+                                let mut expanded_stmts = self.expand_statement(substituted_body);
+                                
+                                // Flatten single block result from expansion
+                                if expanded_stmts.len() == 1 {
+                                    if let Statement::Block { statements, .. } = &expanded_stmts[0] {
+                                        expanded_stmts = statements.clone();
+                                    }
+                                }
+
+                                if expanded_stmts.len() == 1 {
                             match &expanded_stmts[0] {
                                 Statement::Expression { expression, .. } => {
                                     return expression.clone();
@@ -451,8 +585,8 @@ impl MacroExpander {
                 }
                 Statement::Block { statements: new_stmts, span }
             }
-            Statement::Let { name, type_hint, value, span } => {
-                Statement::Let { name, type_hint, value: self.substitute_expr_args(value, args), span }
+            Statement::Let { is_mutable, name, type_hint, value, span } => {
+                Statement::Let { is_mutable, name, type_hint, value: self.substitute_expr_args(value, args), span }
             }
             Statement::If { condition, then_branch, else_branch, span } => {
                 Statement::If {
@@ -519,6 +653,15 @@ impl MacroExpander {
             }
             Expression::Block { body, span } => {
                 Expression::Block { body: Box::new(self.substitute_macro_args(*body, args)), span }
+            }
+            Expression::Lambda { params, body, is_async, is_generator, span } => {
+                Expression::Lambda {
+                    params,
+                    body: Box::new(self.substitute_macro_args(*body, args)),
+                    is_async,
+                    is_generator,
+                    span,
+                }
             }
             _ => expr,
         }

@@ -510,11 +510,10 @@ pub async fn eval_statement(stmt: &Statement, env: &mut Environment) -> Result<R
             Ok(RuntimeValue::Void)
         }
         Statement::Annotation { target, .. } => {
-            // TODO: Implement annotation expansion (this should happen before runtime)
-            // For now, just execute the target statement
+            // Annotation expansion happens before runtime in the compiler pipeline.
+            // If we are in the AST interpreter, we just execute the target statement.
             eval_statement(target, env).await
         }
-        Statement::Expression { expression, .. } => eval_expression(expression, env).await,
     }
 }
 
@@ -542,7 +541,16 @@ pub async fn eval_expression(expr: &Expression, env: &mut Environment) -> Result
                 },
             }
         }
-        Expression::Lambda { .. } => Err(EvalError::Unknown("Lambda not supported in AST interpreter yet".into())),
+        Expression::Lambda { params, body, is_async, is_generator, .. } => {
+            Ok(RuntimeValue::Function {
+                name: "lambda".to_string(),
+                params: params.iter().map(|(n, _)| n.clone()).collect(),
+                body: body.clone(),
+                owner: None,
+                is_async: *is_async,
+                is_generator: *is_generator,
+            })
+        }
         Expression::Await { future, .. } => {
             let fut_val = eval_expression(future, env).await?;
             if let RuntimeValue::Future(f) = fut_val {
@@ -1147,18 +1155,7 @@ pub async fn eval_expression(expr: &Expression, env: &mut Environment) -> Result
             }
 
             Ok(obj)
-            // } else {
-            //     Err(EvalError::TypeError { expected: "Class".into(), got: format!("{:?}", class_val) })
-            // }
         }
-        Expression::Lambda { params, body, is_async, is_generator, .. } => Ok(RuntimeValue::Function {
-            name: "lambda".to_string(),
-            params: params.iter().map(|(n, _)| n.clone()).collect(),
-            body: body.clone(),
-            owner: None,
-            is_async: *is_async,
-            is_generator: *is_generator,
-        }),
         Expression::Match { scrutinee, arms, else_arm, .. } => {
             let v = eval_expression(scrutinee, env).await?;
 

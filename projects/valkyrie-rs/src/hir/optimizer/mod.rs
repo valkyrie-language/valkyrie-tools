@@ -41,11 +41,11 @@ impl PartialEvaluator {
                 }
                 Statement::Block { statements: optimized_stmts, span }
             }
-            Statement::Let { name, type_hint, value, span } => {
+            Statement::Let { is_mutable, name, type_hint, value, span } => {
                 let optimized_value = self.eval_expression(value);
                 // If the value is a literal, we could add it to known_values for subsequent statements in this block
                 // But we need to handle scope properly. For now, we only use the initial known_values.
-                Statement::Let { name, type_hint, value: optimized_value, span }
+                Statement::Let { is_mutable, name, type_hint, value: optimized_value, span }
             }
             Statement::If { condition, then_branch, else_branch, span } => {
                 let cond = self.eval_expression(condition);

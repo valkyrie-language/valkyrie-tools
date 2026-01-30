@@ -35,10 +35,10 @@ impl AstLowering {
                 }
                 HirStatement::Block { statements: hir_stmts, span }
             }
-            Statement::Let { name, type_hint, value, span } => {
+            Statement::Let { is_mutable, name, type_hint, value, span } => {
                 let ty = if let Some(hint) = type_hint { self.lower_type(hint) } else { HirType::Unknown };
                 let hir_value = self.lower_expression(value);
-                HirStatement::Let { name, binding: None, ty, value: hir_value, span }
+                HirStatement::Let { is_mutable, name, binding: None, ty, value: hir_value, span }
             }
             Statement::If { condition, then_branch, else_branch, span } => {
                 let cond = self.lower_expression(condition);

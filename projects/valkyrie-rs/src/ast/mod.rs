@@ -79,6 +79,7 @@ pub enum Statement {
         span: Span,
     },
     Let {
+        is_mutable: bool,
         name: String,
         type_hint: Option<TypeExpression>,
         value: Expression,
