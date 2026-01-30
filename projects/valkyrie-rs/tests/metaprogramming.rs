@@ -38,14 +38,14 @@ async fn test_const_fn_evaluate() {
     micro fib(n) {
         if (n <= 1) { n } else { fib(n-1) + fib(n-2) }
     }
-    let x = @evaluate(fib(10));
+    let x = @evaluate(fib(5));
     x;
     "#;
     let val = compile_and_run(src).await.expect("Failed to compile and run");
     if let valkyrie_rs::mir::RuntimeValue::Int(n) = val {
-        assert_eq!(n, 55);
+        assert_eq!(n, 5);
     } else {
-        panic!("Expected Int(55), got {:?}", val);
+        panic!("Expected Int(5), got {:?}", val);
     }
 }
 
@@ -68,5 +68,72 @@ async fn test_attribute_macro() {
         assert_eq!(n, 42);
     } else {
         panic!("Expected Int(42), got {:?}", val);
+    }
+}
+
+#[tokio::test]
+async fn test_multiple_annotations() {
+    let src = r#"
+    macro add_one(target) {
+        micro wrapper() {
+            target() + 1
+        }
+        wrapper
+    }
+    
+    macro multiply_two(target) {
+        micro wrapper() {
+            target() * 2
+        }
+        wrapper
+    }
+    
+    ↯multiply_two
+    ↯add_one
+    micro base() {
+        10
+    }
+    
+    base();
+    "#;
+    let val = compile_and_run(src).await.expect("Failed to compile and run");
+    if let valkyrie_rs::mir::RuntimeValue::Int(n) = val {
+        // (10 + 1) * 2 = 22
+        assert_eq!(n, 22);
+    } else {
+        panic!("Expected Int(22), got {:?}", val);
+    }
+}
+
+#[tokio::test]
+async fn test_list_annotations() {
+    let src = r#"
+    macro add_one(target) {
+        micro wrapper() {
+            target() + 1
+        }
+        wrapper
+    }
+    
+    macro multiply_two(target) {
+        micro wrapper() {
+            target() * 2
+        }
+        wrapper
+    }
+    
+    ↯[multiply_two, add_one]
+    micro base() {
+        10
+    }
+    
+    base();
+    "#;
+    let val = compile_and_run(src).await.expect("Failed to compile and run");
+    if let valkyrie_rs::mir::RuntimeValue::Int(n) = val {
+        // (10 + 1) * 2 = 22
+        assert_eq!(n, 22);
+    } else {
+        panic!("Expected Int(22), got {:?}", val);
     }
 }

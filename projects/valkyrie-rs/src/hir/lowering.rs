@@ -236,7 +236,7 @@ impl HirLowering {
                     function_compiler.declare_local(p_name.clone());
                 }
                 if let Some(body_stmt) = body {
-                    function_compiler.compile_statement(*body_stmt, false);
+                    function_compiler.compile_statement(*body_stmt, true);
                 }
                 else {
                     function_compiler.emit(OpCode::PushVoid);
@@ -244,7 +244,6 @@ impl HirLowering {
                 }
 
                 if function_compiler.instructions.last() != Some(&OpCode::Return) {
-                    function_compiler.emit(OpCode::PushVoid);
                     function_compiler.emit(OpCode::Return);
                 }
 
@@ -334,14 +333,13 @@ impl HirLowering {
                             func_compiler.declare_local(p_name.clone());
                         }
                         if let Some(b) = body {
-                            func_compiler.compile_statement(*b, false);
+                            func_compiler.compile_statement(*b, true);
                         }
                         else {
                             func_compiler.emit(OpCode::PushVoid);
                             func_compiler.emit(OpCode::Return);
                         }
                         if func_compiler.instructions.last() != Some(&OpCode::Return) {
-                            func_compiler.emit(OpCode::PushVoid);
                             func_compiler.emit(OpCode::Return);
                         }
 
@@ -396,14 +394,13 @@ impl HirLowering {
                             func_compiler.declare_local(p_name.clone());
                         }
                         if let Some(b) = body {
-                            func_compiler.compile_statement(*b, false);
+                            func_compiler.compile_statement(*b, true);
                         }
                         else {
                             func_compiler.emit(OpCode::PushVoid);
                             func_compiler.emit(OpCode::Return);
                         }
                         if func_compiler.instructions.last() != Some(&OpCode::Return) {
-                            func_compiler.emit(OpCode::PushVoid);
                             func_compiler.emit(OpCode::Return);
                         }
 

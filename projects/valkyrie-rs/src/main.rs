@@ -78,7 +78,6 @@ async fn async_main() {
             };
             match fs::read_to_string(&file).await {
                 Ok(source) => {
-                    println!("DEBUG: Running file {:?} with args {:?}", file, args);
                     let base_path = file.parent().map(|p| p.to_path_buf());
                     match compile_and_run_program(&source, base_path, args).await {
                         Ok(value) => {

@@ -1147,6 +1147,57 @@ impl<'a> Parser<'a> {
             self.bump(); // consume '↯'
         }
 
+        // Support list syntax: ↯[anno1, anno2]
+        if self.current.kind == TokenKind::BracketL {
+            self.bump();
+            let mut annos = Vec::new();
+            while self.current.kind != TokenKind::BracketR && self.current.kind != TokenKind::EOF {
+                let a_start = self.current.span.start;
+                let name = match &self.current.kind {
+                    TokenKind::Identifier(n) => n.clone(),
+                    _ => return Err(ParseError::UnexpectedToken(self.current.clone())),
+                };
+                self.bump();
+
+                let mut args = Vec::new();
+                if self.current.kind == TokenKind::ParenL {
+                    self.bump();
+                    while self.current.kind != TokenKind::ParenR && self.current.kind != TokenKind::EOF {
+                        args.push(self.parse_expression(0)?);
+                        if self.current.kind == TokenKind::Comma {
+                            self.bump();
+                        } else {
+                            break;
+                        }
+                    }
+                    if self.current.kind != TokenKind::ParenR {
+                        return Err(ParseError::UnexpectedToken(self.current.clone()));
+                    }
+                    self.bump();
+                }
+                annos.push((a_start, name, args));
+
+                if self.current.kind == TokenKind::Comma {
+                    self.bump();
+                } else {
+                    break;
+                }
+            }
+
+            if self.current.kind != TokenKind::BracketR {
+                return Err(ParseError::UnexpectedToken(self.current.clone()));
+            }
+            self.bump();
+
+            let mut target = self.parse_statement()?;
+            // Wrap in reverse order to maintain nesting: ↯[a, b] target -> a(b(target))
+            for (a_start, name, args) in annos.into_iter().rev() {
+                let end = target.span().end;
+                target = Statement::Annotation { name, args, target: Box::new(target), span: Span { start: a_start, end } };
+            }
+            return Ok(target);
+        }
+
         let name = match &self.current.kind {
             TokenKind::Identifier(n) => n.clone(),
             _ => return Err(ParseError::UnexpectedToken(self.current.clone())),

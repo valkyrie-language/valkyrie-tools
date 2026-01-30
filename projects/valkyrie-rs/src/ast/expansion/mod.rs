@@ -131,6 +131,10 @@ impl MacroExpander {
                 stmts.push(Statement::Using { path, span });
                 stmts
             }
+            Statement::Macro { .. } => {
+                // Macros are removed after expansion
+                vec![]
+            }
             Statement::Expression { expression, span } => {
                 if let Expression::MacroCall { name, args, span: _ } = &expression {
                     if name == "include" {
@@ -276,7 +280,11 @@ impl MacroExpander {
                     }
 
                     let substituted = self.substitute_macro_args(body, &arg_map);
-                    return self.expand_statement(substituted);
+                    let expanded = self.expand_statement(substituted);
+                    // If macro returns a lambda expression, we might need to convert it to a function statement
+                    // but for attribute macros wrapping functions, they usually return the lambda directly
+                    // which is then treated as an expression statement.
+                    return expanded;
                 }
 
                 let expanded_args = args.into_iter().map(|a| self.expand_expression(a)).collect();
@@ -337,20 +345,27 @@ impl MacroExpander {
                         }
                         
                         let substituted_body = self.substitute_macro_args(body, &arg_map);
-                        match substituted_body {
-                            Statement::Expression { expression, .. } => {
-                                return self.expand_expression(expression);
-                            }
-                            Statement::Block { mut statements, .. } if statements.len() == 1 => {
-                                if let Statement::Expression { expression, .. } = statements.remove(0) {
-                                    return self.expand_expression(expression);
+                        let expanded_stmts = self.expand_statement(substituted_body);
+                        
+                        if expanded_stmts.len() == 1 {
+                            match &expanded_stmts[0] {
+                                Statement::Expression { expression, .. } => {
+                                    return expression.clone();
                                 }
-                                return Expression::Block { body: Box::new(Statement::Block { statements, span }), span };
-                            }
-                            _ => {
-                                return Expression::Block { body: Box::new(substituted_body), span };
+                                Statement::Return { value: Some(expr), .. } => {
+                                    return expr.clone();
+                                }
+                                _ => {}
                             }
                         }
+                        
+                        return Expression::Block { 
+                            body: Box::new(Statement::Block { 
+                                statements: expanded_stmts, 
+                                span 
+                            }), 
+                            span 
+                        };
                     }
                 }
 
@@ -410,7 +425,24 @@ impl MacroExpander {
     fn substitute_macro_args(&self, stmt: Statement, args: &HashMap<String, Expression>) -> Statement {
         match stmt {
             Statement::Expression { expression, span } => {
+                if let Expression::Identifier { name, .. } = &expression {
+                    if let Some(arg_expr) = args.get(name) {
+                        if let Expression::Block { body, .. } = arg_expr {
+                            return *body.clone();
+                        }
+                    }
+                }
                 Statement::Expression { expression: self.substitute_expr_args(expression, args), span }
+            }
+            Statement::Return { value, span } => {
+                if let Some(Expression::Identifier { name, .. }) = &value {
+                    if let Some(arg_expr) = args.get(name) {
+                        if let Expression::Block { body, .. } = arg_expr {
+                            return *body.clone();
+                        }
+                    }
+                }
+                Statement::Return { value: value.map(|v| self.substitute_expr_args(v, args)), span }
             }
             Statement::Block { statements, span } => {
                 let mut new_stmts = Vec::new();
@@ -422,14 +454,31 @@ impl MacroExpander {
             Statement::Let { name, type_hint, value, span } => {
                 Statement::Let { name, type_hint, value: self.substitute_expr_args(value, args), span }
             }
-            Statement::Return { value, span } => {
-                Statement::Return { value: value.map(|v| self.substitute_expr_args(v, args)), span }
-            }
             Statement::If { condition, then_branch, else_branch, span } => {
                 Statement::If {
                     condition: self.substitute_expr_args(condition, args),
                     then_branch: Box::new(self.substitute_macro_args(*then_branch, args)),
                     else_branch: else_branch.map(|b| Box::new(self.substitute_macro_args(*b, args))),
+                    span,
+                }
+            }
+            Statement::Function { name, generics, params, return_type, body, is_async, is_generator, span } => {
+                Statement::Function {
+                    name,
+                    generics,
+                    params,
+                    return_type,
+                    body: body.map(|b| Box::new(self.substitute_macro_args(*b, args))),
+                    is_async,
+                    is_generator,
+                    span,
+                }
+            }
+            Statement::Annotation { name, args: attr_args, target, span } => {
+                Statement::Annotation {
+                    name,
+                    args: attr_args.into_iter().map(|a| self.substitute_expr_args(a, args)).collect(),
+                    target: Box::new(self.substitute_macro_args(*target, args)),
                     span,
                 }
             }

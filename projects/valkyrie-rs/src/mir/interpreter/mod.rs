@@ -686,7 +686,6 @@ pub async fn eval_expression(expr: &Expression, env: &mut Environment) -> Result
             }
         }
         Expression::Call { callee, args, .. } => {
-            eprintln!("DEBUG: Call {:?}", callee);
             // Handle built-in print function
             if let Expression::Identifier { name, .. } = &**callee {
                 if name == "print" {
@@ -721,7 +720,6 @@ pub async fn eval_expression(expr: &Expression, env: &mut Environment) -> Result
                 }
 
                 // Look up method on object
-                eprintln!("DEBUG: Call method '{}' on {:?}", name, obj);
                 if let RuntimeValue::Object(data) = &obj {
                     let class_name = data.lock().unwrap().class.clone();
 
@@ -1276,9 +1274,6 @@ pub async fn eval_expression(expr: &Expression, env: &mut Environment) -> Result
         }
         Expression::Get { object, name, .. } => {
             let obj = eval_expression(object, env).await?;
-            if name == "starts_with" {
-                 println!("DEBUG: Get {} on {:?}", name, obj);
-            }
             match obj {
                 RuntimeValue::Super { obj, start_class } => {
                     // super.field or super.method()
