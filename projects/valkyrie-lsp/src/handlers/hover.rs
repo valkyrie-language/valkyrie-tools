@@ -1,7 +1,6 @@
 use oak_lsp::types::{Hover, Position};
 use crate::state::ServerState;
-
-use std::error::Error;
+use crate::errors::LspResult;
 
 pub struct HoverHandler;
 
@@ -10,7 +9,7 @@ impl HoverHandler {
         state: &ServerState,
         uri: &str,
         position: Position,
-    ) -> Result<Option<Hover>, Box<dyn Error + Send + Sync>> {
+    ) -> LspResult<Option<Hover>> {
         if let Some(symbol) = state.query_symbol_at_position(uri, position).await {
             let mut markdown = String::new();
 

@@ -34,7 +34,6 @@ version = "0.0.3"
 features = ["toml", "json5"]
 
 [dev-dependencies]
-anyhow = "1.0.95"
 
 [features]
 default = []

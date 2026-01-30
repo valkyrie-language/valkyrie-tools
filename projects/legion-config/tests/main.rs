@@ -10,9 +10,9 @@ fn ready() {
 }
 
 #[test]
-fn update_schema() -> anyhow::Result<()> {
+fn update_schema() {
     let here = Path::new(env!("CARGO_MANIFEST_DIR"));
-    let mut config = std::fs::File::create(here.join("legion.schema.json"))?;
+    let mut config = std::fs::File::create(here.join("legion.schema.json")).unwrap();
     let settings = SchemaSettings::openapi3().with(|s| {
         // s.option_nullable = true;
         // s.option_add_null_type = false;
@@ -21,6 +21,5 @@ fn update_schema() -> anyhow::Result<()> {
     let generator = settings.into_generator();
     let schema = generator.into_root_schema_for::<LegionConfig>();
     let mut ser = Serializer::with_formatter(&mut config, PrettyFormatter::with_indent(b"    "));
-    schema.serialize(&mut ser)?;
-    Ok(())
+    schema.serialize(&mut ser).unwrap();
 }

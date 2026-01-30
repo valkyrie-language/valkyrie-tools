@@ -12,7 +12,7 @@ use oak_lsp::{
 use oak_vfs::{MemoryVfs, Vfs, WritableVfs};
 use tracing::{debug, error, info};
 
-use crate::{capabilities::server_capabilities, diagnostics::DiagnosticsManager, handlers, state::ServerState, errors::LspResult};
+use crate::{capabilities::server_capabilities, diagnostics::DiagnosticsManager, handlers, state::ServerState, errors::{LspResult, LspError}};
 
 /// Valkyrie LSP 后端
 ///
@@ -37,29 +37,29 @@ impl ValkyrieBackend {
 
     /// 自定义方法：获取 AST
     pub async fn get_ast(&self, params: Value) -> LspResult<Value> {
-        let uri = params.get("uri").and_then(|v| v.as_str()).ok_or_else(|| "Missing uri parameter")?;
+        let uri = params.get("uri").and_then(|v| v.as_str()).ok_or_else(|| LspError::InvalidParams("Missing uri parameter".to_string()))?;
 
         debug!("Getting AST for {}", uri);
 
         match self.state.get_ast(uri) {
             Some(ast) => {
                 // 将 AST 序列化为 JSON
-                serde_json::to_value(&ast).map_err(|_| "Serialization error".into())
+                serde_json::to_value(&ast).map_err(|e| LspError::Serialization(e.to_string()))
             }
-            None => Err("AST not found".into()),
+            None => Err(LspError::NotFound("AST not found".to_string())),
         }
     }
 
     /// 自定义方法：获取 HIR
     pub async fn get_hir(&self, params: Value) -> LspResult<Value> {
-        let uri = params.get("uri").and_then(|v| v.as_str()).ok_or_else(|| "Missing uri parameter")?;
+        let uri = params.get("uri").and_then(|v| v.as_str()).ok_or_else(|| LspError::InvalidParams("Missing uri parameter".to_string()))?;
 
         debug!("Getting HIR for {}", uri);
 
         match self.state.get_hir(uri) {
             Some(hir) => {
                 // 将 HIR 序列化为 JSON
-                serde_json::to_value(&hir).map_err(|_| "Serialization error".into())
+                serde_json::to_value(&hir).map_err(|e| LspError::Serialization(e.to_string()))
             }
             None => Ok(Value::Null),
         }
@@ -67,32 +67,32 @@ impl ValkyrieBackend {
 
     /// 自定义方法：查询符号
     pub async fn query_symbol(&self, params: Value) -> LspResult<Value> {
-        let uri = params.get("uri").and_then(|v| v.as_str()).ok_or_else(|| "Missing uri parameter")?;
+        let uri = params.get("uri").and_then(|v| v.as_str()).ok_or_else(|| LspError::InvalidParams("Missing uri parameter".to_string()))?;
 
-        let position = params.get("position").ok_or_else(|| "Missing position parameter")?;
+        let position = params.get("position").ok_or_else(|| LspError::InvalidParams("Missing position parameter".to_string()))?;
 
         let position: Position =
-            serde_json::from_value(position.clone()).map_err(|_| "Invalid position")?;
+            serde_json::from_value(position.clone()).map_err(|e| LspError::InvalidParams(format!("Invalid position: {}", e)))?;
 
         debug!("Querying symbol at {}:{}:{}", uri, position.line, position.character);
 
         match self.state.query_symbol_at_position(uri, position).await {
-            Some(symbol_info) => serde_json::to_value(&symbol_info).map_err(|_| "Serialization error".into()),
+            Some(symbol_info) => serde_json::to_value(&symbol_info).map_err(|e| LspError::Serialization(e.to_string())),
             None => Ok(Value::Null),
         }
     }
 
     /// 自定义方法：获取测试
     pub async fn get_tests(&self, params: Value) -> LspResult<Value> {
-        let uri = params.get("uri").and_then(|v| v.as_str()).ok_or_else(|| "Missing uri parameter")?;
+        let uri = params.get("uri").and_then(|v| v.as_str()).ok_or_else(|| LspError::InvalidParams("Missing uri parameter".to_string()))?;
         let params = DocumentSymbolParams {
-            text_document: TextDocumentIdentifier { uri: Url::parse(uri).map_err(|_| "Invalid URI")? },
+            text_document: TextDocumentIdentifier { uri: Url::parse(uri).map_err(|e| LspError::InvalidParams(format!("Invalid URI: {}", e)))? },
             work_done_progress_params: WorkDoneProgressParams::default(),
             partial_result_params: PartialResultParams::default(),
         };
 
         match handlers::TestHandler::handle_get_tests(&self.state, params).await {
-            Some(tests) => serde_json::to_value(tests).map_err(|_| "Serialization error".into()),
+            Some(tests) => serde_json::to_value(tests).map_err(|e| LspError::Serialization(e.to_string())),
             None => Ok(Value::Null),
         }
     }

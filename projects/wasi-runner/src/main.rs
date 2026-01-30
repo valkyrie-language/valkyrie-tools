@@ -27,15 +27,7 @@ impl Display for RunnerError {
     }
 }
 
-impl Error for RunnerError {
-    fn source(&self) -> Option<&(dyn Error + 'static)> {
-        match self {
-            RunnerError::Io(err) => Some(err),
-            RunnerError::Wasmtime(err) => Some(err),
-            _ => None,
-        }
-    }
-}
+impl Error for RunnerError {}
 
 impl From<std::io::Error> for RunnerError {
     fn from(error: std::io::Error) -> Self {

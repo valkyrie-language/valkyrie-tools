@@ -10,7 +10,6 @@ license = "MPL-2.0"
 edition = "2021"
 
 [dependencies]
-anyhow = "1.0.95"
 tracing = "0.1.41"
 clap = { version = "4.5.27", features = ["derive"] }
 #url = "2.5.4"

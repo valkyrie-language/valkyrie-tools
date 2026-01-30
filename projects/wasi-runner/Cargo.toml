@@ -5,7 +5,6 @@ edition = "2021"
 
 [dependencies]
 async-recursion = "1.1.1"
-thiserror = "2.0.17"
 tokio = { version = "1.48.0", features = ["full"] }
 clap = { version = "4.5", features = ["derive"] }
 wasmtime = "26.0"

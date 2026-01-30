@@ -25,15 +25,7 @@ impl Display for DocGenError {
     }
 }
 
-impl Error for DocGenError {
-    fn source(&self) -> Option<&(dyn Error + 'static)> {
-        match self {
-            DocGenError::Io(e) => Some(e),
-            DocGenError::Json(e) => Some(e),
-            _ => None,
-        }
-    }
-}
+impl Error for DocGenError {}
 
 impl From<std::io::Error> for DocGenError {
     fn from(e: std::io::Error) -> Self {

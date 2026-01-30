@@ -149,23 +149,32 @@ impl PartialEq for RuntimeValue {
     }
 }
 
-#[derive(Debug, thiserror::Error)]
+#[derive(Debug)]
 pub enum EvalError {
-    #[error("undefined identifier `{0}`")]
     UndefinedIdentifier(String),
-    #[error("type error: expected {expected}, got {got}")]
     TypeError { expected: String, got: String },
-    #[error("argument count mismatch: expected {expected}, got {got}")]
     ArgumentCountMismatch { expected: usize, got: usize },
-    #[error("return value")]
     Return(RuntimeValue),
-    #[error("not a function")]
     NotAFunction,
-    #[error("unsupported literal")]
     UnsupportedLiteral,
-    #[error("unknown error: {0}")]
     Unknown(String),
 }
+
+impl std::fmt::Display for EvalError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            EvalError::UndefinedIdentifier(s) => write!(f, "undefined identifier `{}`", s),
+            EvalError::TypeError { expected, got } => write!(f, "type error: expected {}, got {}", expected, got),
+            EvalError::ArgumentCountMismatch { expected, got } => write!(f, "argument count mismatch: expected {}, got {}", expected, got),
+            EvalError::Return(_) => write!(f, "return value"),
+            EvalError::NotAFunction => write!(f, "not a function"),
+            EvalError::UnsupportedLiteral => write!(f, "unsupported literal"),
+            EvalError::Unknown(s) => write!(f, "unknown error: {}", s),
+        }
+    }
+}
+
+impl std::error::Error for EvalError {}
 
 impl From<ParseError> for EvalError {
     fn from(e: ParseError) -> Self {
