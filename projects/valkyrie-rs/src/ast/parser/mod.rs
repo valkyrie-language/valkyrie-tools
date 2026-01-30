@@ -114,7 +114,7 @@ impl<'a> Parser<'a> {
                 self.bump(); // consume '@'
 
                 if self.current.kind == TokenKind::Dot {
-                    self.parse_annotation(start)
+                    self.parse_annotation(start, true)
                 }
                 else {
                     // It must be a macro call expression statement
@@ -126,6 +126,10 @@ impl<'a> Parser<'a> {
                     }
                     Ok(Statement::Expression { expression: expr, span: Span { start, end } })
                 }
+            }
+            TokenKind::ZigZag => {
+                let start = self.current.span.start;
+                self.parse_annotation(start, false)
             }
             _ => self.parse_expression_statement(),
         }
@@ -1136,8 +1140,12 @@ impl<'a> Parser<'a> {
         Ok(Expression::MacroCall { name, args, span: Span { start, end } })
     }
 
-    fn parse_annotation(&mut self, start: Position) -> Result<Statement, ParseError> {
-        self.bump(); // consume '.'
+    fn parse_annotation(&mut self, start: Position, is_at_style: bool) -> Result<Statement, ParseError> {
+        if is_at_style {
+            self.bump(); // consume '.'
+        } else {
+            self.bump(); // consume '↯'
+        }
 
         let name = match &self.current.kind {
             TokenKind::Identifier(n) => n.clone(),

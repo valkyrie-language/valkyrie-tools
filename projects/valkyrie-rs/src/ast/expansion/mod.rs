@@ -1,11 +1,19 @@
-use crate::ast::{parser::ParseError, Expression, LiteralValue, Position, ProgramNode, Span, Statement};
+use crate::ast::{parser::ParseError, Expression, LiteralValue, Position, ProgramNode, Span, Statement, TypeExpression};
+use crate::mir::interpreter::{eval_expression, Environment};
+use crate::mir::value::RuntimeValue;
 use std::path::PathBuf;
-use std::collections::HashSet;
+use std::collections::{HashSet, HashMap};
 
 pub struct MacroExpander {
     base_dir: PathBuf,
     loaded_modules: HashSet<PathBuf>,
+    user_macros: HashMap<String, (Vec<String>, Statement)>,
+    compile_time_env: Environment,
     depth: usize,
+}
+
+fn run_async<F: std::future::Future>(f: F) -> F::Output {
+    futures::executor::block_on(f)
 }
 
 impl MacroExpander {
@@ -13,21 +21,82 @@ impl MacroExpander {
         Self {
             base_dir,
             loaded_modules: HashSet::new(),
+            user_macros: HashMap::new(),
+            compile_time_env: Environment::new(),
             depth: 0,
         }
     }
 
-    pub fn expand_program(&mut self, program: ProgramNode) -> ProgramNode {
+    pub fn expand_program(&mut self, mut program: ProgramNode) -> ProgramNode {
         self.depth += 1;
         if self.depth > 100 {
             panic!("Stack overflow detected in macro expansion!");
         }
+
+        // 1. Collect user-defined macros and functions from the program
+        self.collect_definitions(&program.statements);
+
+        // 2. Expand all statements
         let mut statements = Vec::new();
         for stmt in program.statements {
             statements.extend(self.expand_statement(stmt));
         }
         self.depth -= 1;
         ProgramNode { statements, span: program.span }
+    }
+
+    fn expand_block(&mut self, stmt: Statement) -> Statement {
+        let span = stmt.span();
+        let stmts = self.expand_statement(stmt);
+        if stmts.len() == 1 {
+            if let Statement::Block { .. } = &stmts[0] {
+                return stmts[0].clone();
+            }
+        }
+        Statement::Block { statements: stmts, span }
+    }
+
+    fn collect_definitions(&mut self, statements: &[Statement]) {
+        for stmt in statements {
+            match stmt {
+                Statement::Macro { name, params, body, .. } => {
+                    let param_names = params.iter().map(|(n, _)| n.clone()).collect();
+                    self.user_macros.insert(name.clone(), (param_names, *body.clone()));
+                }
+                Statement::Function { name, params, body, is_async, is_generator, .. } => {
+                    if let Some(b) = body {
+                        let func = RuntimeValue::Function {
+                            name: name.clone(),
+                            params: params.iter().map(|(n, _)| n.clone()).collect(),
+                            body: b.clone(),
+                            owner: None,
+                            is_async: *is_async,
+                            is_generator: *is_generator,
+                        };
+                        self.compile_time_env.define(name.clone(), func);
+                    }
+                }
+                Statement::Annotation { name, target, .. } => {
+                    if name == "const_fn" {
+                        if let Statement::Function { name: f_name, params, body, is_async, is_generator, .. } = &**target {
+                            if let Some(b) = body {
+                                let func = RuntimeValue::Function {
+                                    name: f_name.clone(),
+                                    params: params.iter().map(|(n, _)| n.clone()).collect(),
+                                    body: b.clone(),
+                                    owner: None,
+                                    is_async: *is_async,
+                                    is_generator: *is_generator,
+                                };
+                                self.compile_time_env.define(f_name.clone(), func);
+                            }
+                        }
+                    }
+                    // Also collect macros defined within annotations if any
+                }
+                _ => {}
+            }
+        }
     }
 
     fn expand_statement(&mut self, stmt: Statement) -> Vec<Statement> {
@@ -153,6 +222,63 @@ impl MacroExpander {
                 vec![Statement::Imply { target, generics, trait_target, methods: expanded_methods, span }]
             }
             Statement::Annotation { name, args, target, span } => {
+                if name == "evaluate" {
+                    if let Statement::Expression { expression, span: e_span } = &*target {
+                        let result = run_async(eval_expression(expression, &mut self.compile_time_env));
+                        match result {
+                            Ok(val) => {
+                                let lit_expr = self.runtime_value_to_expression(val, *e_span);
+                                return vec![Statement::Expression { expression: lit_expr, span: *e_span }];
+                            }
+                            Err(e) => {
+                                eprintln!("Compile-time evaluation error: {:?}", e);
+                            }
+                        }
+                    }
+                }
+                
+                if name == "const_fn" {
+                    // Mark function for compile-time execution
+                    let expanded_target = self.expand_statement(*target);
+                    for stmt in &expanded_target {
+                        if let Statement::Function { name, params, body, is_async, is_generator, .. } = stmt {
+                            if let Some(b) = body {
+                                let func = RuntimeValue::Function {
+                                    name: name.clone(),
+                                    params: params.iter().map(|(n, _)| n.clone()).collect(),
+                                    body: b.clone(),
+                                    owner: None,
+                                    is_async: *is_async,
+                                    is_generator: *is_generator,
+                                };
+                                self.compile_time_env.define(name.clone(), func);
+                            }
+                        }
+                    }
+                    return expanded_target;
+                }
+                
+                // If it's not @evaluate or evaluation failed, check if it's an attribute macro
+                if let Some((param_names, body)) = self.user_macros.get(&name).cloned() {
+                    let mut arg_map = HashMap::new();
+                    // Match provided arguments
+                    for (i, param_name) in param_names.iter().take(args.len()).enumerate() {
+                        arg_map.insert(param_name.clone(), args[i].clone());
+                    }
+                    
+                    // If there's one more parameter, it's the target
+                    if param_names.len() == args.len() + 1 {
+                        let target_expr = Expression::Block { body: target.clone(), span: target.span() };
+                        arg_map.insert(param_names.last().unwrap().clone(), target_expr);
+                    } else if param_names.is_empty() && args.is_empty() {
+                        // Special case: no params macro used as annotation
+                        // Maybe it just wraps the target or replaces it
+                    }
+
+                    let substituted = self.substitute_macro_args(body, &arg_map);
+                    return self.expand_statement(substituted);
+                }
+
                 let expanded_args = args.into_iter().map(|a| self.expand_expression(a)).collect();
                 let expanded_target = self.expand_block(*target);
                 vec![Statement::Annotation { name, args: expanded_args, target: Box::new(expanded_target), span }]
@@ -161,20 +287,23 @@ impl MacroExpander {
         }
     }
 
-    fn expand_block(&mut self, stmt: Statement) -> Statement {
-        let span = stmt.span();
-        let stmts = self.expand_statement(stmt);
-        if stmts.len() == 1 {
-            if let Statement::Block { .. } = &stmts[0] {
-                return stmts[0].clone();
-            }
-        }
-        Statement::Block { statements: stmts, span }
-    }
-
     fn expand_expression(&mut self, expr: Expression) -> Expression {
         match expr {
             Expression::MacroCall { name, args, span } => {
+                // Check built-in macros
+                if name == "evaluate" {
+                    if let Some(first_arg) = args.first() {
+                        let result = run_async(eval_expression(first_arg, &mut self.compile_time_env));
+                        match result {
+                            Ok(val) => {
+                                return self.runtime_value_to_expression(val, span);
+                            }
+                            Err(e) => {
+                                eprintln!("Compile-time evaluation error: {:?}", e);
+                            }
+                        }
+                    }
+                }
                 if name == "stringify" {
                     let s = args.iter().map(|a| format!("{:?}", a)).collect::<Vec<_>>().join(", ");
                     return Expression::Literal { value: LiteralValue::String(s), span };
@@ -189,17 +318,42 @@ impl MacroExpander {
                         if let (
                             Expression::Literal { value: LiteralValue::Int(v1), .. },
                             Expression::Literal { value: LiteralValue::Int(v2), .. },
-                        ) = (arg1, arg2)
+                        ) = (&arg1, &arg2)
                         {
-                            let s1 = v1.to_string();
-                            let s2 = v2.to_string();
-                            let combined = format!("{}{}", s1, s2);
+                            let combined = format!("{}{}", v1, v2);
                             if let Ok(i) = combined.parse::<i64>() {
                                 return Expression::Literal { value: LiteralValue::Int(i), span };
                             }
                         }
                     }
                 }
+
+                // Check user-defined macros
+                if let Some((param_names, body)) = self.user_macros.get(&name).cloned() {
+                    if param_names.len() == args.len() {
+                        let mut arg_map = HashMap::new();
+                        for (i, param_name) in param_names.into_iter().enumerate() {
+                            arg_map.insert(param_name, args[i].clone());
+                        }
+                        
+                        let substituted_body = self.substitute_macro_args(body, &arg_map);
+                        match substituted_body {
+                            Statement::Expression { expression, .. } => {
+                                return self.expand_expression(expression);
+                            }
+                            Statement::Block { mut statements, .. } if statements.len() == 1 => {
+                                if let Statement::Expression { expression, .. } = statements.remove(0) {
+                                    return self.expand_expression(expression);
+                                }
+                                return Expression::Block { body: Box::new(Statement::Block { statements, span }), span };
+                            }
+                            _ => {
+                                return Expression::Block { body: Box::new(substituted_body), span };
+                            }
+                        }
+                    }
+                }
+
                 let expanded_args = args.into_iter().map(|a| self.expand_expression(a)).collect();
                 Expression::MacroCall { name, args: expanded_args, span }
             }
@@ -246,7 +400,92 @@ impl MacroExpander {
             Expression::UnaryOp { op, operand, span } => {
                 Expression::UnaryOp { op, operand: Box::new(self.expand_expression(*operand)), span }
             }
+            Expression::Block { body, span } => {
+                Expression::Block { body: Box::new(self.expand_block(*body)), span }
+            }
             _ => expr,
+        }
+    }
+
+    fn substitute_macro_args(&self, stmt: Statement, args: &HashMap<String, Expression>) -> Statement {
+        match stmt {
+            Statement::Expression { expression, span } => {
+                Statement::Expression { expression: self.substitute_expr_args(expression, args), span }
+            }
+            Statement::Block { statements, span } => {
+                let mut new_stmts = Vec::new();
+                for s in statements {
+                    new_stmts.push(self.substitute_macro_args(s, args));
+                }
+                Statement::Block { statements: new_stmts, span }
+            }
+            Statement::Let { name, type_hint, value, span } => {
+                Statement::Let { name, type_hint, value: self.substitute_expr_args(value, args), span }
+            }
+            Statement::Return { value, span } => {
+                Statement::Return { value: value.map(|v| self.substitute_expr_args(v, args)), span }
+            }
+            Statement::If { condition, then_branch, else_branch, span } => {
+                Statement::If {
+                    condition: self.substitute_expr_args(condition, args),
+                    then_branch: Box::new(self.substitute_macro_args(*then_branch, args)),
+                    else_branch: else_branch.map(|b| Box::new(self.substitute_macro_args(*b, args))),
+                    span,
+                }
+            }
+            // Add more cases as needed, or keep as is if not supported in macros
+            _ => stmt,
+        }
+    }
+
+    fn substitute_expr_args(&self, expr: Expression, args: &HashMap<String, Expression>) -> Expression {
+        match expr {
+            Expression::Identifier { name, span } => {
+                if let Some(arg_expr) = args.get(&name) {
+                    let mut new_expr = arg_expr.clone();
+                    // Keep the original span if it's just an identifier being replaced?
+                    // Actually, usually we want the span of the call site argument.
+                    return new_expr;
+                }
+                Expression::Identifier { name, span }
+            }
+            Expression::BinaryOp { left, op, right, span } => Expression::BinaryOp {
+                left: Box::new(self.substitute_expr_args(*left, args)),
+                op,
+                right: Box::new(self.substitute_expr_args(*right, args)),
+                span,
+            },
+            Expression::UnaryOp { op, operand, span } => Expression::UnaryOp {
+                op,
+                operand: Box::new(self.substitute_expr_args(*operand, args)),
+                span,
+            },
+            Expression::Call { callee, args: call_args, span } => {
+                let new_args = call_args.into_iter().map(|a| self.substitute_expr_args(a, args)).collect();
+                Expression::Call { callee: Box::new(self.substitute_expr_args(*callee, args)), args: new_args, span }
+            }
+            Expression::MacroCall { name, args: macro_args, span } => {
+                let new_args = macro_args.into_iter().map(|a| self.substitute_expr_args(a, args)).collect();
+                Expression::MacroCall { name, args: new_args, span }
+            }
+            Expression::Block { body, span } => {
+                Expression::Block { body: Box::new(self.substitute_macro_args(*body, args)), span }
+            }
+            _ => expr,
+        }
+    }
+
+    fn runtime_value_to_expression(&self, val: RuntimeValue, span: Span) -> Expression {
+        match val {
+            RuntimeValue::Int(v) => Expression::Literal { value: LiteralValue::Int(v), span },
+            RuntimeValue::Bool(v) => Expression::Literal { value: LiteralValue::Bool(v), span },
+            RuntimeValue::Float(v) => Expression::Literal { value: LiteralValue::Float(v.to_bits()), span },
+            RuntimeValue::String(v) => Expression::Literal { value: LiteralValue::String(v), span },
+            _ => {
+                // For non-literals, return a dummy or error?
+                // For now, return a string representation
+                Expression::Literal { value: LiteralValue::String(format!("{:?}", val)), span }
+            }
         }
     }
 

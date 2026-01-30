@@ -8,6 +8,7 @@ async-recursion = "1.1.1"
 tokio = { version = "1.38.0", features = ["full"] }
 clap = { version = "4.5", features = ["derive"] }
 wasm-encoder = "0.207.0"
+futures = "0.3.31"
 # Dependencies will be added as needed. 
 # For now, we are bootstrapping within this crate.
 

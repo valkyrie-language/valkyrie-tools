@@ -63,6 +63,7 @@ pub enum TokenKind {
     Comma,       // ,
     Dot,         // .
     At,          // @
+    ZigZag,      // ↯
 
     EOF,
     Unknown(char),
@@ -358,6 +359,7 @@ impl<'a> Lexer<'a> {
             ',' => TokenKind::Comma,
             '.' => TokenKind::Dot,
             '@' => TokenKind::At,
+            '↯' => TokenKind::ZigZag,
             '"' => self.lex_string(start_pos),
             c if c.is_ascii_digit() => self.lex_number(c, start_pos),
             c if c.is_alphabetic() || c == '_' => self.lex_ident(c, start_pos),
