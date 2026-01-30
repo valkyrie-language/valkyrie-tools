@@ -86,12 +86,28 @@ impl HirLowering {
 
         match stmt {
             Statement::Namespace { path, .. } => {
+                for segment in &path {
+                    if segment.to_lowercase() != *segment {
+                        eprintln!(
+                            "warning: namespace path should be lowercase: `{}` at {}:{}",
+                            segment, span.start.line, span.start.column
+                        );
+                    }
+                }
                 self.namespace = path;
                 if push_result {
                     self.emit(OpCode::PushVoid);
                 }
             }
             Statement::Using { path, .. } => {
+                for segment in &path {
+                    if segment.to_lowercase() != *segment {
+                        eprintln!(
+                            "warning: using path should be lowercase: `{}` at {}:{}",
+                            segment, span.start.line, span.start.column
+                        );
+                    }
+                }
                 if let Some(alias) = path.last() {
                     let full_name = path.join("::");
                     self.aliases.insert(alias.clone(), full_name);

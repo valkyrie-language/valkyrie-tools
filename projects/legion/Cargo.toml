@@ -1,0 +1,45 @@
+[package]
+name = "legion"
+version = "0.0.0"
+authors = ["Aster <192607617@qq.com>"]
+license = "MPL-2.0"
+edition = "2021"
+
+[dependencies]
+valkyrie-compiler = { workspace = true }
+valkyrie-types = { workspace = true }
+valkyrie-runtime = { workspace = true }
+valkyrie-error = { workspace = true }
+nyar-vm = { workspace = true }
+nyar-types = { workspace = true }
+clap = { version = "4.5", features = ["derive"] }
+tracing = "0.1.41"
+tracing-subscriber = "0.3.19"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+json5 = "0.4"
+tar = "0.4"
+flate2 = "1.0"
+
+# From legion-cli
+wat = { version = "1.224.0", features = ["component-model", "dwarf"] }
+wasmprinter = { version = "0.225.0", features = ["component-model"] }
+js-component-bindgen = "1.9.1"
+reqwest = { version = "0.12.12", features = ["socks"] }
+dialoguer = "0.11.0"
+tokio = { version = "1.43.0", features = ["rt", "macros", "full"] }
+tempfile = { version = "3.16.0", features = ["nightly"] }
+wasm-opt = { version = "0.116.1", optional = true }
+cxx = { version = "1.0.137", features = ["c++17"], optional = true }
+
+# From legion-config
+merge = "0.1.0"
+toml = "0.8.19"
+globset = "0.4.15"
+semver = { version = "1.0.25", features = ["serde"] }
+schemars = { version = "1.0.0-alpha.17", features = ["semver1"] }
+serde-types = "0.1.1"
+
+[features]
+default = []
+wasm = ["wasm-opt", "cxx"]

@@ -243,7 +243,7 @@ impl MacroExpander {
                 }
                 vec![Statement::Imply { target, generics, trait_target, methods: expanded_methods, span }]
             }
-            Statement::Annotation { name, args, target, span } => {
+            Statement::Annotation { name, args, mut target, span } => {
                 if name == "evaluate" {
                     if let Statement::Expression { expression, span: e_span } = &*target {
                         let result = run_async(eval_expression(expression, &mut self.compile_time_env));
@@ -282,6 +282,40 @@ impl MacroExpander {
                 
                 // If it's not @evaluate or evaluation failed, check if it's an attribute macro
                 if let Some((param_names, body)) = self.user_macros.get(&name).cloned() {
+                    // Recursively expand the target FIRST if it has annotations
+                    // This ensures that nested annotations are expanded from inside out
+                    if let Statement::Annotation { .. } = &*target {
+                        let mut expanded_target = self.expand_statement(*target.clone());
+                        if expanded_target.len() >= 1 {
+                            // Find the actual target (renamed function/class) among expanded statements
+                            // Usually it's the last one, but let's be safe
+                            let mut actual_target = None;
+                            let target_name = self.get_target_name(&target);
+                            
+                            if let Some(t_name) = target_name {
+                                for s in &expanded_target {
+                                    match s {
+                                        Statement::Function { name, .. } if name == &t_name => {
+                                            actual_target = Some(s.clone());
+                                            break;
+                                        }
+                                        Statement::Class { name, .. } if name == &t_name => {
+                                            actual_target = Some(s.clone());
+                                            break;
+                                        }
+                                        _ => {}
+                                    }
+                                }
+                            }
+                            
+                            if let Some(at) = actual_target {
+                                target = Box::new(at);
+                            } else {
+                                target = Box::new(expanded_target.remove(0));
+                            }
+                        }
+                    }
+
                     let mut arg_map = HashMap::new();
                     // Match provided arguments
                     for (i, param_name) in param_names.iter().take(args.len()).enumerate() {
@@ -290,7 +324,21 @@ impl MacroExpander {
                     
                     // If there's one more parameter, it's the target
                     if param_names.len() == args.len() + 1 {
-                        let target_expr = Expression::Block { body: target.clone(), span: target.span() };
+                        let mut current_target = &*target;
+                        while let Statement::Annotation { target: inner, .. } = current_target {
+                            current_target = &*inner;
+                        }
+                        let target_expr = if let Statement::Function { params, body, is_async, is_generator, .. } = current_target {
+                             Expression::Lambda {
+                                  params: params.clone(),
+                                  body: body.clone().unwrap_or_else(|| Box::new(Statement::Block { statements: vec![], span: target.span() })),
+                                  is_async: *is_async,
+                                  is_generator: *is_generator,
+                                  span: target.span(),
+                              }
+                         } else {
+                             Expression::Block { body: target.clone(), span: target.span() }
+                         };
                         arg_map.insert(param_names.last().unwrap().clone(), target_expr);
                     } else if param_names.is_empty() && args.is_empty() {
                         // Special case: no params macro used as annotation
@@ -299,7 +347,7 @@ impl MacroExpander {
 
                     let substituted = self.substitute_macro_args(body, &arg_map);
                     let mut expanded = self.expand_statement(substituted);
-                    
+
                     // Deeply flatten blocks from macro expansion results
                     while expanded.len() == 1 {
                         if let Statement::Block { statements, .. } = &expanded[0] {
@@ -309,21 +357,8 @@ impl MacroExpander {
                         }
                     }
 
-                    // Recursively expand the target IF it's an annotation
-                    let final_target = match &*target {
-                        Statement::Annotation { .. } => {
-                            let mut expanded_target = self.expand_statement(*target.clone());
-                            if expanded_target.len() == 1 {
-                                Box::new(expanded_target.remove(0))
-                            } else {
-                                target.clone()
-                            }
-                        }
-                        _ => target.clone(),
-                    };
-
                     // Handle macro expansion results for functions/classes
-                    let target_name_opt = self.get_target_name(&final_target);
+                    let target_name_opt = self.get_target_name(&target);
                     if let Some(target_name) = target_name_opt {
                         let mut final_expanded = Vec::new();
                         let mut last_expr_name: Option<String> = None;
@@ -340,11 +375,47 @@ impl MacroExpander {
                                     last_expr_name = Some(id_name.clone());
                                     break;
                                 }
+                                Statement::Expression { expression: Expression::Lambda { .. }, .. } => {
+                                    break;
+                                }
                                 _ => {}
+                            }
+                        }
+                        
+                        let final_len = expanded.len();
+                        let mut renamed_any = false;
+                        let mut to_skip = None;
+                        
+                        // First pass: find if any function matches the last identifier
+                        for stmt in &expanded {
+                            if let Statement::Function { name, .. } = stmt {
+                                if last_expr_name.as_ref() == Some(name) {
+                                    renamed_any = true;
+                                    break;
+                                }
+                            }
+                        }
+                        
+                        if renamed_any {
+                            // Mark the last expression for skipping if it's just the identifier
+                            if let Some(last_stmt) = expanded.last() {
+                                match last_stmt {
+                                    Statement::Expression { expression: Expression::Identifier { name, .. }, .. } |
+                                    Statement::Return { value: Some(Expression::Identifier { name, .. }), .. } => {
+                                        if last_expr_name.as_ref() == Some(name) {
+                                            to_skip = Some(final_len - 1);
+                                        }
+                                    }
+                                    _ => {}
+                                }
                             }
                         }
 
                         for (i, mut stmt) in expanded.into_iter().enumerate() {
+                            if Some(i) == to_skip {
+                                continue;
+                            }
+
                             // If this is the function referred to by the last identifier, rename it
                             if let Statement::Function { name, .. } = &mut stmt {
                                 if last_expr_name.as_ref() == Some(name) {
@@ -354,51 +425,38 @@ impl MacroExpander {
                                 }
                             }
                             
-                            // Re-check for lambda specifically if it's the only/last thing
-                            if let Statement::Expression { expression: Expression::Lambda { params, body, is_async, is_generator, .. }, span: e_span } = stmt {
-                                // If target was a function, preserve its signature metadata if possible
-                                let (generics, return_type) = if let Statement::Function { generics, return_type, .. } = &*final_target {
-                                    (generics.clone(), return_type.clone())
-                                } else {
-                                    (Vec::new(), None)
+                            // If this is the last expression and it's a lambda, convert it to a function with the target name
+                            if i == final_len - 1 {
+                                let lambda_data = match &stmt {
+                                    Statement::Expression { expression: Expression::Lambda { params, body, is_async, is_generator, .. }, span } => {
+                                        Some((params, body, is_async, is_generator, *span))
+                                    }
+                                    Statement::Return { value: Some(Expression::Lambda { params, body, is_async, is_generator, .. }), span } => {
+                                        Some((params, body, is_async, is_generator, *span))
+                                    }
+                                    _ => None,
                                 };
 
-                                final_expanded.push(Statement::Function {
-                                    name: target_name.clone(),
-                                    generics,
-                                    params,
-                                    return_type,
-                                    body: Some(body),
-                                    is_async,
-                                    is_generator,
-                                    span: e_span,
-                                });
-                                continue;
-                            }
+                                if let Some((params, body, is_async, is_generator, e_span)) = lambda_data {
+                                    let (generics, return_type) = if let Statement::Function { generics, return_type, .. } = &*target {
+                                        (generics.clone(), return_type.clone())
+                                    } else {
+                                        (Vec::new(), None)
+                                    };
 
-                            // Special case: if it's a block that only contains the target function (after expansion)
-                            if let Statement::Block { statements, .. } = &stmt {
-                                if statements.len() == 1 {
-                                    if let Statement::Function { name, .. } = &statements[0] {
-                                        if last_expr_name.as_ref() == Some(name) {
-                                            let mut inner = statements[0].clone();
-                                            if let Statement::Function { name: inner_name, .. } = &mut inner {
-                                                *inner_name = target_name.clone();
-                                            }
-                                            final_expanded.push(inner);
-                                            continue;
-                                        }
-                                    }
-                                }
-                            }
-
-                            // If it was the last identifier expression, skip it as we already renamed the function
-                            if let Statement::Expression { expression: Expression::Identifier { name: id_name, .. }, .. } = &stmt {
-                                if last_expr_name.as_ref() == Some(id_name) {
+                                    final_expanded.push(Statement::Function {
+                                        name: target_name.clone(),
+                                        generics,
+                                        params: params.clone(),
+                                        return_type,
+                                        body: Some(body.clone()),
+                                        is_async: *is_async,
+                                        is_generator: *is_generator,
+                                        span: e_span,
+                                    });
                                     continue;
                                 }
                             }
-
                             final_expanded.push(stmt);
                         }
                         return final_expanded;

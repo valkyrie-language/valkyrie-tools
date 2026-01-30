@@ -6,6 +6,7 @@ members = [
     "projects/v-cli",
     "projects/valkyrie-rs",
     "projects/wasi-runner",
+    "projects/legion",
 ]
 exclude = [
     "projects/v-wasm32-wasi",
@@ -25,3 +26,26 @@ features = ["macros", "rt"]
 version = "0.12.12"
 default-features = false
 features = ["rustls-tls", "json", "socks"]
+
+[workspace.dependencies.valkyrie-error]
+version = "0.1.17"
+features = ["json5", "num", "dashu", "walkdir", "pratt", "yggdrasil-rt"]
+path = "../valkyrie.rs/projects/valkyrie-error"
+
+[workspace.dependencies.valkyrie-types]
+version = "*"
+path = "../valkyrie.rs/projects/valkyrie-types"
+
+[workspace.dependencies.valkyrie-runtime]
+version = "*"
+path = "../valkyrie.rs/projects/valkyrie-runtime"
+
+[workspace.dependencies.valkyrie-compiler]
+version = "*"
+path = "../valkyrie.rs/projects/valkyrie-compiler"
+
+[workspace.dependencies.nyar-vm]
+path = "../nyar-vm/projects/nyar-vm"
+
+[workspace.dependencies.nyar-types]
+path = "../nyar-vm/projects/nyar-types"

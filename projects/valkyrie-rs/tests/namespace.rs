@@ -1,3 +1,4 @@
+use std::sync::Arc;
 use valkyrie_rs::{
     ast::{lexer::Lexer, parser::Parser},
     hir::lowering::HirLowering,
