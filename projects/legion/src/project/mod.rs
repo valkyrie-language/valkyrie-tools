@@ -1,5 +1,8 @@
 pub use self::authors::LegionAuthors;
 pub use self::dependencies::DependencySystem;
+pub use self::types::name::PackageName;
+pub use self::package::ValorPackage;
+pub use self::workspace::ValorWorkspace;
 
 use schemars::JsonSchema;
 use semver::Version;

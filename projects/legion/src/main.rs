@@ -1,6 +1,7 @@
 use clap::Parser;
 mod commands;
 mod project;
+pub use project::*;
 use commands::LegionCommand;
 
 #[derive(Parser)]

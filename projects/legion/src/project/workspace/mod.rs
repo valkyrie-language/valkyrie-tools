@@ -5,7 +5,7 @@ use serde::{
     de::{MapAccess, Visitor},
     Deserialize, Deserializer, Serialize,
 };
-use serde_types::OneOrMany;
+use crate::project::types::OneOrMany;
 
 #[derive(Debug, Clone, Serialize)]
 pub struct ValorWorkspace {

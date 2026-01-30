@@ -1,10 +1,7 @@
 [workspace]
 resolver = "2"
 members = [
-    "projects/legion-cli",
-    "projects/legion-config",
     "projects/v-cli",
-    "projects/valkyrie-rs",
     "projects/wasi-runner",
     "projects/legion",
 ]
