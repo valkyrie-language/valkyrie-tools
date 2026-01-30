@@ -1,4 +1,4 @@
-use crate::{LegionPackage, LegionWorkspace};
+use crate::project::{LegionPackage, LegionWorkspace};
 use schemars::{JsonSchema, Schema, SchemaGenerator};
 use serde_derive::{Deserialize, Serialize};
 use serde_json::{Map, Value};

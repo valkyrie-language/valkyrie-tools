@@ -9,6 +9,7 @@ edition = "2021"
 valkyrie-compiler = { workspace = true }
 valkyrie-types = { workspace = true }
 valkyrie-runtime = { workspace = true }
+valkyrie-errors = { version = "0.0.3", features = ["toml", "json5"] }
 valkyrie-error = { workspace = true }
 nyar-vm = { workspace = true }
 nyar-types = { workspace = true }

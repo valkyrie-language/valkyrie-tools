@@ -1,5 +1,6 @@
 pub use self::authors::LegionAuthors;
-use self::dependencies::DependencySystem;
+pub use self::dependencies::DependencySystem;
+
 use schemars::JsonSchema;
 use semver::Version;
 use serde::{Deserialize, Serialize};
@@ -11,6 +12,20 @@ pub mod dependency;
 pub mod package;
 pub mod types;
 pub mod workspace;
+
+macro_rules! bind_writer {
+    ($name:ident, $target:ident) => {
+        pub struct $name<'i> {
+            pub ptr: &'i mut $target,
+        }
+        impl<'i> $name<'i> {
+            pub fn new(ptr: &'i mut $target) -> Self {
+                Self { ptr }
+            }
+        }
+    };
+}
+pub(crate) use bind_writer;
 
 /// The legion configuration
 #[derive(Deserialize, Serialize, JsonSchema)]
