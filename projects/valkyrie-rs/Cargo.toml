@@ -29,3 +29,7 @@ path = "src/bin/vcc_debug.rs"
 [[bin]]
 name = "vcc_debug_short"
 path = "src/bin/vcc_debug_short.rs"
+
+[[bin]]
+name = "bootstrap"
+path = "src/bin/bootstrap.rs"

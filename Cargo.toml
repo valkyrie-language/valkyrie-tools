@@ -1,6 +1,12 @@
 [workspace]
 resolver = "2"
-members = ["projects/*"]
+members = [
+    "projects/legion-cli",
+    "projects/legion-config",
+    "projects/v-cli",
+    "projects/valkyrie-rs",
+    "projects/wasi-runner",
+]
 exclude = [
     "projects/v-wasm32-wasi",
     "projects/legion-wasm32-wasi",
